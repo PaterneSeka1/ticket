@@ -15,20 +15,6 @@ export default function Home() {
               Une plateforme centralisée de suivi, priorisation et résolution des incidents pour les équipes de support.
             </p>
           </div>
-          <div className="flex text-center text-sm font-semibold">
-            <div className="flex-1 border-r border-white/40">
-              <p className="text-3xl">5</p>
-              <p className="text-white/80">Utilisateurs</p>
-            </div>
-            <div className="flex-1 border-r border-white/40">
-              <p className="text-3xl">6</p>
-              <p className="text-white/80">Tickets</p>
-            </div>
-            <div className="flex-1">
-              <p className="text-3xl">3</p>
-              <p className="text-white/80">Niveaux SLA</p>
-            </div>
-          </div>
         </div>
 
         <div className="flex w-full flex-col gap-6 p-8 md:w-1/2">
