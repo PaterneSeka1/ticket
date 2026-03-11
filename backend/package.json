@@ -19,12 +19,20 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
+  "type": "module",
+  "prisma": {
+    "seed": "ts-node --esm --transpile-only prisma/seed.ts"
+  },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/client": "6.19",
+    "bcryptjs": "^3.0.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.4",
     "dotenv": "^17.3.1",
+    "mongodb": "^7.1.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

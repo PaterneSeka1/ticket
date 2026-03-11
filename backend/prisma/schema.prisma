@@ -1,15 +1,46 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+enum DirectionType {
+  DAF
+  DSI
+  DO
+}
+
+enum OperationService {
+  QUALITE
+  OPERATIONS
+  REPUTATION
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  nom       String
+  prenom    String
+  email     String   @unique
+  matricule String   @unique
+  password  String
+  role      UserRole @default(USER)
+
+  direction DirectionType?
+
+  service OperationService?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
