@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient } from '../generated/prisma/client.js';
-import { UserRole as UserRoleEnum } from '../generated/prisma/enums.js';
-import type { UserRole as UserRoleType } from '../generated/prisma/enums.js';
+import { UserRole as UserRoleEnum } from '../generated/prisma/index.js';
+import type { UserRole as UserRoleType } from '../generated/prisma/index.js';
 import { hash } from 'bcryptjs';
 
 const seedLog = (message: string) => {
@@ -25,15 +25,18 @@ async function ensureAccount(details: {
     seedLog(
       `seed : traitement de ${details.nom} ${details.prenom} (${details.email}) [matricule ${details.matricule}]`,
     );
-  const password = await hash(BASE_PASSWORD, 10);
+  const passwordHash = await hash(BASE_PASSWORD, 10);
   const now = new Date();
   const data = {
     matricule: details.matricule,
     nom: details.nom,
     prenom: details.prenom,
     role: details.role,
-    password,
+    passwordHash,
     isActive: true,
+    accessReport: true,
+    exportReport: true,
+    lastLogin: now,
     updatedAt: now,
   };
 
@@ -41,24 +44,26 @@ async function ensureAccount(details: {
     where: { email: details.email },
   });
   if (existing) {
-    await prisma.user.update({
-      where: { email: details.email },
-      data: {
-        ...data,
-        createdAt: existing.createdAt,
-      },
-    });
+      await prisma.user.update({
+        where: { email: details.email },
+        data: {
+          ...data,
+          createdAt: existing.createdAt,
+          createdById: existing.createdById ?? null,
+        },
+      });
     seedLog(
       `seed : compte ${details.email} mis à jour (role=${details.role}, actif=true)`,
     );
   } else {
-    await prisma.user.create({
-      data: {
-        email: details.email,
-        createdAt: now,
-        ...data,
-      },
-    });
+      await prisma.user.create({
+        data: {
+          email: details.email,
+          createdAt: now,
+          createdById: null,
+          ...data,
+        },
+      });
     seedLog(
       `seed : compte ${details.email} créé (role=${details.role}, actif=true)`,
     );

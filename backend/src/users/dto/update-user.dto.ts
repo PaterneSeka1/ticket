@@ -1,51 +1,5 @@
-import {
-  DirectionType,
-  OperationService,
-  UserRole,
-} from '../../prisma/enums.js';
-import {
-  IsBoolean,
-  IsEmail,
-  IsEnum,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { PartialType } from '@nestjs/mapped-types';
 
-export class UpdateUserDto {
-  @IsOptional()
-  @IsString()
-  nom?: string;
+import { CreateUserDto } from './create-user.dto.js';
 
-  @IsOptional()
-  @IsString()
-  prenom?: string;
-
-  @IsOptional()
-  @IsEmail()
-  @IsString()
-  email?: string;
-
-  @IsOptional()
-  @IsString()
-  matricule?: string;
-
-  @IsOptional()
-  @IsString()
-  password?: string;
-
-  @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
-
-  @IsOptional()
-  @IsEnum(DirectionType)
-  direction?: DirectionType;
-
-  @IsOptional()
-  @IsEnum(OperationService)
-  service?: OperationService;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
-}
+export class UpdateUserDto extends PartialType(CreateUserDto) {}

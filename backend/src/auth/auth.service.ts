@@ -14,7 +14,7 @@ export class AuthService {
     const user = await this.findUserByIdentifier(dto);
 
     const passwordMatches = user
-      ? await compare(dto.password, user.password)
+      ? await compare(dto.passwordHash, user.passwordHash)
       : false;
 
     if (!user || !passwordMatches) {

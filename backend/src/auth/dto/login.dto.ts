@@ -21,7 +21,7 @@ export class LoginDto {
 
   @IsNotEmpty()
   @IsString()
-  password!: string;
+  passwordHash!: string;
 }
 
 function EmailOrMatricule(validationOptions?: ValidationOptions) {

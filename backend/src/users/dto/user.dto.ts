@@ -16,4 +16,6 @@ export class UserDto {
   isActive!: boolean;
   createdAt!: Date;
   updatedAt!: Date;
+  createdById?: string | null;
+  lastLogin?: Date | null;
 }

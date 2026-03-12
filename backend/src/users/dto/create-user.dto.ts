@@ -5,12 +5,15 @@ import {
 } from '../../prisma/enums.js';
 import {
   IsBoolean,
+  IsDate,
   IsEmail,
   IsEnum,
+  IsMongoId,
   IsNotEmpty,
   IsOptional,
   IsString,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -31,7 +34,7 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   @IsString()
-  password!: string;
+  passwordHash!: string;
 
   @IsOptional()
   @IsEnum(UserRole)
@@ -48,4 +51,13 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsMongoId()
+  createdById?: string;
+
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  lastLogin?: Date;
 }
