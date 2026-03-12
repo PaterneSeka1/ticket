@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { hash } from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ActivityLogService } from '../activity/activity-log.service.js';
+import { AuthenticatedUserDto } from '../auth/dto/authenticated-user.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UserDto } from './dto/user.dto.js';
@@ -22,15 +24,26 @@ const PASSWORD_SALT_ROUNDS = 10;
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activity: ActivityLogService,
+  ) {}
 
-  async create(dto: CreateUserDto): Promise<UserDto> {
+  async create(
+    dto: CreateUserDto,
+    actor?: AuthenticatedUserDto,
+  ): Promise<UserDto> {
     const passwordHash = await this.hashPassword(dto.passwordHash);
     this.ensureServiceReservedToDo(dto.service, dto.direction ?? null);
     const data = this.buildCreatePayload(dto, passwordHash);
 
     try {
       const user = await this.prisma.client.user.create({ data });
+      await this.logActivity({
+        action: 'user.created',
+        details: `Utilisateur ${user.email} créé.`,
+        actor,
+      });
       return toUserDto(user);
     } catch (error) {
       this.handleConflict(error);
@@ -51,7 +64,11 @@ export class UsersService {
     return toUserDto(user);
   }
 
-  async update(id: string, dto: UpdateUserDto): Promise<UserDto> {
+  async update(
+    id: string,
+    dto: UpdateUserDto,
+    actor?: AuthenticatedUserDto,
+  ): Promise<UserDto> {
     const passwordHash = dto.passwordHash
       ? await this.hashPassword(dto.passwordHash)
       : undefined;
@@ -63,8 +80,7 @@ export class UsersService {
     }
     const directionAfterUpdate =
       dto.direction ?? existingUser.direction ?? null;
-    const serviceAfterUpdate =
-      dto.service ?? existingUser.service ?? null;
+    const serviceAfterUpdate = dto.service ?? existingUser.service ?? null;
     this.ensureServiceReservedToDo(serviceAfterUpdate, directionAfterUpdate);
     const data = this.buildUpdatePayload(dto, passwordHash);
 
@@ -77,6 +93,11 @@ export class UsersService {
         where: { id },
         data,
       });
+      await this.logActivity({
+        action: 'user.updated',
+        details: `Utilisateur ${id} mis à jour.`,
+        actor,
+      });
       return toUserDto(user);
     } catch (error) {
       this.handleConflict(error);
@@ -85,9 +106,49 @@ export class UsersService {
     }
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(
+    id: string,
+    actor?: AuthenticatedUserDto,
+  ): Promise<void> {
+    await this.deactivate(id, actor);
+  }
+
+  async activate(
+    id: string,
+    actor?: AuthenticatedUserDto,
+  ): Promise<UserDto> {
     try {
-      await this.prisma.client.user.delete({ where: { id } });
+      const user = await this.prisma.client.user.update({
+        where: { id },
+        data: { isActive: true },
+      });
+      await this.logActivity({
+        action: 'user.activated',
+        details: `Utilisateur ${id} activé.`,
+        actor,
+      });
+      return toUserDto(user);
+    } catch (error) {
+      this.handleNotFound(id, error);
+      throw error;
+    }
+  }
+
+  async deactivate(
+    id: string,
+    actor?: AuthenticatedUserDto,
+  ): Promise<UserDto> {
+    try {
+      const user = await this.prisma.client.user.update({
+        where: { id },
+        data: { isActive: false },
+      });
+      await this.logActivity({
+        action: 'user.deactivated',
+        details: `Utilisateur ${id} désactivé.`,
+        actor,
+      });
+      return toUserDto(user);
     } catch (error) {
       this.handleNotFound(id, error);
       throw error;
@@ -193,5 +254,23 @@ export class UsersService {
     ) {
       throw new NotFoundException(`Utilisateur ${id} introuvable.`);
     }
+  }
+
+  private async logActivity({
+    action,
+    details,
+    actor,
+  }: {
+    action: string;
+    details: string;
+    actor?: AuthenticatedUserDto;
+  }) {
+    await this.activity.log({
+      action,
+      details,
+      actorId: actor?.id ?? null,
+      actorName: actor ? `${actor.nom} ${actor.prenom}`.trim() : null,
+      role: actor?.role ?? null,
+    });
   }
 }

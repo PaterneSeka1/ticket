@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { compare } from 'bcryptjs';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LoginResponseDto } from './dto/login-response.dto.js';
@@ -8,7 +9,10 @@ import { toUserDto } from '../users/users.mapper.js';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   async login(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.findUserByIdentifier(dto);
@@ -17,13 +21,22 @@ export class AuthService {
       ? await compare(dto.passwordHash, user.passwordHash)
       : false;
 
-    if (!user || !passwordMatches) {
+    if (!user || !passwordMatches || !user.isActive) {
       throw new UnauthorizedException('Identifiants incorrects.');
     }
 
+    const now = new Date();
+    const updatedUser = await this.prisma.client.user.update({
+      where: { id: user.id },
+      data: { lastLogin: now },
+    });
+
+    const accessToken = await this.jwtService.signAsync({ sub: user.id });
+
     return {
-      user: toUserDto(user),
-      authenticatedAt: new Date(),
+      user: toUserDto(updatedUser),
+      authenticatedAt: now,
+      accessToken,
     };
   }
 

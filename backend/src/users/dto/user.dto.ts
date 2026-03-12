@@ -1,4 +1,5 @@
 import {
+  DsiTicketRole,
   DirectionType,
   OperationService,
   UserRole,
@@ -13,6 +14,7 @@ export class UserDto {
   role!: UserRole;
   direction?: DirectionType | null;
   service?: OperationService | null;
+  dsiTicketRole?: DsiTicketRole | null;
   isActive!: boolean;
   createdAt!: Date;
   updatedAt!: Date;
