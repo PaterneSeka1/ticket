@@ -307,7 +307,7 @@ export class TicketsService {
     actor: AuthenticatedUserDto,
   ) {
     await this.ensureTicketExists(id);
-    const comment = await this.prisma.client.comment.create({
+    const comment = await this.prisma.client.ticketComment.create({
       data: {
         ticket: { connect: { id } },
         author: { connect: { id: actor.id } },
@@ -427,7 +427,7 @@ export class TicketsService {
       throw new NotFoundException(`Ticket ${id} introuvable.`);
     }
     await this.prisma.client.$transaction([
-      this.prisma.client.comment.deleteMany({ where: { ticketId: id } }),
+      this.prisma.client.ticketComment.deleteMany({ where: { ticketId: id } }),
       this.prisma.client.ticketTimeline.deleteMany({ where: { ticketId: id } }),
       this.prisma.client.activityLog.deleteMany({ where: { ticketId: id } }),
       this.prisma.client.ticket.delete({ where: { id } }),
@@ -533,7 +533,9 @@ export class TicketsService {
     };
   }
 
-  private mapComment(comment: Prisma.CommentGetPayload<{ include: { author: true } }>) {
+  private mapComment(
+    comment: Prisma.TicketCommentGetPayload<{ include: { author: true } }>,
+  ) {
     return {
       id: comment.id,
       content: comment.content,

@@ -3,6 +3,13 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --vdm-cream: #ffe4c8;
+  --vdm-ivory: #fef1df;
+  --vdm-primary: #d9731d;
+  --vdm-secondary: #bb5b0f;
+  --vdm-dark: #2b1d10;
+  --vdm-muted: #6a5b4f;
+  --vdm-muted-strong: #9a7f5a;
 }
 
 @theme inline {
@@ -23,4 +30,19 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.vdm-landing {
+  background: radial-gradient(circle at top, var(--vdm-cream), var(--vdm-ivory));
+}
+
+.vdm-card {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.15);
+}
+
+.vdm-cta {
+  background: linear-gradient(90deg, var(--vdm-primary), var(--vdm-secondary));
+  color: #fff;
+  box-shadow: 0 15px 30px rgba(217, 115, 29, 0.35);
 }

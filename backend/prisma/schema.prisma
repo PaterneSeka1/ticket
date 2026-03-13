@@ -26,6 +26,41 @@ enum OperationService {
   REPUTATION
 }
 
+enum DsiTicketRole {
+  RESPONSABLE
+  CO_RESPONSABLE
+}
+
+enum TimelineEventType {
+  CREATE
+  RECEIVE
+  STATUS_CHANGE
+  ACTION
+}
+
+enum TicketPriority {
+  BAS
+  MOYEN
+  HAUT
+  CRITIQUE
+}
+
+enum TicketStatus {
+  RECU
+  EN_COURS
+  AJOURNE
+  RESOLU
+  ABANDONNE
+  FERME
+  OUVERT
+  PRIS
+}
+
+enum TicketType {
+  INCIDENT
+  DEMANDE
+}
+
 model User {
   id           String            @id @default(auto()) @map("_id") @db.ObjectId
 
@@ -41,6 +76,7 @@ model User {
 
   direction    DirectionType?
   service      OperationService?
+  dsiTicketRole DsiTicketRole?
 
   isActive     Boolean           @default(true)
 
@@ -56,10 +92,99 @@ model User {
 
   createdBy    User?             @relation("UserCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   createdUsers User[]            @relation("UserCreator")
+  emittedTickets Ticket[]        @relation("TicketEmitter")
+  receivedTickets Ticket[]       @relation("TicketReceiver")
+  ticketComments TicketComment[] @relation("TicketCommentAuthor")
+  activityLogs ActivityLog[]     @relation("ActivityLogActor")
 
   @@index([role])
   @@index([direction])
   @@index([service])
   @@index([isActive])
   @@index([createdAt])
+}
+
+model TicketCategory {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  libelle     String
+  type        TicketType
+  description String?
+  isActive    Boolean  @default(true)
+
+  tickets     Ticket[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Ticket {
+  id              String               @id @default(auto()) @map("_id") @db.ObjectId
+  code            String               @unique
+  type            TicketType
+  priority        TicketPriority
+  status          TicketStatus
+  description     String
+  assignedService OperationService?
+  emitterId       String               @db.ObjectId
+  emitter         User                 @relation("TicketEmitter", fields: [emitterId], references: [id])
+  receivedById    String?              @db.ObjectId
+  receivedBy      User?                @relation("TicketReceiver", fields: [receivedById], references: [id])
+  categoryId      String               @db.ObjectId
+  category        TicketCategory       @relation(fields: [categoryId], references: [id])
+  receivedAt      DateTime?
+  clientName      String?
+  product         String?
+  attachmentName  String?
+  detectedAt      DateTime?
+  resolvedAt      DateTime?
+  slaMaxMinutes   Int?
+  waitMinutes     Int?
+
+  timelineEvents  TicketTimeline[]
+  comments        TicketComment[]
+  activityLogs    ActivityLog[]
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([priority])
+  @@index([createdAt])
+  @@index([receivedById])
+  @@index([emitterId])
+  @@index([categoryId])
+}
+
+model TicketComment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  ticketId  String   @db.ObjectId
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  authorId  String   @db.ObjectId
+  author    User     @relation("TicketCommentAuthor", fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model TicketTimeline {
+  id        String             @id @default(auto()) @map("_id") @db.ObjectId
+  ticketId  String             @db.ObjectId
+  ticket    Ticket             @relation(fields: [ticketId], references: [id])
+  type      TimelineEventType
+  label     String
+  actorName String
+  createdAt DateTime           @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  action    String
+  details   String?
+  actorId   String?  @db.ObjectId
+  actorName String?
+  actor     User?    @relation("ActivityLogActor", fields: [actorId], references: [id])
+  role      String?
+  ticketId  String?  @db.ObjectId
+  ticket    Ticket?  @relation(fields: [ticketId], references: [id])
+  createdAt DateTime @default(now())
 }
