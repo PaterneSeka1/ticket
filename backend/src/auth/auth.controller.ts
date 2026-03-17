@@ -29,4 +29,11 @@ export class AuthController {
   me(@CurrentUser() user: AuthenticatedUserDto): AuthenticatedUserDto {
     return user;
   }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  logout(): void {
+    // Stateless logout: client should drop the token, server acknowledges the call.
+  }
 }

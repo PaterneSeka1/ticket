@@ -1,173 +1,211 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import Link from "next/link";
-import { toast, Toaster } from "react-hot-toast";
+import { FormEvent, Suspense, useState } from "react";
+import Image from "next/image";
+import { Eye, EyeOff, Lock, User } from "lucide-react";
+import { Toaster, toast } from "react-hot-toast";
+import { login, type LoginPayload } from "@/api/auth";
+import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+function normIdentifier(value: string) {
+  const normalized = value.trim();
+  return normalized.includes("@") ? normalized.toLowerCase() : normalized;
+}
 
-export default function Login() {
-  const [identity, setIdentity] = useState("");
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const trimmedIdentity = identity.trim();
-    if (!trimmedIdentity) {
-      toast.error("Merci de renseigner votre email ou matricule.");
+    const identifierTrim = normIdentifier(identifier);
+    if (!identifierTrim || !password) {
+      toast.error("Veuillez remplir tous les champs");
       return;
     }
 
-    setLoading(true);
+    setIsLoading(true);
     try {
-      const payload: Record<string, string> = {
-        passwordHash: password,
-      };
-      if (trimmedIdentity.includes("@")) {
-        payload.email = trimmedIdentity;
+      const payload: LoginPayload = { passwordHash: password };
+      if (identifierTrim.includes("@")) {
+        payload.email = identifierTrim;
       } else {
-        payload.matricule = trimmedIdentity;
+        payload.matricule = identifierTrim;
       }
 
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await login(payload);
+      sessionStorage.setItem("vdm_access_token", response.accessToken);
+      localStorage.setItem("employee", JSON.stringify(response.user));
 
-      const responseBody = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(
-          responseBody?.message ?? "Impossible de se connecter pour le moment.",
-        );
-      }
-
-      if (responseBody?.accessToken) {
-        sessionStorage.setItem("vdm_access_token", responseBody.accessToken);
-      }
-
-      const name = responseBody?.user?.prenom ?? responseBody?.user?.email ?? "Utilisateur";
-      toast.success(`Bienvenue ${name} ! Votre session est prête.`);
-    } catch (caught) {
-      toast.error(
-        caught instanceof Error
-          ? caught.message
-          : "Une erreur inattendue est survenue.",
-      );
+      toast.success("Connexion réussie");
+      const nextRoute = getRedirectRouteForRole(response.user?.role);
+      window.location.href = nextRoute;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur réseau. Veuillez réessayer.");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && !isLoading) {
+      event.preventDefault();
+      document.getElementById("login-submit")?.click();
+    }
+  };
+
+  const handlePasswordToggle = () => {
+    setShowPassword((value) => !value);
+  };
+
+  const leftFeatures = [
+    "Suivi temps réel des incidents",
+    "Priorisation intelligente des tickets",
+    "Tableaux de bord analytiques",
+  ];
+
   return (
-    <div className="vdm-landing flex min-h-screen flex-col items-center justify-center px-4 text-[var(--vdm-dark)]">
-      <Toaster position="top-right" />
-      <div className="vdm-card w-full max-w-md space-y-10 rounded-[32px] p-10 text-center">
-        <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[var(--vdm-primary)]">
-            Ticketing Vedem
-          </p>
-          <h1 className="text-4xl font-semibold">Connexion</h1>
-          <p className="text-sm text-[var(--vdm-muted)]">
-            Identifiez-vous pour retrouver vos tickets et suivre leur statut en
-            toute sécurité.
-          </p>
-        </div>
-
-        <form className="space-y-6 text-left" onSubmit={handleSubmit}>
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--vdm-muted-strong)]">
-              Email ou matricule
-            </span>
-            <input
-              required
-              type="text"
-              value={identity}
-              onChange={(event) => setIdentity(event.target.value)}
-              placeholder="vous@exemple.com ou MAT-1337"
-              className="mt-2 w-full rounded-[16px] border border-[#d9cfc3] bg-white px-4 py-3 text-sm text-[var(--vdm-dark)] shadow-[0_15px_30px_rgba(0,0,0,0.05)] focus:border-[var(--vdm-primary)] focus:outline-none"
-              autoComplete="username"
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--vdm-muted-strong)]">
-              Mot de passe
-            </span>
-            <div className="relative mt-2">
-              <input
-                required
-                type={passwordVisible ? "text" : "password"}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="••••••••"
-                className="mt-2 w-full rounded-[16px] border border-[#d9cfc3] bg-white px-4 py-3 text-sm text-[var(--vdm-dark)] shadow-[0_15px_30px_rgba(0,0,0,0.05)] focus:border-[var(--vdm-primary)] focus:outline-none"
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={() => setPasswordVisible((visible) => !visible)}
-                className="absolute inset-y-0 right-2 flex items-center justify-center rounded-full px-2 text-[var(--vdm-muted)] transition hover:text-[var(--vdm-dark)]"
-                aria-label={
-                  passwordVisible ? "Masquer le mot de passe" : "Afficher le mot de passe"
-                }
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-5 w-5"
-                >
-                  {passwordVisible ? (
-                    <>
-                      <path d="M1 1l22 22" />
-                      <path d="M4.5 4.37a11.49 11.49 0 0 1 15 7.54 11.52 11.52 0 0 1-2.4 3.98" />
-                    </>
-                  ) : (
-                    <>
-                      <path d="M1.39 12a19.79 19.79 0 0 1 3.01-4.27C7.34 5 10.2 4 12 4s4.66 1 7.6 3.73A19.79 19.79 0 0 1 22.61 12a19.79 19.79 0 0 1-3.01 4.27C16.66 19 13.8 20 12 20s-4.66-1-7.6-3.73A19.79 19.79 0 0 1 1.39 12z" />
-                      <circle cx="12" cy="12" r="3.5" />
-                    </>
-                  )}
-                </svg>
-              </button>
+    <>
+      <Toaster />
+      <div
+        className="min-h-screen bg-[#fff7ef] flex items-center justify-center px-4 py-10 text-[#2b1d10]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.9), transparent 45%), linear-gradient(180deg, #fff8ef 0%, #f9f0e3 40%, #f2e5d3 100%)",
+        }}
+      >
+        <div className="w-full max-w-5xl rounded-[32px] bg-white/70 shadow-[0_40px_110px_rgba(0,0,0,0.25)] border border-[#efd7c7] overflow-hidden">
+          <div className="flex flex-col lg:flex-row">
+            <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-b from-[#de6f0c] via-[#d56a0a] to-[#b84303] text-white p-10 flex-col gap-6">
+              <div className="flex items-center gap-4">
+                <div className="h-20 w-20 rounded-[20px] bg-white/20 p-1 flex items-center justify-center shadow-[0_12px_25px_rgba(0,0,0,0.35)]">
+                  <div className="h-16 w-16 rounded-[16px] bg-gradient-to-br from-white to-[#f5b272] flex items-center justify-center overflow-hidden">
+                    <Image
+                      src="/logo.jpeg"
+                      alt="Logo Vedem"
+                      width={64}
+                      height={64}
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.4em] text-white/70">Bienvenue</p>
+                  <h1 className="text-3xl font-semibold tracking-tight">Ticketing Vedem</h1>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.5em] text-white/70">Version 1.02</p>
+                <p className="text-sm leading-relaxed text-white/90">
+                  Une plateforme centralisée de gestion des incidents pour prioriser, suivre et résoudre
+                  les tickets avec clarté.
+                </p>
+              </div>
+              <ul className="space-y-2 text-sm">
+                {leftFeatures.map((feature) => (
+                  <li key={feature} className="flex items-start gap-2">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-white/90" />
+                    <span className="text-white/90 leading-relaxed">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs uppercase tracking-[0.4em] text-white/60">Connexion sécurisée</p>
             </div>
-          </label>
-          <button
-            type="submit"
-            disabled={loading}
-            className={`vdm-cta inline-flex w-full items-center justify-center rounded-[16px] px-8 py-3 text-xs font-semibold uppercase tracking-[0.3em] ${
-              loading ? "opacity-70" : ""
-            }`}
-          >
-            {loading ? "Connexion en cours…" : "Se connecter"}
-          </button>
-        </form>
 
-        <div className="space-y-2 text-sm text-[var(--vdm-muted)]">
-          <p>
-            Pas encore de compte ?{" "}
-            <Link
-              href="/"
-              className="font-semibold text-[var(--vdm-primary)] underline-offset-4 hover:underline"
-            >
-              Retour à l’accueil
-            </Link>
-          </p>
-          <p className="text-xs text-[var(--vdm-muted-strong)]">
-            Votre accès est protégé par les mêmes tonalités chaudes que notre
-            landing page.
-          </p>
+            <div className="flex-1 bg-white px-6 py-8 lg:px-10 lg:py-12">
+              <div className="lg:hidden mb-6 flex items-center gap-4">
+                <div className="h-14 w-14 rounded-[18px] bg-[#f7c39a] p-1 flex items-center justify-center shadow-[0_12px_25px_rgba(0,0,0,0.15)]">
+                  <Image src="/logo.jpeg" alt="Logo vedem" width={52} height={52} className="object-contain" />
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-[#b86112]">Ticketing Vedem v1.02</p>
+                  <h2 className="text-2xl font-semibold text-[#2b1d10]">Bienvenue</h2>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm uppercase tracking-[0.3em] text-[#b96116]">Connexion à votre espace</p>
+                <p className="text-gray-600 text-sm">Entrez vos identifiants pour accéder à votre plateforme.</p>
+              </div>
+
+              <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-[0.3em] text-[#b86112] mb-2">
+                    Identifiant
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#c37b25]" />
+                    <input
+                      type="text"
+                      placeholder="ex : ADMIN"
+                      value={identifier}
+                      onChange={(event) => setIdentifier(event.target.value)}
+                      onKeyDown={handleKeyDown}
+                      disabled={isLoading}
+                      autoComplete="username"
+                      className="w-full h-12 rounded-[16px] border border-[#f0d5c7] bg-[#fff0e1] px-3 pl-11 text-sm text-[#2b1d10] shadow-[inset_0_10px_25px_rgba(0,0,0,0.05)] transition focus:border-[#d66b0b] focus:outline-none focus:ring-2 focus:ring-[#d66b0b]/30"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-[0.3em] text-[#b86112] mb-2">
+                    Mot de passe
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#c37b25]" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      onKeyDown={handleKeyDown}
+                      disabled={isLoading}
+                      autoComplete="current-password"
+                      className="w-full h-12 rounded-[16px] border border-[#f0d5c7] bg-[#fff0e1] px-3 pl-11 pr-12 text-sm text-[#2b1d10] shadow-[inset_0_10px_25px_rgba(0,0,0,0.05)] transition focus:border-[#d66b0b] focus:outline-none focus:ring-2 focus:ring-[#d66b0b]/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePasswordToggle}
+                      disabled={isLoading}
+                      aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#c37b25]"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.3em] text-[#b86112]">
+                  <span className="text-[0.75rem] text-[#6b5446]">Accès sécurisé</span>
+                  <a href="/forgot-password" className="text-[#d56b0a] hover:text-[#a94b0c] underline">
+                    Mot de passe oublié ?
+                  </a>
+                </div>
+
+                <button
+                  id="login-submit"
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full h-12 rounded-[16px] bg-gradient-to-r from-[#d66b0b] via-[#c66113] to-[#b54805] text-white text-sm font-semibold uppercase tracking-[0.4em] shadow-[0_14px_30px_rgba(214,107,11,0.3)] transition duration-200 ease-out disabled:opacity-60 hover:-translate-y-0.5 hover:shadow-[0_20px_35px_rgba(214,107,11,0.45)]"
+                >
+                  {isLoading ? "Connexion..." : "Se connecter"}
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
-
       </div>
-    </div>
+    </>
   );
 }

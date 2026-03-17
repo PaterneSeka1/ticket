@@ -27,6 +27,11 @@ d# Documentation des endpoints
 - Retourne l'utilisateur authentifié (`AuthenticatedUserDto`).
 - Permet de vérifier que le jeton est toujours valide et d'extraire les rôles/infos.
 
+### POST `/auth/logout`
+- Header `Authorization: Bearer <token>` requis.
+- Ne prend pas de body.
+- Valide simplement le JWT actif puis renvoie `204 No Content`. Cela permet au front de savoir que l'API a bien reçu la demande de déconnexion tout en restant stateless.
+
 ## Utilisateurs (`/users`, rôle ADMIN/SUPER_ADMIN requis)
 - Les routes sont sécurisées par `JwtAuthGuard + RolesGuard`. Le `CurrentUser` injecte les infos de l'auteur dans chaque handler.
 
