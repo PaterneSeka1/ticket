@@ -1,50 +1,172 @@
-export default function LoginPage() {
+"use client";
+
+import { FormEvent, useState } from "react";
+import Link from "next/link";
+import { toast, Toaster } from "react-hot-toast";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+export default function Login() {
+  const [identity, setIdentity] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedIdentity = identity.trim();
+    if (!trimmedIdentity) {
+      toast.error("Merci de renseigner votre email ou matricule.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload: Record<string, string> = {
+        passwordHash: password,
+      };
+      if (trimmedIdentity.includes("@")) {
+        payload.email = trimmedIdentity;
+      } else {
+        payload.matricule = trimmedIdentity;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responseBody = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          responseBody?.message ?? "Impossible de se connecter pour le moment.",
+        );
+      }
+
+      if (responseBody?.accessToken) {
+        sessionStorage.setItem("vdm_access_token", responseBody.accessToken);
+      }
+
+      const name = responseBody?.user?.prenom ?? responseBody?.user?.email ?? "Utilisateur";
+      toast.success(`Bienvenue ${name} ! Votre session est prête.`);
+    } catch (caught) {
+      toast.error(
+        caught instanceof Error
+          ? caught.message
+          : "Une erreur inattendue est survenue.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#ffe4c8,_#fef1df)] px-4 py-12 text-[#2b1d10]">
-      <div className="mx-auto flex w-full max-w-5xl flex-col overflow-hidden rounded-[36px] bg-white shadow-[0_40px_120px_rgba(0,0,0,0.12)] md:flex-row">
-        <div className="flex w-full flex-col gap-6 bg-[#d9731d] p-8 text-white md:w-1/2 md:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-[#fff3dd]">
-              <span className="h-2.5 w-2.5 rounded-full bg-white" />
-              TICKETING VEDEM V1.02
-            </div>
-            <h1 className="mt-4 text-3xl font-semibold leading-tight">Ticketing Vedem v1.02</h1>
-            <p className="mt-4 text-base leading-relaxed text-[#ffefdd]">
-              Une plateforme centralisée de suivi, priorisation et résolution des incidents pour les équipes de support.
-            </p>
-          </div>
+    <div className="vdm-landing flex min-h-screen flex-col items-center justify-center px-4 text-[var(--vdm-dark)]">
+      <Toaster position="top-right" />
+      <div className="vdm-card w-full max-w-md space-y-10 rounded-[32px] p-10 text-center">
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[var(--vdm-primary)]">
+            Ticketing Vedem
+          </p>
+          <h1 className="text-4xl font-semibold">Connexion</h1>
+          <p className="text-sm text-[var(--vdm-muted)]">
+            Identifiez-vous pour retrouver vos tickets et suivre leur statut en
+            toute sécurité.
+          </p>
         </div>
 
-        <div className="flex w-full flex-col gap-6 p-8 md:w-1/2">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-[#936347]">Connexion</p>
-            <h2 className="mt-2 text-2xl font-semibold text-[#2b1d10]">Connexion — Ticketing Vedem v1.02</h2>
-            <p className="mt-2 text-sm text-[#6a5b4f]">Accédez à votre espace de gestion des incidents.</p>
-          </div>
-
-          <form className="flex flex-col gap-4 rounded-[20px] bg-[#fbfaf7] p-4">
-            <label className="text-xs font-semibold uppercase tracking-[0.3em] text-[#9b7a55]">Identifiant</label>
+        <form className="space-y-6 text-left" onSubmit={handleSubmit}>
+          <label className="block">
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--vdm-muted-strong)]">
+              Email ou matricule
+            </span>
             <input
+              required
               type="text"
-              placeholder="ex: ADMIN"
-              className="rounded-[14px] border border-[#f0d8bb] bg-white px-4 py-3 text-sm shadow-inner shadow-[#f8e4cc] placeholder:text-[#c19c73] focus:border-[#ad6526] focus:outline-none"
+              value={identity}
+              onChange={(event) => setIdentity(event.target.value)}
+              placeholder="vous@exemple.com ou MAT-1337"
+              className="mt-2 w-full rounded-[16px] border border-[#d9cfc3] bg-white px-4 py-3 text-sm text-[var(--vdm-dark)] shadow-[0_15px_30px_rgba(0,0,0,0.05)] focus:border-[var(--vdm-primary)] focus:outline-none"
+              autoComplete="username"
             />
+          </label>
+          <label className="block">
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--vdm-muted-strong)]">
+              Mot de passe
+            </span>
+            <div className="relative mt-2">
+              <input
+                required
+                type={passwordVisible ? "text" : "password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+                className="mt-2 w-full rounded-[16px] border border-[#d9cfc3] bg-white px-4 py-3 text-sm text-[var(--vdm-dark)] shadow-[0_15px_30px_rgba(0,0,0,0.05)] focus:border-[var(--vdm-primary)] focus:outline-none"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setPasswordVisible((visible) => !visible)}
+                className="absolute inset-y-0 right-2 flex items-center justify-center rounded-full px-2 text-[var(--vdm-muted)] transition hover:text-[var(--vdm-dark)]"
+                aria-label={
+                  passwordVisible ? "Masquer le mot de passe" : "Afficher le mot de passe"
+                }
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                >
+                  {passwordVisible ? (
+                    <>
+                      <path d="M1 1l22 22" />
+                      <path d="M4.5 4.37a11.49 11.49 0 0 1 15 7.54 11.52 11.52 0 0 1-2.4 3.98" />
+                    </>
+                  ) : (
+                    <>
+                      <path d="M1.39 12a19.79 19.79 0 0 1 3.01-4.27C7.34 5 10.2 4 12 4s4.66 1 7.6 3.73A19.79 19.79 0 0 1 22.61 12a19.79 19.79 0 0 1-3.01 4.27C16.66 19 13.8 20 12 20s-4.66-1-7.6-3.73A19.79 19.79 0 0 1 1.39 12z" />
+                      <circle cx="12" cy="12" r="3.5" />
+                    </>
+                  )}
+                </svg>
+              </button>
+            </div>
+          </label>
+          <button
+            type="submit"
+            disabled={loading}
+            className={`vdm-cta inline-flex w-full items-center justify-center rounded-[16px] px-8 py-3 text-xs font-semibold uppercase tracking-[0.3em] ${
+              loading ? "opacity-70" : ""
+            }`}
+          >
+            {loading ? "Connexion en cours…" : "Se connecter"}
+          </button>
+        </form>
 
-            <label className="text-xs font-semibold uppercase tracking-[0.3em] text-[#9b7a55]">Mot de passe</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              className="rounded-[14px] border border-[#f0d8bb] bg-white px-4 py-3 text-sm shadow-inner shadow-[#f8e4cc] placeholder:text-[#c19c73] focus:border-[#ad6526] focus:outline-none"
-            />
-
-            <button
-              type="button"
-              className="mt-2 rounded-[14px] bg-gradient-to-r from-[#d9731d] to-[#bb5b0f] py-3 text-sm font-semibold uppercase tracking-[0.3em] text-white shadow-[0_15px_25px_rgba(217,115,29,0.4)]"
+        <div className="space-y-2 text-sm text-[var(--vdm-muted)]">
+          <p>
+            Pas encore de compte ?{" "}
+            <Link
+              href="/"
+              className="font-semibold text-[var(--vdm-primary)] underline-offset-4 hover:underline"
             >
-              Se connecter →
-            </button>
-          </form>
+              Retour à l’accueil
+            </Link>
+          </p>
+          <p className="text-xs text-[var(--vdm-muted-strong)]">
+            Votre accès est protégé par les mêmes tonalités chaudes que notre
+            landing page.
+          </p>
         </div>
+
       </div>
     </div>
   );
