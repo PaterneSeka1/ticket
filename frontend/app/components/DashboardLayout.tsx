@@ -5,9 +5,21 @@ import { Activity, BarChart2, Bell, Layers, List, PlusCircle, Settings, Users } 
 import Link from "next/link";
 import { logout } from "@/api/auth";
 import { formatFullName } from "@/app/dashboard/lib/api";
+import { UserRole } from "@/app/dashboard/lib/roles";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
+import { usePathname } from "next/navigation";
 
-const navSections = [
+type NavSection = {
+  heading: string;
+  items: {
+    label: string;
+    href: string;
+    icon: ReactNode;
+  }[];
+  roles?: UserRole[];
+};
+
+const navSections: NavSection[] = [
   {
     heading: "Principal",
     items: [
@@ -18,6 +30,7 @@ const navSections = [
   },
   {
     heading: "Administration",
+    roles: ["ADMIN", "SUPER_ADMIN"],
     items: [
       { label: "Utilisateurs", href: "/dashboard/admin", icon: <Users className="h-4 w-4" /> },
       { label: "Configuration", href: "/dashboard/admin", icon: <Settings className="h-4 w-4" /> },
@@ -26,12 +39,14 @@ const navSections = [
   },
   {
     heading: "Analyse",
+    roles: ["SUPER_ADMIN"],
     items: [{ label: "Rapports", href: "/dashboard/super-admin", icon: <BarChart2 className="h-4 w-4" /> }],
   },
 ];
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const { user } = useCurrentUser();
+  const pathname = usePathname();
 
   const formattedName = useMemo(() => {
     if (!user) return "Utilisateur";
@@ -49,6 +64,15 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     );
   }, [user]);
 
+  const visibleNavSections = useMemo(() => {
+    if (!user) {
+      return navSections.filter((section) => !section.roles);
+    }
+    return navSections.filter(
+      (section) => !section.roles || section.roles.includes(user.role),
+    );
+  }, [user]);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -63,20 +87,25 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
   const navContent = (
     <nav className="space-y-6">
-      {navSections.map((section) => (
+      {visibleNavSections.map((section) => (
         <div key={section.heading} className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#b86112]">{section.heading}</p>
           <div className="flex flex-col gap-2">
-          {section.items.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="flex items-center gap-3 rounded-[14px] px-3 py-2 text-sm font-semibold text-[#2b1d10] transition hover:bg-white hover:text-[#c45c08]"
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          ))}
+            {section.items.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={`flex items-center gap-3 rounded-[14px] px-3 py-2 text-sm font-semibold transition hover:bg-white hover:text-[#c45c08] ${
+                    isActive ? "bg-white text-[#c45c08]" : "text-[#2b1d10]"
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </Link>
+              );
+            })}
           </div>
         </div>
       ))}
@@ -88,10 +117,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-white/30 bg-gradient-to-r from-[#f3921a] to-[#d0670d] px-4 py-3 shadow-lg shadow-[#d0670d]/30">
         <div>
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-white" />
             <span className="text-sm font-semibold uppercase tracking-[0.35em] text-white">Ticketing Vedem v1.02</span>
           </div>
-          <p className="text-[0.6rem] uppercase tracking-[0.5em] text-white/90">Plateforme ticketing</p>
         </div>
         <div className="ml-auto flex items-center gap-3">
           <button
@@ -99,7 +126,6 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             className="hidden lg:inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/30"
           >
             <Bell className="h-4 w-4" />
-            Notifications
           </button>
           <div className="hidden md:flex items-center gap-3 rounded-full bg-white/20 px-3 py-2 text-xs uppercase tracking-[0.3em] text-white">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#c4620c] font-semibold">
@@ -119,21 +145,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
       <div className="flex">
         <aside className="w-80 shrink-0 flex-col border-r border-[#e1c2a1] bg-gradient-to-b from-[#f4dfcd] via-[#efd2c0] to-[#e3c6b6] px-6 py-8 text-[#2b1d10] h-screen">
-          <div className="flex items-center justify-between gap-3 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-gradient-to-br from-[#de6f0c] to-[#c45c08] p-2 shadow-[0_12px_25px_rgba(0,0,0,0.3)]">
-                <span className="text-lg font-semibold text-white">V</span>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-[#b86112]">Ticketing Vedem</p>
-                <p className="text-sm font-semibold text-[#2b1d10]">v1.02</p>
-              </div>
-            </div>
+          <div className="flex items-center justify-between gap-3">
           </div>
           <div className="flex-1 space-y-5 overflow-y-auto pr-1">{navContent}</div>
-          <div className="mt-6 border-t border-white/10 pt-6 text-[0.65rem] uppercase tracking-[0.3em] text-[#4f5660]">
-            Ticketing Vedem v1.02 · © 2025
-          </div>
         </aside>
         <main className="flex-1 px-4 py-8 lg:px-8">
           <div className="mx-auto w-full max-w-6xl space-y-6">{children}</div>
