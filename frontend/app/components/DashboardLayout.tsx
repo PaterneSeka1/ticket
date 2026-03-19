@@ -102,7 +102,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     <nav className="space-y-6">
       {visibleNavSections.map((section) => (
         <div key={section.heading} className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#b86112]">{section.heading}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-600 ps-4">{section.heading}</p>
           <div className="flex flex-col gap-2">
             {section.items.map((item) => {
               const isActive = pathname === item.href;
@@ -110,8 +110,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-[14px] px-3 py-2 text-sm font-semibold transition hover:bg-white hover:text-[#c45c08] ${
-                    isActive ? "bg-white text-[#c45c08]" : "text-[#2b1d10]"
+                  className={`flex items-center gap-3 rounded-[14px] py-2 text-sm font-semibold px-2 transition hover:bg-yellow-400/50 ${
+                    isActive ? "bg-yellow-400/50 text-black hover:bg-yellow-400/80" : "text-[#2b1d10]"
                   }`}
                   onClick={() => onLinkClick?.()}
                 >
@@ -149,7 +149,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-30 border-b-3 border-yellow-400 bg-gray-300/90 px-6 py-1 shadow-[0_10px_35px_rgba(0,0,0,0.08)] backdrop-blur">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-3">
-              <Image src="/logo1.png" alt="Logo Ticketing Vedem" width={90} height={80} className="object-contain" />
+              <Image src="/logo1.png" alt="Logo Ticketing Vedem" width={85} height={80} className="object-contain" />
             </div>
             <div className="ml-auto flex items-center gap-3">
               <button
@@ -216,8 +216,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       </div>
 
       <div className="flex">
-        <aside className="hidden h-screen flex-col border-r border-[#e1c2a1] bg-gradient-to-b from-[#f4dfcd] via-[#efd2c0] to-[#e3c6b6] px-6 py-8 text-[#2b1d10] lg:flex lg:w-80">
-          <div className="flex items-center justify-between gap-3"></div>
+        <aside className="hidden h-screen flex-col border-r-2 border-yellow-400 bg-white px-6 py-6 text-[#2b1d10] lg:flex lg:w-70">
           <div className="flex-1 space-y-5 overflow-y-auto pr-1">{renderNavContent()}</div>
         </aside>
         <main className="flex-1 px-4 py-8 lg:px-8">
