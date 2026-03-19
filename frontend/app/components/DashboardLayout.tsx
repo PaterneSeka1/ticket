@@ -154,18 +154,18 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             <div className="ml-auto flex items-center gap-3">
               <button
                 type="button"
-                className="lg:inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/60 px-2 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-[#2b1d10] shadow-[0_10px_25px_rgba(0,0,0,0.15)] transition hover:bg-white"
+                className="lg:inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/60 px-2 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-[#2b1d10] shadow-[0_10px_25px_rgba(0,0,0,0.15)] transition hover:bg-white hover:cursor-pointer"
               >
                 <Bell className="h-4 w-4" />
               </button>
               <div className="hidden lg:flex items-center gap-1 rounded-full bg-white px-2 py-2 text-xs uppercase tracking-[0.02em] text-[#2b1d10] shadow-[0_10px_15px_rgba(0,0,0,0.08)]">
-                <span className="text-center flex h-5 w-8 items-center justify-center rounded-full bg-[#f7c280] text-[#2b1d10] font-semibold">{initials}</span>
+                <span className="text-center flex h-5 w-8 items-center justify-center rounded-full bg-yellow-400 text-black font-semibold">{initials}</span>
                 <span className="text-[0.7rem] font-bold tracking-[0.05em] text-[#4a3826]">{formattedName}</span>
               </div>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="hidden lg:inline-flex items-center justify-center rounded-full border border-[#2b1d10] bg-[#fffdf2] p-2 text-[#2b1d10] transition hover:border-[#f8b24d] hover:bg-[#ffedd6] hover:cursor-pointer"
+                className="hidden lg:inline-flex items-center justify-center rounded-full border border-[#2b1d10] bg-[#fffdf2] p-2 text-[#2b1d10] transition hover:border-[#f8b24d] hover:bg-yellow-400/60 hover:cursor-pointer"
               >
                 <LogOut className="h-4 w-4" />
               </button>
