@@ -7,6 +7,7 @@ import {
   Bell,
   Layers,
   List,
+  LogOut,
   Menu,
   PlusCircle,
   Settings,
@@ -82,9 +83,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     if (!user) {
       return navSections.filter((section) => !section.roles);
     }
-    return navSections.filter(
-      (section) => !section.roles || section.roles.includes(user.role),
-    );
+    return navSections.filter((section) => !section.roles || section.roles.includes(user.role));
   }, [user]);
 
   const handleLogout = async () => {
@@ -139,72 +138,57 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       return;
     }
     if (!isNavOpen && isNavMounted) {
-      const timer = window.setTimeout(() => setIsNavMounted(false), 300);
+      const timer = window.setTimeout(() => setIsNavMounted(false), 320);
       return () => clearTimeout(timer);
     }
-  }, [isNavOpen, isNavMounted]);
+  }, [isNavMounted, isNavOpen]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff8ef] via-[#fff1e6] to-[#f2e1d0] text-[#2b1d10]">
       <div className="relative">
-        <header className="sticky top-0 z-30 border-b border-[#e0d3c4] bg-[#e7e2d5]/90 px-6 py-3 shadow-[0_10px_35px_rgba(0,0,0,0.08)] backdrop-blur">
+        <header className="sticky top-0 z-30 border-b-3 border-yellow-400 bg-gray-300/90 px-6 py-1 shadow-[0_10px_35px_rgba(0,0,0,0.08)] backdrop-blur">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-3">
-              <Image src="/logo1.png" alt="Logo Ticketing Vedem" width={48} height={48} className="h-12 w-12 rounded-full object-contain border border-[#cfc8bd]" />
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-[#d6c49c] bg-[#fff5e1] px-3 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#b36a08]">
-                    Ticketing Vedem v1.01
-                  </span>
-                  <span className="rounded-full border border-[#d6c49c] bg-[#fffff5] px-3 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#5c5b51]">
-                    User
-                  </span>
-                </div>
-                <span className="text-xs font-semibold uppercase tracking-[0.4em] text-[#a88353]">Veilleur des médias</span>
-              </div>
+              <Image src="/logo1.png" alt="Logo Ticketing Vedem" width={90} height={80} className="object-contain" />
             </div>
             <div className="ml-auto flex items-center gap-3">
               <button
                 type="button"
-                className="hidden lg:inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-[#2b1d10] shadow-[0_10px_25px_rgba(0,0,0,0.15)] transition hover:bg-white"
+                className="lg:inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/60 px-2 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-[#2b1d10] shadow-[0_10px_25px_rgba(0,0,0,0.15)] transition hover:bg-white"
               >
                 <Bell className="h-4 w-4" />
-                Notifications
               </button>
-              <div className="hidden lg:flex items-center gap-3 rounded-full bg-white px-3 py-2 text-xs uppercase tracking-[0.3em] text-[#2b1d10] shadow-[0_10px_15px_rgba(0,0,0,0.08)]">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f7c280] text-[#2b1d10] font-semibold">
-                  {initials}
-                </span>
-                <span className="text-[0.7rem] font-semibold tracking-[0.2em] text-[#4a3826]">{formattedName}</span>
+              <div className="hidden lg:flex items-center gap-1 rounded-full bg-white px-2 py-2 text-xs uppercase tracking-[0.02em] text-[#2b1d10] shadow-[0_10px_15px_rgba(0,0,0,0.08)]">
+                <span className="text-center flex h-5 w-8 items-center justify-center rounded-full bg-[#f7c280] text-[#2b1d10] font-semibold">{initials}</span>
+                <span className="text-[0.7rem] font-bold tracking-[0.05em] text-[#4a3826]">{formattedName}</span>
               </div>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-full border border-[#cba87f] bg-[#fffdf2] px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.35em] text-[#c4620c] transition hover:bg-white"
+                className="hidden lg:inline-flex items-center justify-center rounded-full border border-[#2b1d10] bg-[#fffdf2] p-2 text-[#2b1d10] transition hover:border-[#f8b24d] hover:bg-[#ffedd6] hover:cursor-pointer"
               >
-                Déconnexion
+                <LogOut className="h-4 w-4" />
               </button>
             </div>
-        <button
-          type="button"
-          className="lg:hidden rounded-full border border-[#cfc8bd] bg-white/90 p-2 text-[#2b1d10] shadow-[0_4px_15px_rgba(0,0,0,0.12)] transition hover:bg-white"
-          onClick={isNavOpen ? closeMobileNav : openMobileNav}
-          aria-label="Afficher le menu"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+            <button
+              type="button"
+              className="lg:hidden rounded-full border border-[#cfc8bd] bg-white/90 p-2 text-[#2b1d10] shadow-[0_4px_15px_rgba(0,0,0,0.12)] transition hover:bg-white"
+              onClick={isNavOpen ? closeMobileNav : openMobileNav}
+              aria-label="Afficher le menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
           </div>
         </header>
         {isNavMounted && (
           <div
             className={`absolute inset-x-0 top-full z-30 border-b border-[#e0d3c4] bg-white/95 px-6 py-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] lg:hidden transition-[max-height,opacity,transform] duration-700 ease-out transform-gpu origin-top overflow-hidden ${
               isNavOpen
-                ? "opacity-100 translate-y-0 scale-y-100 max-h-[480px]"
+                ? "opacity-100 translate-y-0 scale-y-100 max-h-[520px]"
                 : "opacity-0 -translate-y-3 scale-y-90 max-h-0"
             }`}
           >
             <div className="mb-4 flex items-center justify-between">
-              <span className="text-sm font-semibold uppercase tracking-[0.35em] text-[#b86112]">Navigation</span>
               <button
                 type="button"
                 className="rounded-full border border-[#cfc8bd] bg-[#fffdf2] p-2"
@@ -214,7 +198,19 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                 <X className="h-4 w-4 text-[#2b1d10]" />
               </button>
             </div>
-            <div className="flex flex-col gap-3">{renderNavContent(closeMobileNav)}</div>
+            <div className="flex flex-col gap-4">
+              {renderNavContent(closeMobileNav)}
+              <button
+                type="button"
+                onClick={() => {
+                  closeMobileNav();
+                  handleLogout();
+                }}
+                className="flex items-center justify-center rounded-full border border-[#cba87f] bg-[#fffdf2] p-2 text-[#c4620c] transition hover:border-[#f8b24d] hover:bg-[#ffedd6] hover:cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
