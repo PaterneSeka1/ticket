@@ -181,46 +181,58 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         {isNavMounted && (
-          <div
-            className={`absolute inset-x-0 top-full z-30 border-b border-[#e0d3c4] bg-white/95 px-6 py-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] lg:hidden transition-[max-height,opacity,transform] duration-700 ease-out transform-gpu origin-top overflow-hidden ${
-              isNavOpen
-                ? "opacity-100 translate-y-0 scale-y-100 max-h-[520px]"
-                : "opacity-0 -translate-y-3 scale-y-90 max-h-0"
-            }`}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <button
-                type="button"
-                className="rounded-full border border-[#cfc8bd] bg-[#fffdf2] p-2"
-                onClick={closeMobileNav}
-                aria-label="Fermer le menu"
-              >
-                <X className="h-4 w-4 text-[#2b1d10]" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-4">
-              {renderNavContent(closeMobileNav)}
-              <button
-                type="button"
-                onClick={() => {
-                  closeMobileNav();
-                  handleLogout();
-                }}
-                className="flex items-center justify-center rounded-full border border-[#cba87f] bg-[#fffdf2] p-2 text-[#c4620c] transition hover:border-[#f8b24d] hover:bg-[#ffedd6] hover:cursor-pointer"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
+          <div className="fixed inset-0 z-30 lg:hidden">
+            <div
+              className={`absolute inset-0 bg-black/30 transition-opacity duration-300 ${
+                isNavOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+              }`}
+              onClick={closeMobileNav}
+              aria-hidden
+            />
+            <div
+              className={`absolute inset-x-0 top-full z-40 border-b border-[#e0d3c4] bg-white/95 px-6 py-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] transition-[max-height,opacity,transform] duration-700 ease-out transform-gpu origin-top overflow-hidden ${
+                isNavOpen
+                  ? "opacity-100 translate-y-0 scale-y-100 max-h-[520px]"
+                  : "opacity-0 -translate-y-3 scale-y-90 max-h-0"
+              }`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <button
+                  type="button"
+                  className="rounded-full border border-[#cfc8bd] bg-[#fffdf2] p-2"
+                  onClick={closeMobileNav}
+                  aria-label="Fermer le menu"
+                >
+                  <X className="h-4 w-4 text-[#2b1d10]" />
+                </button>
+              </div>
+              <div className="flex flex-col gap-4">
+                <div className="max-h-[60vh] overflow-y-auto pr-1">
+                  {renderNavContent(closeMobileNav)}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeMobileNav();
+                    handleLogout();
+                  }}
+                  className="flex items-center justify-center rounded-full border border-[#cba87f] bg-[#fffdf2] p-2 text-[#c4620c] transition hover:border-[#f8b24d] hover:bg-[#ffedd6] hover:cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      <div className="flex">
+      <div className="flex bg-white/90">
         <aside className="hidden h-screen flex-col border-r-2 border-yellow-400 bg-white px-6 py-6 text-[#2b1d10] lg:flex lg:w-70">
           <div className="flex-1 space-y-5 overflow-y-auto pr-1">{renderNavContent()}</div>
         </aside>
-        <main className="flex-1 px-4 py-8 lg:px-8">
-          <div className="mx-auto w-full max-w-6xl space-y-6">{children}</div>
+        <main className="flex-1 px-4 py-2 lg:px-2">
+          <div className="mx-auto w-full max-w-9xl space-y-6">{children}</div>
         </main>
       </div>
     </div>
