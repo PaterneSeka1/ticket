@@ -83,6 +83,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     if (!user) {
       return navSections.filter((section) => !section.roles);
     }
+    if (["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
+      return navSections;
+    }
     return navSections.filter((section) => !section.roles || section.roles.includes(user.role));
   }, [user]);
 

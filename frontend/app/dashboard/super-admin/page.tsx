@@ -13,24 +13,6 @@ const cards = [
       "Supervisez chaque direction et suivez la progression des tickets sensibles à l’échelle de toute l’entreprise.",
     action: "Consulter les directions",
   },
-  {
-    title: "Gestion des accès",
-    description:
-      "Activez, désactivez ou promouvez des comptes sans passer par l’interface API.",
-    action: "Gérer les utilisateurs",
-  },
-  {
-    title: "Rapports partagés",
-    description:
-      "Planifiez l’export automatique des rapports et partagez-les avec les stakeholders.",
-    action: "Télécharger un rapport",
-  },
-  {
-    title: "Alertes critiques",
-    description:
-      "Recevez des notifications instantanées dès que les SLA sont menacés.",
-    action: "Configurer les alertes",
-  },
 ];
 
 export default function SuperAdminDashboardPage() {

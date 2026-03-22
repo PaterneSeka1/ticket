@@ -20,7 +20,7 @@ export function DashboardShell({ user, title, subtitle, children }: DashboardShe
         <p className="text-sm text-[#6b5446]">{subtitle}</p>
         <p className="text-xs text-[#a87c4a]">Connecté comme {formatFullName(user)}</p>
       </header>
-      <div className="grid gap-6 md:grid-cols-2">{children}</div>
+      <div className="space-y-6">{children}</div>
     </section>
   );
 }

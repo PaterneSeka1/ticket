@@ -12,25 +12,7 @@ const cards = [
     description:
       "Suivez les statuts de vos tickets, ajoutez un commentaire et relancez un responsable le cas échéant.",
     action: "Consulter mes tickets",
-  },
-  {
-    title: "Mes priorités",
-    description:
-      "Identifiez les demandes qui nécessitent votre retour et mettez à jour les pièces jointes partagées.",
-    action: "Ajouter des pièces",
-  },
-  {
-    title: "Agenda des interventions",
-    description:
-      "Anticipez les visites et les actions planifiées associées aux tickets que vous avez émis.",
-    action: "Voir le calendrier",
-  },
-  {
-    title: "Aide & documentation",
-    description:
-      "Accédez à la base de connaissances Vedem pour répondre aux interrogations courantes.",
-    action: "Ouvrir la rubrique aide",
-  },
+  }
 ];
 
 export default function EmployesDashboardPage() {
