@@ -41,9 +41,14 @@ export class TicketsController {
     return this.ticketsService.findAll(filters);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.ticketsService.findOne(id);
+  @Get('me/created')
+  myCreated(@CurrentUser() user: AuthenticatedUserDto) {
+    return this.ticketsService.findMine(user.id);
+  }
+
+  @Get('dsi/received')
+  receivedByDsi(@CurrentUser() user: AuthenticatedUserDto) {
+    return this.ticketsService.findReceivedByDsi(user);
   }
 
   @Post(':id/comments')
@@ -55,14 +60,9 @@ export class TicketsController {
     return this.ticketsService.addComment(id, dto, user);
   }
 
-  @Get('me/created')
-  myCreated(@CurrentUser() user: AuthenticatedUserDto) {
-    return this.ticketsService.findMine(user.id);
-  }
-
-  @Get('dsi/received')
-  receivedByDsi(@CurrentUser() user: AuthenticatedUserDto) {
-    return this.ticketsService.findReceivedByDsi(user);
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.ticketsService.findOne(id);
   }
 
   @Patch(':id')

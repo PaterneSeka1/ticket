@@ -4,6 +4,10 @@ export type DirectionType = "DAF" | "DSI" | "DO";
 
 export type OperationService = "QUALITE" | "OPERATIONS" | "REPUTATION";
 
+export type DsiTicketRole = "RESPONSABLE" | "CO_RESPONSABLE";
+
+export type UserResponsibility = "RESPONSABLE" | "EMPLOYE";
+
 export type TicketType = "INCIDENT" | "DEMANDE";
 
 export type TicketStatus =
@@ -29,8 +33,11 @@ export interface AuthenticatedUser {
   role: UserRole;
   direction?: DirectionType | null;
   service?: OperationService | null;
-  dsiTicketRole?: string | null;
+  dsiTicketRole?: DsiTicketRole | null;
+  isResponsable: boolean;
   isActive: boolean;
+  accessReport: boolean;
+  exportReport: boolean;
   createdAt: string;
   updatedAt: string;
   createdById?: string | null;
@@ -47,6 +54,18 @@ export interface TicketCategory {
   updatedAt: string;
 }
 
+export interface TicketCategorySummary {
+  id: string;
+  libelle: string;
+  type: TicketType;
+}
+
+export interface TicketActor {
+  id: string;
+  nom: string;
+  prenom: string;
+}
+
 export interface TicketTimeline {
   id: string;
   ticketId: string;
@@ -59,9 +78,9 @@ export interface TicketTimeline {
 export interface TicketComment {
   id: string;
   ticketId: string;
-  authorId: string;
   content: string;
   createdAt: string;
+  author: TicketActor;
 }
 
 export interface Ticket {
@@ -72,9 +91,9 @@ export interface Ticket {
   status: TicketStatus;
   description: string;
   assignedService?: OperationService | null;
-  emitterId: string;
-  receivedById?: string | null;
-  categoryId: string;
+  category: TicketCategorySummary;
+  emitter: TicketActor;
+  receivedBy: TicketActor | null;
   receivedAt?: string | null;
   clientName?: string | null;
   product?: string | null;
@@ -85,4 +104,6 @@ export interface Ticket {
   waitMinutes?: number | null;
   createdAt: string;
   updatedAt: string;
+  comments: TicketComment[];
+  timeline: TicketTimeline[];
 }

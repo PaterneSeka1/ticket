@@ -11,6 +11,8 @@ import {
   Menu,
   PlusCircle,
   Settings,
+  Shield,
+  Tag,
   Users,
   X,
 } from "lucide-react";
@@ -33,23 +35,40 @@ type NavSection = {
 };
 
 const navSections: NavSection[] = [
-  {
-    heading: "Principal",
-    items: [
-      { label: "Tableau de bord", href: "/dashboard", icon: <Activity className="h-4 w-4" /> },
-      { label: "Gestion tickets", href: "/dashboard", icon: <Layers className="h-4 w-4" /> },
-      { label: "Nouveau ticket", href: "/dashboard", icon: <PlusCircle className="h-4 w-4" /> },
-    ],
-  },
-  {
-    heading: "Administration",
-    roles: ["ADMIN", "SUPER_ADMIN"],
-    items: [
-      { label: "Utilisateurs", href: "/dashboard/admin", icon: <Users className="h-4 w-4" /> },
-      { label: "Configuration", href: "/dashboard/admin", icon: <Settings className="h-4 w-4" /> },
-      { label: "Journal d'activité", href: "/dashboard/admin", icon: <List className="h-4 w-4" /> },
-    ],
-  },
+      {
+        heading: "Principal",
+        items: [
+          { label: "Tableau de bord", href: "/dashboard", icon: <Activity className="h-4 w-4" /> },
+          { label: "Gestion tickets", href: "/dashboard/admin/tickets", icon: <Layers className="h-4 w-4" /> },
+          { label: "Nouveau ticket", href: "/dashboard/nouveau-ticket", icon: <PlusCircle className="h-4 w-4" /> },
+        ],
+      },
+    {
+      heading: "Administration",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+        items: [
+          { label: "Utilisateurs", href: "/dashboard/admin/users", icon: <Users className="h-4 w-4" /> },
+          { label: "Configuration", href: "/dashboard/admin", icon: <Settings className="h-4 w-4" /> },
+          { label: "Journal d'activité", href: "/dashboard/admin", icon: <List className="h-4 w-4" /> },
+          { label: "Catégories", href: "/dashboard/admin/categories", icon: <Tag className="h-4 w-4" /> },
+        ],
+      },
+    {
+      heading: "Super-admin",
+      roles: ["SUPER_ADMIN"],
+        items: [
+          {
+            label: "Catégories",
+            href: "/dashboard/super-admin/categories",
+            icon: <Shield className="h-4 w-4" />,
+          },
+          {
+            label: "Utilisateurs",
+            href: "/dashboard/super-admin/users",
+            icon: <Users className="h-4 w-4" />,
+          },
+        ],
+      },
   {
     heading: "Analyse",
     roles: ["SUPER_ADMIN"],
@@ -104,8 +123,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const renderNavContent = (onLinkClick?: () => void) => (
     <nav className="space-y-6">
       {visibleNavSections.map((section) => (
-        <div key={section.heading} className="space-y-3">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-600 ps-4">{section.heading}</p>
+        <div
+          key={section.heading}
+          className="space-y-3 rounded-[20px] border border-white/20 bg-white/20 px-3 py-3 transition hover:border-white/70"
+        >
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-600">{section.heading}</p>
           <div className="flex flex-col gap-2">
             {section.items.map((item) => {
               const isActive = pathname === item.href;
@@ -113,8 +135,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-[14px] py-2 text-sm font-semibold px-2 transition hover:bg-yellow-400/50 ${
-                    isActive ? "bg-yellow-400/50 text-black hover:bg-yellow-400/80" : "text-[#2b1d10]"
+                  className={`flex items-center gap-3 rounded-[14px] py-2 text-sm font-semibold px-3 transition ${
+                    isActive ? "bg-[#f0c34c] text-black shadow-[0_10px_30px_rgba(0,0,0,0.08)]" : "text-[#2b1d10]"
                   }`}
                   onClick={() => onLinkClick?.()}
                 >

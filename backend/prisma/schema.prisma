@@ -73,6 +73,7 @@ model User {
   passwordHash String
 
   role         UserRole          @default(USER)
+  isResponsable Boolean           @default(false)
 
   direction    DirectionType?
   service      OperationService?

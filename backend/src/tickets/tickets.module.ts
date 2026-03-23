@@ -8,6 +8,6 @@ import { TicketsService } from './tickets.service.js';
 @Module({
   imports: [AuthModule, ActivityModule],
   providers: [TicketsService],
-  controllers: [TicketsController, TicketCategoriesController],
+  controllers: [TicketCategoriesController, TicketsController],
 })
 export class TicketsModule {}

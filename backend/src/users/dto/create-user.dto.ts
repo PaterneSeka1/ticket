@@ -1,5 +1,6 @@
 import {
   DirectionType,
+  DsiTicketRole,
   OperationService,
   UserRole,
 } from '../../prisma/enums.js';
@@ -51,6 +52,22 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  accessReport?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  exportReport?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isResponsable?: boolean;
+
+  @IsOptional()
+  @IsEnum(DsiTicketRole)
+  dsiTicketRole?: DsiTicketRole;
 
   @IsOptional()
   @IsMongoId()

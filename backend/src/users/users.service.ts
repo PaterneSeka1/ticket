@@ -169,6 +169,10 @@ export class UsersService {
       direction: dto.direction ?? null,
       service: dto.service ?? null,
       isActive: dto.isActive ?? true,
+      accessReport: dto.accessReport ?? false,
+      exportReport: dto.exportReport ?? false,
+      isResponsable: dto.isResponsable ?? false,
+      dsiTicketRole: dto.dsiTicketRole ?? null,
       createdById: dto.createdById ?? null,
       lastLogin: dto.lastLogin ?? null,
     };
@@ -206,6 +210,18 @@ export class UsersService {
     }
     if (typeof dto.isActive === 'boolean') {
       payload.isActive = dto.isActive;
+    }
+    if (typeof dto.accessReport === 'boolean') {
+      payload.accessReport = dto.accessReport;
+    }
+    if (typeof dto.exportReport === 'boolean') {
+      payload.exportReport = dto.exportReport;
+    }
+    if (typeof dto.isResponsable === 'boolean') {
+      payload.isResponsable = dto.isResponsable;
+    }
+    if (dto.dsiTicketRole !== undefined) {
+      payload.dsiTicketRole = dto.dsiTicketRole ?? null;
     }
     if (dto.createdById !== undefined) {
       payload.createdById = dto.createdById ?? null;

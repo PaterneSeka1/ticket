@@ -16,6 +16,9 @@ export class UserDto {
   service?: OperationService | null;
   dsiTicketRole?: DsiTicketRole | null;
   isActive!: boolean;
+  isResponsable!: boolean;
+  accessReport!: boolean;
+  exportReport!: boolean;
   createdAt!: Date;
   updatedAt!: Date;
   createdById?: string | null;
