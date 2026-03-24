@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Eye, Lock, Shield, UserPlus } from "lucide-react";
+import { Check, Eye, EyeOff, Lock, Shield, UserPlus } from "lucide-react";
 import {
   ColumnDef,
   FilterFn,
@@ -94,6 +94,8 @@ export function UserManagementPanel() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isActing, setIsActing] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -342,9 +344,14 @@ export function UserManagementPanel() {
               Direction
               <select
                 value={formState.direction}
-                onChange={(event) =>
-                  setFormState({ ...formState, direction: event.target.value as DirectionOption })
-                }
+                onChange={(event) => {
+                  const directionValue = event.target.value as DirectionOption;
+                  setFormState((state) => ({
+                    ...state,
+                    direction: directionValue,
+                    service: directionValue === "DO" ? state.service : "",
+                  }));
+                }}
                 className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
               >
                 <option value="">-- Sélectionner --</option>
@@ -442,20 +449,31 @@ export function UserManagementPanel() {
               Mot de passe *
               <div className="relative">
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={formState.password}
                   onChange={(event) => setFormState({ ...formState, password: event.target.value })}
                   placeholder="Min. 8 car. — maj, min, chiffre, symbole"
                   className="w-full rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
                 />
-                <Eye className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#b5a99a]" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#b5a99a]"
+                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
               </div>
             </label>
             <label className="space-y-1 text-xs font-semibold uppercase tracking-[0.25em] text-[#6b5446]">
               Confirmer le mot de passe *
               <div className="relative">
                 <input
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   value={formState.confirmPassword}
                   onChange={(event) =>
                     setFormState({ ...formState, confirmPassword: event.target.value })
@@ -463,7 +481,22 @@ export function UserManagementPanel() {
                   placeholder="Répéter le mot de passe"
                   className="w-full rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
                 />
-                <Lock className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#b5a99a]" />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#b5a99a]"
+                  aria-label={
+                    showConfirmPassword
+                      ? "Masquer la confirmation du mot de passe"
+                      : "Afficher la confirmation du mot de passe"
+                  }
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
               </div>
             </label>
           </div>
