@@ -1,13 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { ApiError } from "@/api/client";
 import { createTicket, fetchCategories } from "@/api/tickets";
 import type { CreateTicketPayload } from "@/api/tickets";
 import type { TicketCategory, TicketPriority, TicketType } from "@/api/types";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
-const incidentTypes = [
+const incidentTypes: Array<{ id: IncidentSelection; label: string }> = [
   { id: "INTERNE", label: "Incident interne" },
   { id: "CLIENT", label: "Réclamation client" },
 ];
@@ -44,7 +45,6 @@ export default function NewTicketPage() {
   const [detectionDate, setDetectionDate] = useState(initialDate);
   const [detectionTime, setDetectionTime] = useState(initialTime);
   const [description, setDescription] = useState("");
-  const [serviceDirection, setServiceDirection] = useState("Direction des Services Informatiques");
   const [clientName, setClientName] = useState("");
   const [product, setProduct] = useState("");
   const [categories, setCategories] = useState<TicketCategory[]>([]);
@@ -105,6 +105,14 @@ export default function NewTicketPage() {
   const ticketType = incidentTypeMap[selectedIncidentType];
   const selectedCategoryId = ticketType === "INCIDENT" ? selectedInternalCategoryId : selectedReclamationCategoryId;
 
+  const routingNotice = useMemo(() => {
+    if (!user) return "Le ticket sera attribué au super-admin dès sa création.";
+    if (user.role === "SUPER_ADMIN") {
+      return "Vous êtes super-admin, vos tickets restent sur votre file.";
+    }
+    return "Le ticket est remis au super-admin (sinon à la DSI si aucun super-admin n’est actif).";
+  }, [user]);
+
   const detectedAt = useMemo(() => {
     if (!detectionDate || !detectionTime) return undefined;
     const parsed = new Date(`${detectionDate}T${detectionTime}`);
@@ -114,12 +122,39 @@ export default function NewTicketPage() {
     return parsed.toISOString();
   }, [detectionDate, detectionTime]);
 
+  const requiresClientFields = selectedIncidentType === "CLIENT";
   const isSubmitDisabled =
-    isSubmitting || !selectedCategoryId || categoryStatus === "loading" || categoryStatus === "error";
+    isSubmitting ||
+    !selectedCategoryId ||
+    categoryStatus === "loading" ||
+    categoryStatus === "error" ||
+    !description.trim() ||
+    (requiresClientFields && (!clientName.trim() || !product));
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedCategoryId || !user) return;
+    if (!description.trim()) {
+      const message = "La description est requise.";
+      toast.error(message);
+      setFeedback({ type: "error", message });
+      return;
+    }
+    if (requiresClientFields) {
+      if (!clientName.trim()) {
+        const message = "Le nom du client est requis.";
+        toast.error(message);
+        setFeedback({ type: "error", message });
+        return;
+      }
+      if (!product) {
+        const message = "Le produit concerné est requis.";
+        toast.error(message);
+        setFeedback({ type: "error", message });
+        return;
+      }
+    }
+    const trimmedDescription = description.trim();
     setIsSubmitting(true);
     setFeedback(null);
     try {
@@ -127,7 +162,7 @@ export default function NewTicketPage() {
         type: ticketType,
         priority: priorityMap[selectedPriority],
         categoryId: selectedCategoryId,
-        description,
+        description: trimmedDescription,
         assignedService: user.service ?? undefined,
         detectedAt,
       };
@@ -140,12 +175,15 @@ export default function NewTicketPage() {
         }
       }
       await createTicket(payload);
-      setFeedback({ type: "success", message: "Ticket créé avec succès." });
+      const message = "Ticket créé avec succès.";
+      toast.success(message);
+      setFeedback({ type: "success", message });
       setDescription("");
       setClientName("");
       setProduct("");
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Impossible de créer le ticket.";
+      toast.error(message);
       setFeedback({ type: "error", message });
     } finally {
       setIsSubmitting(false);
@@ -164,34 +202,15 @@ export default function NewTicketPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff8ef] via-[#fff1e6] to-[#f2e1d0] text-[#2b1d10]">
-      <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 lg:px-10">
-        <header className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#b86112]">
-            Formulaire de déclaration d’incident
-          </p>
-          <h1 className="text-3xl font-semibold">Nouveau ticket</h1>
-          <p className="text-sm text-[#6b5446]">Déclarez un incident ou une réclamation client en quelques étapes.</p>
-        </header>
-
+      <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10 lg:px-10">
         <section className="space-y-6 rounded-[32px] border border-[#f0d7c6] bg-[#fffdf7] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.08)]">
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#b86112]">Nouvelle déclaration</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#b86112]">Nouvelle Ticket</p>
             <p className="text-sm text-[#6b5446]">Fiche d’incident structurée pour la DSI et la relation client.</p>
           </div>
-          {feedback && (
-            <div
-              className={`rounded-[20px] border px-4 py-3 text-sm font-semibold uppercase tracking-[0.2em] ${
-                feedback.type === "success"
-                  ? "bg-[#e6f4ed] text-[#1f6f3a] border-[#b3e0c9]"
-                  : "bg-[#fde8e7] text-[#c42d1f] border-[#f9c1bf]"
-              }`}
-            >
-              {feedback.message}
-            </div>
-          )}
           <form className="space-y-6 text-[#2b1d10]" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-3">
-              <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
+              <label className="space-y-2 text-xs font-semibold uppercase text-[#6b5446] hidden">
                 ID TICKET (AUTO)
                 <input
                   type="text"
@@ -200,8 +219,8 @@ export default function NewTicketPage() {
                   className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm font-semibold text-[#2b1d10] opacity-60"
                 />
               </label>
-              <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-                DATE DE DÉTECTION *
+              <label className="space-y-2 text-xs font-semibold uppercase text-[#6b5446]">
+                DATE DE DÉTECTION
                 <input
                   type="date"
                   value={detectionDate}
@@ -209,8 +228,8 @@ export default function NewTicketPage() {
                   className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
                 />
               </label>
-              <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-                HEURE DE DÉTECTION *
+              <label className="space-y-2 text-xs font-semibold uppercase text-[#6b5446]">
+                HEURE DE DÉTECTION
                 <input
                   type="time"
                   value={detectionTime}
@@ -219,40 +238,8 @@ export default function NewTicketPage() {
                 />
               </label>
             </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-                NOM DU DEMANDEUR *
-                <input
-                  type="text"
-                  value={`${user.prenom} ${user.nom}`}
-                  readOnly
-                  className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10] opacity-70"
-                />
-              </label>
-              <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-                MATRICULE
-                <input
-                  type="text"
-                  value={user.matricule}
-                  readOnly
-                  className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10] opacity-70"
-                />
-              </label>
-            </div>
-
-            <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-              SERVICE / DIRECTION *
-              <input
-                type="text"
-                value={serviceDirection}
-                onChange={(event) => setServiceDirection(event.target.value)}
-                className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-              />
-            </label>
-
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#6b5446]">TYPE D’INCIDENT *</p>
+              <p className="text-xs font-semibold uppercase text-[#6b5446]">TYPE D’INCIDENT</p>
               <div className="flex flex-wrap gap-3">
                 {incidentTypes.map((type) => {
                   const selected = selectedIncidentType === type.id;
@@ -261,11 +248,10 @@ export default function NewTicketPage() {
                       type="button"
                       key={type.id}
                       onClick={() => setSelectedIncidentType(type.id)}
-                      className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition ${
-                        selected
+                      className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase transition ${selected
                           ? "border-[#2b1d10] bg-[#2b1d10] text-white"
                           : "border-[#cdc4ba] bg-white text-[#2b1d10]"
-                      }`}
+                        }`}
                     >
                       {type.label}
                     </button>
@@ -274,149 +260,148 @@ export default function NewTicketPage() {
               </div>
             </div>
 
-          {selectedIncidentType === "INTERNE" ? (
-            <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-              CATÉGORIE INTERNE *
-              <select
-                value={selectedInternalCategoryId ?? ""}
-                onChange={(event) => setSelectedInternalCategoryId(event.target.value)}
-                disabled={categoryStatus !== "idle" || incidentCategories.length === 0}
-                className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-              >
-                <option value="" disabled>
-                  {categoryStatus === "loading"
-                    ? "Chargement…"
-                    : categoryStatus === "error"
-                    ? "Impossible de charger les catégories"
-                    : incidentCategories.length
-                    ? "-- Sélectionner --"
-                    : "Aucune catégorie disponible"}
-                </option>
-                {incidentCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.libelle}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <div className="space-y-3">
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-                  NOM DU CLIENT *
-                  <input
-                    type="text"
-                    value={clientName}
-                    onChange={(event) => setClientName(event.target.value)}
-                    placeholder="Entreprise cliente"
-                    className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-                  />
-                </label>
-                <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-                  PRODUIT CONCERNÉ *
-                  <select
-                    value={product}
-                    onChange={(event) => setProduct(event.target.value)}
-                    className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-                  >
-                    <option value="">-- Sélectionner --</option>
-                    {productOptions.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-                NATURE DE LA RÉCLAMATION *
+            {selectedIncidentType === "INTERNE" ? (
+              <label className="space-y-2 text-xs font-semibold uppercase text-[#6b5446]">
+                CATÉGORIE INTERNE
                 <select
-                  value={selectedReclamationCategoryId ?? ""}
-                  onChange={(event) => setSelectedReclamationCategoryId(event.target.value)}
-                  disabled={categoryStatus !== "idle" || reclamationCategories.length === 0}
+                  value={selectedInternalCategoryId ?? ""}
+                  onChange={(event) => setSelectedInternalCategoryId(event.target.value)}
+                  disabled={categoryStatus !== "idle" || incidentCategories.length === 0}
                   className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
                 >
                   <option value="" disabled>
                     {categoryStatus === "loading"
                       ? "Chargement…"
                       : categoryStatus === "error"
-                      ? "Impossible de charger les catégories"
-                      : reclamationCategories.length
-                      ? "-- Sélectionner --"
-                      : "Aucune catégorie disponible"}
+                        ? "Impossible de charger les catégories"
+                        : incidentCategories.length
+                          ? "-- Sélectionner --"
+                          : "Aucune catégorie disponible"}
                   </option>
-                  {reclamationCategories.map((category) => (
+                  {incidentCategories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.libelle}
                     </option>
                   ))}
                 </select>
               </label>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#6b5446]">NIVEAU DE PRIORITÉ *</p>
-            <div className="flex flex-wrap gap-3">
-              {priorityLevels.map((level) => {
-                const selected = selectedPriority === level.id;
-                return (
-                  <button
-                    type="button"
-                    key={level.id}
-                    onClick={() => setSelectedPriority(level.id)}
-                    className={`rounded-[18px] border px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition ${selected ? level.tone : "border-[#cdc4ba] bg-white text-[#2b1d10]"}`}
+            ) : (
+              <div className="space-y-3">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-2 text-xs font-semibold uppercase text-[#6b5446]">
+                    NOM DU CLIENT
+                    <input
+                      type="text"
+                      value={clientName}
+                      onChange={(event) => setClientName(event.target.value)}
+                      placeholder="Entreprise cliente"
+                      className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+                    />
+                  </label>
+                  <label className="space-y-2 text-xs font-semibold uppercase text-[#6b5446]">
+                    PRODUIT CONCERNÉ
+                    <select
+                      value={product}
+                      onChange={(event) => setProduct(event.target.value)}
+                      className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+                    >
+                      <option value="">-- Sélectionner --</option>
+                      {productOptions.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
+                  NATURE DE LA RÉCLAMATION
+                  <select
+                    value={selectedReclamationCategoryId ?? ""}
+                    onChange={(event) => setSelectedReclamationCategoryId(event.target.value)}
+                    disabled={categoryStatus !== "idle" || reclamationCategories.length === 0}
+                    className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
                   >
-                    {level.label}
-                  </button>
-                );
-              })}
+                    <option value="" disabled>
+                      {categoryStatus === "loading"
+                        ? "Chargement…"
+                        : categoryStatus === "error"
+                          ? "Impossible de charger les catégories"
+                          : reclamationCategories.length
+                            ? "-- Sélectionner --"
+                            : "Aucune catégorie disponible"}
+                    </option>
+                    {reclamationCategories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.libelle}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#6b5446]">NIVEAU DE PRIORITÉ *</p>
+              <div className="flex flex-wrap gap-3">
+                {priorityLevels.map((level) => {
+                  const selected = selectedPriority === level.id;
+                  return (
+                    <button
+                      type="button"
+                      key={level.id}
+                      onClick={() => setSelectedPriority(level.id)}
+                      className={`rounded-[18px] border px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition ${selected ? level.tone : "border-[#cdc4ba] bg-white text-[#2b1d10]"}`}
+                    >
+                      {level.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-            DESCRIPTION DÉTAILLÉE *
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              rows={4}
-              placeholder="Décrivez l'incident. Incluez messages d'erreur, logs, étapes de reproduction…"
-              className="w-full rounded-[18px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-            />
-          </label>
+            <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
+              DESCRIPTION DÉTAILLÉE *
+              <textarea
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                rows={4}
+                placeholder="Décrivez l'incident. Incluez messages d'erreur, logs, étapes de reproduction…"
+                className="w-full rounded-[18px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+              />
+            </label>
 
-          <div className="rounded-[18px] border border-dashed border-[#d3c7ba] bg-[#fffaf5] px-5 py-8 text-center text-sm font-semibold uppercase tracking-[0.3em] text-[#7a6b5d]">
-            <p>Glissez un fichier ou <span className="text-[#d9731d]">cliquez pour parcourir</span></p>
-            <p className="text-xs font-normal uppercase tracking-[0.2em] text-[#b09a88]">JPG, PNG, PDF — 10 Mo max</p>
-          </div>
+            <div className="rounded-[18px] border border-dashed border-[#d3c7ba] bg-[#fffaf5] px-5 py-8 text-center text-sm font-semibold uppercase text-[#7a6b5d]">
+              <p>Glissez un fichier ou <span className="text-[#d9731d]">cliquez pour parcourir</span></p>
+              <p className="text-xs font-normal uppercase text-[#b09a88]">JPG, PNG, PDF — 10 Mo max</p>
+            </div>
 
-          <div className="flex flex-wrap justify-end gap-3 pt-2">
-            <button
-              type="button"
-              className="rounded-full border border-[#c6b6a9] px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#2b1d10]"
-              onClick={() => {
-                setDescription("");
-                setClientName("");
-                setProduct("");
-              }}
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitDisabled}
-              className={`rounded-full px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white shadow-[0_15px_40px_rgba(217,115,29,0.35)] transition ${
-                isSubmitDisabled
-                  ? "from-[#f6c292] to-[#f7c294] opacity-60"
-                  : "bg-gradient-to-r from-[#d9731d] to-[#bb5b0f]"
-              }`}
-            >
-              {isSubmitting ? "Envoi..." : "Envoyer le ticket"}
-            </button>
-          </div>
-        </form>
-      </section>
-    </main>
-  </div>
-);
+            <div className="flex flex-wrap justify-end gap-3 pt-2">
+              <button
+                type="button"
+                className="rounded-full border border-[#c6b6a9] px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#2b1d10]"
+                onClick={() => {
+                  setDescription("");
+                  setClientName("");
+                  setProduct("");
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitDisabled}
+                className={`rounded-full px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white shadow-[0_15px_40px_rgba(217,115,29,0.35)] transition ${isSubmitDisabled
+                    ? "from-[#f6c292] to-[#f7c294] opacity-60"
+                    : "bg-gradient-to-r from-[#d9731d] to-[#bb5b0f]"
+                  }`}
+              >
+                {isSubmitting ? "Envoi..." : "Envoyer le ticket"}
+              </button>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+  );
 }

@@ -13,6 +13,7 @@ import {
   Settings,
   Shield,
   Tag,
+  UserPlus,
   Users,
   X,
 } from "lucide-react";
@@ -48,6 +49,7 @@ const navSections: NavSection[] = [
       roles: ["ADMIN", "SUPER_ADMIN"],
         items: [
           { label: "Utilisateurs", href: "/dashboard/admin/users", icon: <Users className="h-4 w-4" /> },
+          { label: "Créer un utilisateur", href: "/dashboard/users/create", icon: <UserPlus className="h-4 w-4" /> },
           { label: "Configuration", href: "/dashboard/admin", icon: <Settings className="h-4 w-4" /> },
           { label: "Journal d'activité", href: "/dashboard/admin", icon: <List className="h-4 w-4" /> },
           { label: "Catégories", href: "/dashboard/admin/categories", icon: <Tag className="h-4 w-4" /> },
@@ -66,6 +68,11 @@ const navSections: NavSection[] = [
             label: "Utilisateurs",
             href: "/dashboard/super-admin/users",
             icon: <Users className="h-4 w-4" />,
+          },
+          {
+            label: "Créer un utilisateur",
+            href: "/dashboard/users/create",
+            icon: <UserPlus className="h-4 w-4" />,
           },
         ],
       },
@@ -206,48 +213,38 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         {isNavMounted && (
-          <div className="fixed inset-0 z-30 lg:hidden">
+          <div className="fixed inset-0 z-40 flex lg:hidden">
             <div
-              className={`absolute inset-0 bg-black/30 transition-opacity duration-300 ${
+              className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${
                 isNavOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
               }`}
               onClick={closeMobileNav}
-              aria-hidden
             />
-            <div
-              className={`absolute inset-x-0 top-full z-40 border-b border-[#e0d3c4] bg-white/95 px-6 py-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] transition-[max-height,opacity,transform] duration-700 ease-out transform-gpu origin-top overflow-hidden ${
-                isNavOpen
-                  ? "opacity-100 translate-y-0 scale-y-100 max-h-[520px]"
-                  : "opacity-0 -translate-y-3 scale-y-90 max-h-0"
+            <aside
+              className={`relative ml-auto flex h-full w-full max-w-xs flex-col gap-6 border-l border-[#e0d3c4] bg-white/95 px-6 py-6 shadow-[0_30px_100px_rgba(0,0,0,0.25)] transition-transform duration-300 ${
+                isNavOpen ? "translate-x-0" : "translate-x-full"
               }`}
-              onClick={(event) => event.stopPropagation()}
             >
-              <div className="mb-4 flex items-center justify-between">
-                <button
-                  type="button"
-                  className="rounded-full border border-[#cfc8bd] bg-[#fffdf2] p-2"
-                  onClick={closeMobileNav}
-                  aria-label="Fermer le menu"
-                >
-                  <X className="h-4 w-4 text-[#2b1d10]" />
-                </button>
-              </div>
-              <div className="flex flex-col gap-4">
-                <div className="max-h-[60vh] overflow-y-auto pr-1">
-                  {renderNavContent(closeMobileNav)}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeMobileNav();
-                    handleLogout();
-                  }}
-                  className="flex items-center justify-center rounded-full border border-[#cba87f] bg-[#fffdf2] p-2 text-[#c4620c] transition hover:border-[#f8b24d] hover:bg-[#ffedd6] hover:cursor-pointer"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+              <button
+                type="button"
+                className="self-end rounded-full border border-[#cfc8bd] bg-[#fffdf2] p-2"
+                onClick={closeMobileNav}
+                aria-label="Fermer le menu"
+              >
+                <X className="h-4 w-4 text-[#2b1d10]" />
+              </button>
+              <div className="flex-1 overflow-y-auto pr-1">{renderNavContent(closeMobileNav)}</div>
+              <button
+                type="button"
+                onClick={() => {
+                  closeMobileNav();
+                  handleLogout();
+                }}
+                className="flex items-center justify-center rounded-full border border-[#cba87f] bg-[#fffdf2] p-2 text-[#c4620c] transition hover:border-[#f8b24d] hover:bg-[#ffedd6]"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </aside>
           </div>
         )}
       </div>

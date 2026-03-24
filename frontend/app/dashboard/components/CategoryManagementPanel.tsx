@@ -3,8 +3,15 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { CategoryCreateForm } from "./CategoryCreateForm";
-import { deleteCategory, fetchCategories, updateCategory } from "@/api/tickets";
+import { fetchCategories, updateCategory } from "@/api/tickets";
 import type { TicketCategory, TicketType } from "@/api/types";
+
+type EditableCategoryFields = {
+  libelle: string;
+  type: TicketType;
+  description: string;
+  isActive: boolean;
+};
 
 const ticketTypeOptions: TicketType[] = ["INCIDENT", "DEMANDE"];
 
@@ -12,8 +19,9 @@ export function CategoryManagementPanel() {
   const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<Omit<TicketCategory, "id"> | null>(null);
+  const [editValues, setEditValues] = useState<EditableCategoryFields | null>(null);
   const [isActing, setIsActing] = useState(false);
+  const [categoryToDisable, setCategoryToDisable] = useState<TicketCategory | null>(null);
 
   const loadCategories = async () => {
     setLoading(true);
@@ -66,18 +74,30 @@ export function CategoryManagementPanel() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Voulez-vous vraiment supprimer cette catégorie ?")) {
-      return;
-    }
+  const openDisableModal = (category: TicketCategory) => {
+    setCategoryToDisable(category);
+  };
+
+  const closeDisableModal = () => {
+    setCategoryToDisable(null);
+  };
+
+  const confirmDisableCategory = async () => {
+    if (!categoryToDisable) return;
     setIsActing(true);
     try {
-      await deleteCategory(id);
-      toast.success("Catégorie supprimée.");
+      await updateCategory(categoryToDisable.id, {
+        libelle: categoryToDisable.libelle.trim(),
+        type: categoryToDisable.type,
+        description: categoryToDisable.description?.trim() || undefined,
+        isActive: false,
+      });
+      toast.success("Catégorie désactivée.");
       await loadCategories();
-      if (editingId === id) cancelEditing();
+      if (editingId === categoryToDisable.id) cancelEditing();
+      closeDisableModal();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Impossible de supprimer la catégorie.");
+      toast.error(err instanceof Error ? err.message : "Impossible de désactiver la catégorie.");
     } finally {
       setIsActing(false);
     }
@@ -179,14 +199,16 @@ export function CategoryManagementPanel() {
                         >
                           Modifier
                         </button>
-                        <button
-                          type="button"
-                          disabled={isActing}
-                          onClick={() => handleDelete(category.id)}
-                          className="rounded-full border border-[#c42d1f] bg-[#c42d1f]/10 px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#c42d1f]"
-                        >
-                          Supprimer
-                        </button>
+                        {category.isActive && (
+                          <button
+                            type="button"
+                            disabled={isActing}
+                            onClick={() => openDisableModal(category)}
+                            className="rounded-full border border-[#c42d1f] bg-[#fde8e7] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#c42d1f]"
+                          >
+                            Désactiver
+                          </button>
+                        )}
                       </div>
                     </div>
                     <p className="text-xs text-[#6b5446]">{category.description || "Aucune description fournie."}</p>
@@ -205,6 +227,48 @@ export function CategoryManagementPanel() {
         </div>
         {!categories.length && !loading && <p className="text-sm text-[#6b5446]">Aucune catégorie disponible.</p>}
       </div>
+      {categoryToDisable && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center overflow-auto bg-black/40 px-4 py-8">
+          <div className="relative w-full max-w-md rounded-[24px] border border-white/50 bg-white p-6 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
+            <button
+              type="button"
+              onClick={closeDisableModal}
+              className="absolute right-3 top-3 rounded-full border border-[#c6b6a9] bg-white p-2 text-[#2b1d10] transition hover:bg-[#f8f8f8]"
+              aria-label="Fermer la confirmation"
+            >
+              <span className="sr-only">Fermer</span>
+              ×
+            </button>
+            <div className="space-y-3 text-center">
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#c42d1f]">
+                Désactiver une catégorie
+              </p>
+              <p className="text-lg font-semibold text-[#2b1d10]">{categoryToDisable.libelle}</p>
+              <p className="text-sm text-[#6b5446]">
+                Cette action masque la catégorie dans la sélection des tickets. Vous pouvez la réactiver
+                depuis la liste en modifiant l’état.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-col gap-3 text-sm uppercase tracking-[0.3em] text-[#2b1d10] md:flex-row md:justify-end">
+              <button
+                type="button"
+                onClick={closeDisableModal}
+                className="rounded-full border border-[#c6b6a9] px-4 py-2 font-semibold hover:bg-[#f8f8f8]"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={confirmDisableCategory}
+                disabled={isActing}
+                className="rounded-full bg-[#c42d1f] px-4 py-2 font-semibold text-white transition hover:bg-[#a3261b]"
+              >
+                {isActing ? "Désactivation…" : "Confirmer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

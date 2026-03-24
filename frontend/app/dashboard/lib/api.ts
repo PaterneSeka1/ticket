@@ -13,6 +13,8 @@ export type AuthenticatedUser = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  direction?: string | null;
+  service?: string | null;
 };
 
 export const fetchCurrentUser = async (token: string): Promise<AuthenticatedUser> => {

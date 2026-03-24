@@ -23,6 +23,7 @@ import {
   TimelineEventType,
   TicketStatus,
   TicketType,
+  UserRole,
 } from '../prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 
@@ -64,7 +65,7 @@ export class TicketsService {
       throw new BadRequestException('La catégorie ne correspond pas au type.');
     }
 
-    const responsible = await this.findActiveDsiResponsible();
+    const recipient = await this.findTicketRecipient();
     const code = await this.generateTicketCode();
     const now = new Date();
 
@@ -87,10 +88,10 @@ export class TicketsService {
           resolvedAt: dto.resolvedAt ? new Date(dto.resolvedAt) : null,
           slaMaxMinutes: dto.slaMaxMinutes ?? null,
           waitMinutes: dto.waitMinutes ?? null,
-          receivedBy: { connect: { id: responsible.id } },
-          receivedAt: now,
-        },
-        include: this.ticketInclude,
+      receivedBy: { connect: { id: recipient.id } },
+      receivedAt: now,
+    },
+    include: this.ticketInclude,
       });
     } catch (error) {
       this.handleConflict(error);
@@ -106,8 +107,8 @@ export class TicketsService {
     await this.recordTimelineEvent(
       ticket.id,
       TimelineEventType.RECEIVE,
-      'Ticket réceptionné par le service DSI',
-      `${responsible.nom} ${responsible.prenom}`.trim(),
+      `Ticket réceptionné par le ${this.getRecipientLabel(recipient)}`,
+      `${recipient.nom} ${recipient.prenom}`.trim(),
     );
 
     await this.logActivity({
@@ -118,8 +119,8 @@ export class TicketsService {
     });
     await this.logActivity({
       action: 'ticket.received',
-      details: `${ticket.code} reçu par ${responsible.email}`,
-      actor: responsible,
+      details: `${ticket.code} reçu par ${recipient.email}`,
+      actor: recipient,
       ticketId: ticket.id,
     });
 
@@ -583,6 +584,42 @@ export class TicketsService {
       throw new BadRequestException('Aucun responsable DSI actif trouvé.');
     }
     return responsible;
+  }
+
+  private async findTicketRecipient() {
+    const superAdmin = await this.findActiveSuperAdmin();
+    if (superAdmin) {
+      return superAdmin;
+    }
+    try {
+      return await this.findActiveDsiResponsible();
+    } catch {
+      const adminFallback = await this.findAnyAdmin();
+      if (adminFallback) {
+        return adminFallback;
+      }
+      throw new BadRequestException('Aucun destinataire disponible pour ce ticket.');
+    }
+  }
+
+  private async findActiveSuperAdmin() {
+    return this.prisma.client.user.findFirst({
+      where: { isActive: true, role: UserRole.SUPER_ADMIN },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  private async findAnyAdmin() {
+    return this.prisma.client.user.findFirst({
+      where: { isActive: true, role: UserRole.ADMIN },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  private getRecipientLabel(user: Prisma.User) {
+    if (user.role === UserRole.SUPER_ADMIN) return 'super-admin';
+    if (user.direction === DirectionType.DSI) return 'service DSI';
+    return 'administration';
   }
 
   private ensureTransition(current: TicketStatus, next: TicketStatus) {
