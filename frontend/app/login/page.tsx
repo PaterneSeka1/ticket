@@ -158,7 +158,7 @@ function LoginContent() {
                   id="login-submit"
                   type="submit"
                   disabled={isLoading}
-                  className="mx-auto w-50 block h-10 rounded-[16px] bg-[#f4b90a] text-[#2b1d10] text-sm font-semibold uppercase tracking-[0.1em] shadow-[0_12px_25px_rgba(244,185,10,0.35)] transition duration-200 ease-out disabled:opacity-60 hover:-translate-y-0.5 hover:shadow-[0_18px_30px_rgba(244,185,10,0.45)]"
+                  className="mx-auto w-50 block h-10 rounded-[16px] bg-[#f4b90a] text-[#2b1d10] text-sm font-semibold uppercase tracking-[0.1em] shadow-[0_12px_25px_rgba(244,185,10,0.35)] transition duration-200 ease-out disabled:opacity-60 hover:-translate-y-0.5 hover:shadow-[0_18px_30px_rgba(244,185,10,0.45)] hover:cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#f4b90a]/50 focus:ring-offset-2 disabled:hover:shadow-none disabled:hover:translate-y-0 disabled:hover:cursor-not-allowed"
                 >
                   {isLoading ? "Connexion..." : "Se connecter"}
                 </button>
