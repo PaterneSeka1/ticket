@@ -190,7 +190,7 @@ export function UserManagementPanel() {
   const activeCount = visibleUsers.filter((user) => user.isActive).length;
 
   return (
-    <div className="mx-auto w-full max-w-[1440px]">
+    <div className="mx-auto  max-w-[260px] sm:max-w-[550px] lg:max-w-[700px] xl:max-w-[900px] 2xl:max-w-[1280px] 3xl:max-w-[1440px]">
       <div className="mb-4">
         <h1 className="text-[32px] font-bold leading-tight text-[#1f2937]">
           Gestion des Utilisateurs
@@ -346,12 +346,12 @@ export function UserManagementPanel() {
               {table.getPageCount() || 1}
             </p>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <button
                 type="button"
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
-                className="inline-flex items-center gap-1 rounded-lg border border-[#d0d5dd] px-3 py-2 text-xs text-[#344054] disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg border border-[#d0d5dd] px-3 py-2 text-xs text-[#344054] disabled:opacity-50 w-full justify-center sm:w-auto"
               >
                 <ChevronLeft className="h-4 w-4" />
                 Précédent
@@ -361,7 +361,7 @@ export function UserManagementPanel() {
                 type="button"
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
-                className="inline-flex items-center gap-1 rounded-lg border border-[#d0d5dd] px-3 py-2 text-xs text-[#344054] disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg border border-[#d0d5dd] px-3 py-2 text-xs text-[#344054] disabled:opacity-50 w-full justify-center sm:w-auto"
               >
                 Suivant
                 <ChevronRight className="h-4 w-4" />
@@ -370,7 +370,7 @@ export function UserManagementPanel() {
               <select
                 value={table.getState().pagination.pageSize}
                 onChange={(event) => table.setPageSize(Number(event.target.value))}
-                className="rounded-lg border border-[#d0d5dd] px-3 py-2 text-xs text-[#344054]"
+                className="w-full rounded-lg border border-[#d0d5dd] px-3 py-2 text-xs text-[#344054] sm:w-auto"
               >
                 {[5, 10, 20].map((size) => (
                   <option key={size} value={size}>

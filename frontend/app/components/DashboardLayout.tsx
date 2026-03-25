@@ -74,12 +74,14 @@ const buildNavSections = (
     roles: ["ADMIN", "SUPER_ADMIN"],
     items: [
       { label: "Utilisateurs", href: "/dashboard/admin/users", icon: <Users className="h-4 w-4" /> },
-      { label: "Créer un utilisateur", href: "/dashboard/users/create", icon: <UserPlus className="h-4 w-4" /> },
+      { label: "Créer un utilisateur", href: "/dashboard/admin/users/create", icon: <UserPlus className="h-4 w-4" /> },
       { label: "Configuration", href: "/dashboard/admin", icon: <Settings className="h-4 w-4" /> },
       { label: "Journal d'activité", href: "/dashboard/admin", icon: <List className="h-4 w-4" /> },
       { label: "Catégories", href: "/dashboard/admin/categories", icon: <Tag className="h-4 w-4" /> },
     ],
   };
+
+
 
   const superAdminSection: NavSection = {
     heading: "Super-admin",

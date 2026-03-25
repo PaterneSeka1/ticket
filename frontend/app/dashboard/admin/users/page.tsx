@@ -33,8 +33,6 @@ export default function AdminUsersPage() {
   return (
     <DashboardShell
       user={user}
-      title="Gestion des Utilisateurs"
-      subtitle="5 compte(s) — 4 actif(s)"
     >
       <UserManagementPanel />
     </DashboardShell>
