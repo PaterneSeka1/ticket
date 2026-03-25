@@ -1,19 +1,80 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
 import { DashboardShell } from "../components/DashboardShell";
-import { useCurrentUser } from "../hooks/useCurrentUser";
 import { getRedirectRouteForRole } from "../lib/api";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useRouter } from "next/navigation";
 
-const metrics = [
-  { label: "Total tickets", value: "6", detail: "2 aujourd’hui", tone: "text-[#1c1c1c]" },
-  { label: "P1 critiques", value: "1", detail: "1 non ouverts", tone: "text-[#c42d1f]" },
-  { label: "En cours", value: "4", detail: "SLA moyen P2 : 2h", tone: "text-[#1f6f3a]" },
-  { label: "Résolus / fermés", value: "2", detail: "Taux : 33%", tone: "text-[#117259]" },
+type Metric = {
+  label: string;
+  value: string;
+  detail: string;
+  valueColor: string;
+  accent: string;
+};
+
+type Ticket = {
+  id: string;
+  titre: string;
+  prio: "P1" | "P2" | "P3";
+  sla: string;
+  status: "Reçu" | "En cours de résolution" | "Ouvert" | "Pris en charge";
+  assigne: string;
+  slaProgress: number;
+};
+
+const metrics: Metric[] = [
+  {
+    label: "TOTAL TICKETS",
+    value: "6",
+    detail: "2 aujourd’hui",
+    valueColor: "text-[#181818]",
+    accent: "bg-[#f1efe9]",
+  },
+  {
+    label: "P1 CRITIQUES",
+    value: "1",
+    detail: "1 non ouvert",
+    valueColor: "text-[#d73b2f]",
+    accent: "bg-[#fde7e4]",
+  },
+  {
+    label: "EN COURS",
+    value: "4",
+    detail: "SLA moyen P2 : 2h",
+    valueColor: "text-[#f0a11d]",
+    accent: "bg-[#fff1d7]",
+  },
+  {
+    label: "RÉSOLUS / FERMÉS",
+    value: "2",
+    detail: "Taux : 33%",
+    valueColor: "text-[#2fa26b]",
+    accent: "bg-[#e4f5ec]",
+  },
 ];
 
-const tickets = [
+const tickets: Ticket[] = [
   {
     id: "#TK-001",
     titre: "Inaccessibilité à une plateforme métier",
@@ -21,7 +82,6 @@ const tickets = [
     sla: "2h 38m",
     status: "Reçu",
     assigne: "DSI",
-    badge: "bg-[#c42d1f]/20 text-[#c42d1f]",
     slaProgress: 92,
   },
   {
@@ -31,30 +91,84 @@ const tickets = [
     sla: "58m",
     status: "En cours de résolution",
     assigne: "Relation Clientèle",
-    badge: "bg-[#f2a90f]/20 text-[#f2a90f]",
-    slaProgress: 60,
+    slaProgress: 58,
   },
   {
     id: "#TK-003",
-    titre: "Plateforme — Bugs / lenteurs",
+    titre: "Plateforme — Bugs / Lenteurs",
     prio: "P2",
     sla: "1h 50m",
     status: "Ouvert",
     assigne: "DSI",
-    badge: "bg-[#1f6f3a]/20 text-[#1f6f3a]",
-    slaProgress: 45,
+    slaProgress: 68,
   },
   {
     id: "#TK-004",
-    titre: "Dysfonctionnement d'un portail externe",
+    titre: "Dysfonctionnement d’un portail externe",
     prio: "P2",
     sla: "1h 12m",
     status: "Pris en charge",
     assigne: "Boldcode",
-    badge: "bg-[#117259]/20 text-[#117259]",
-    slaProgress: 25,
+    slaProgress: 44,
   },
 ];
+
+const ticketStatusData = [
+  { name: "Reçu", value: 1, color: "#d9d9d9" },
+  { name: "Ouvert", value: 1, color: "#f4b000" },
+  { name: "Pris en charge", value: 1, color: "#2dad5b" },
+  { name: "En cours de résolution", value: 1, color: "#6d35d9" },
+  { name: "Résolu", value: 1, color: "#727885" },
+  { name: "Fermé", value: 1, color: "#1f6c97" },
+];
+
+const ticketPriorityData = [
+  { name: "P1 Critique", value: 2, fill: "#e53935" },
+  { name: "P2 Majeur", value: 3, fill: "#f4a300" },
+  { name: "P3 Mineur", value: 1, fill: "#2ba84a" },
+];
+
+function priorityBadge(prio: Ticket["prio"]) {
+  if (prio === "P1") {
+    return "bg-[#fde8e5] text-[#d73b2f]";
+  }
+  if (prio === "P2") {
+    return "bg-[#fff2db] text-[#d69007]";
+  }
+  return "bg-[#e7f5ec] text-[#2f8f58]";
+}
+
+function statusBadge(status: Ticket["status"]) {
+  switch (status) {
+    case "Reçu":
+      return "bg-[#eceff3] text-[#5b6370]";
+    case "En cours de résolution":
+      return "bg-[#fff0bf] text-[#987100]";
+    case "Ouvert":
+      return "bg-[#fff5de] text-[#a76800]";
+    case "Pris en charge":
+      return "bg-[#e6f4ff] text-[#1d79c4]";
+    default:
+      return "bg-[#eceff3] text-[#5b6370]";
+  }
+}
+
+function MetricCard({ metric }: { metric: Metric }) {
+  return (
+    <article className="relative overflow-hidden rounded-[14px] border border-[#ebe6df] bg-white px-5 py-4 shadow-[0_2px_10px_rgba(17,17,17,0.03)]">
+      <div
+        className={`absolute -right-4 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full opacity-60 ${metric.accent}`}
+      />
+      <p className="relative text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8f8b85]">
+        {metric.label}
+      </p>
+      <p className={`relative mt-2 text-[2rem] font-semibold leading-none ${metric.valueColor}`}>
+        {metric.value}
+      </p>
+      <p className="relative mt-1 text-[11px] text-[#8a8176]">{metric.detail}</p>
+    </article>
+  );
+}
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -62,172 +176,339 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (status !== "ready" || !user) return;
-    if (user.role !== "ADMIN") {
+    if (!["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
       router.replace(getRedirectRouteForRole(user.role));
     }
-  }, [status, user, router]);
+  }, [router, status, user]);
 
   if (status !== "ready" || !user) {
     return (
       <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
         <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Préparation de votre espace administrateur…</p>
+          <p className="text-sm text-[var(--vdm-muted)]">Préparation du tableau de bord…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <DashboardShell
-      user={user}
-      title="Tableau de bord Administrateur"
-      subtitle={`Vue d'ensemble — ${new Date().toLocaleDateString("fr-FR", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })}`}
-    >
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {metrics.map((metric) => (
-            <article
-              key={metric.label}
-              className="rounded-[20px] border border-[#f0d7c6] bg-white p-5 shadow-[0_16px_50px_rgba(0,0,0,0.08)]"
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#b86112]">{metric.label}</p>
-              <p className={`text-4xl font-bold ${metric.tone}`}>{metric.value}</p>
-              <p className="text-xs text-[#6b5446]">{metric.detail}</p>
-            </article>
-          ))}
-        </div>
+    <DashboardShell user={user} title="Tableau de bord admin" subtitle="Vision globale des tickets">
+      <AdminDashboardContent />
+    </DashboardShell>
+  );
+}
 
-        <div className="rounded-[20px] border border-[#f0d7c6] bg-[#fff4c8] p-5 shadow-[0_16px_40px_rgba(0,0,0,0.05)]">
-          <p className="text-sm font-semibold text-[#c4620c]">Escalade automatique — 1 ticket(s) non ouvert(s) depuis +1h</p>
-          <p className="text-xs text-[#6b5446]">Tickets concernés : #TK-001. Notifications envoyées automatiquement.</p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <button className="rounded-full bg-[#1f851f] px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white">
+function SlaBar({ progress, label }: { progress: number; label: string }) {
+  return (
+    <div className="flex min-w-[120px] items-center gap-2">
+      <div className="h-[4px] w-[72px] overflow-hidden rounded-full bg-[#e8e0d7]">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-[#d63b35] to-[#f1a456]"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <span className="text-[11px] text-[#7d7267]">{label}</span>
+    </div>
+  );
+}
+
+function MobileTicketCard({ ticket }: { ticket: Ticket }) {
+  return (
+    <article className="space-y-2 rounded-[12px] border border-[#ebe6df] bg-white px-4 py-3 shadow-sm">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8a8176]">
+          {ticket.id}
+        </span>
+        <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-semibold uppercase ${priorityBadge(ticket.prio)}`}>
+          {ticket.prio}
+        </span>
+      </div>
+      <p className="text-sm font-semibold text-[#2b1d10]">{ticket.titre}</p>
+      <div className="flex flex-wrap items-center gap-2 text-[10px] text-[#7d7267]">
+        <span className="inline-flex items-center gap-1 rounded-full bg-[#f3f5f7] px-2 py-1 uppercase tracking-[0.2em] text-[#5c5c5c]">
+          {ticket.assigne}
+        </span>
+        <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-medium ${statusBadge(ticket.status)}`}>
+          {ticket.status}
+        </span>
+      </div>
+      <SlaBar progress={ticket.slaProgress} label={ticket.sla} />
+      <div className="flex justify-end">
+        <button className="rounded-full bg-[#f9b800] px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#352300] shadow-[0_8px_16px_rgba(249,184,0,0.18)]">
+          Voir
+        </button>
+      </div>
+    </article>
+  );
+}
+
+export function AdminDashboardContent() {
+  const columns = useMemo<ColumnDef<Ticket>[]>(
+    () => [
+      {
+        accessorKey: "id",
+        header: "ID",
+        cell: ({ row }) => (
+          <span className="inline-flex rounded-md bg-[#f3f5f7] px-2 py-[3px] text-[10px] font-semibold text-[#6e7681]">
+            {row.original.id}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "titre",
+        header: "TITRE",
+        cell: ({ row }) => (
+          <span className="block max-w-[320px] truncate text-[12px] text-[#241d16]">
+            {row.original.titre}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "prio",
+        header: "PRIO",
+        cell: ({ row }) => (
+          <span
+            className={`inline-flex rounded-full px-2 py-[3px] text-[10px] font-semibold uppercase ${priorityBadge(
+              row.original.prio
+            )}`}
+          >
+            {row.original.prio}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "sla",
+        header: "SLA",
+        cell: ({ row }) => (
+          <SlaBar progress={row.original.slaProgress} label={row.original.sla} />
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "STATUT",
+        cell: ({ row }) => (
+          <span
+            className={`inline-flex rounded-full px-2 py-[3px] text-[10px] font-medium ${statusBadge(
+              row.original.status
+            )}`}
+          >
+            {row.original.status}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "assigne",
+        header: "ASSIGNÉ",
+        cell: ({ row }) => (
+          <span className="text-[12px] text-[#544a40]">{row.original.assigne}</span>
+        ),
+      },
+      {
+        id: "action",
+        header: "ACTION",
+        cell: () => (
+          <div className="flex justify-end">
+            <button className="rounded-full bg-[#f9b800] px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#352300] shadow-[0_8px_16px_rgba(249,184,0,0.18)]">
+              Voir
+            </button>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const table = useReactTable({
+    data: tickets,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  return (
+    <div className="space-y-4 w-full max-w-full">
+      {/* KPI */}
+      <section className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+        {metrics.map((metric) => (
+          <MetricCard key={metric.label} metric={metric} />
+        ))}
+      </section>
+
+      {/* Alert */}
+      <section className="rounded-[14px] border border-[#f0df8e] bg-[#fff6cc] px-4 py-3 shadow-[0_2px_8px_rgba(17,17,17,0.02)]">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[12px] font-semibold text-[#c26d00]">
+              Escalade automatique — 1 ticket(s) non ouvert(s) depuis +1h
+            </p>
+            <p className="text-[11px] text-[#7e6c58]">
+              Tickets concernés : #TK-001. Notifications envoyées automatiquement.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button className="rounded-md bg-[#2dac45] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
               Renvoyer WhatsApp
             </button>
-            <button className="rounded-full border border-[#2b1d10] bg-[#1b1b1b]/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#2b1d10]">
+            <button className="rounded-md bg-[#1f1f1f] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
               Renvoyer Email
             </button>
           </div>
         </div>
+      </section>
 
-        <section className="rounded-[20px] border border-[#f0d7c6] bg-white p-5 shadow-[0_16px_40px_rgba(0,0,0,0.05)]">
-          <header className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[#b86112]">Tickets actifs — SLA</p>
-              <p className="text-sm text-[#6b5446]">4 ticket(s)</p>
-            </div>
-            <button className="text-xs font-semibold uppercase tracking-[0.3em] text-[#f6a500]">Voir</button>
-          </header>
-          <div className="mt-5 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="text-xs uppercase tracking-[0.35em] text-[#8a7c6c]">
-                <tr>
-                  <th className="pb-3">ID</th>
-                  <th className="pb-3">Titre</th>
-                  <th className="pb-3">Prio</th>
-                  <th className="pb-3">SLA</th>
-                  <th className="pb-3">Statut</th>
-                  <th className="pb-3">Assigné</th>
-                  <th className="pb-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="text-xs text-[#2b1d10]">
-                {tickets.map((ticket) => (
-                  <tr key={ticket.id} className="border-b border-[#f3ece2]">
-                    <td className="py-4 font-semibold text-[#2b1d10]">{ticket.id}</td>
-                    <td className="py-4">{ticket.titre}</td>
-                    <td className="py-4">
-                      <span className={`rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] ${ticket.badge}`}>
-                        {ticket.prio}
-                      </span>
-                    </td>
-                    <td className="py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-2 flex-1 rounded-full bg-[#e0d6cd]">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-[#c42d1f] to-[#f29f6a]"
-                            style={{ width: `${ticket.slaProgress}%` }}
-                          />
-                        </div>
-                        <span className="text-[0.7rem] text-[#6b5446]">{ticket.sla}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 text-[0.8rem] text-[#6b5446]">{ticket.status}</td>
-                    <td className="py-4">{ticket.assigne}</td>
-                    <td className="py-4 text-right">
-                      <button className="rounded-full bg-[#fcb712] px-4 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#2b1d10] shadow-[0_10px_30px_rgba(252,183,18,0.35)]">
-                        Voir
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Table */}
+      <section className="rounded-[14px] border border-[#ebe6df] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,17,17,0.03)]">
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8f8b85]">
+              Tickets actifs — SLA
+            </p>
+            <p className="mt-1 text-[11px] text-[#8a8176]">4 ticket(s)</p>
           </div>
-        </section>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <section className="rounded-[20px] border border-[#f0d7c6] bg-white p-5 shadow-[0_16px_40px_rgba(0,0,0,0.05)]">
-            <header className="mb-4 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[#b86112]">Tickets par statut</p>
-              <p className="text-xs text-[#6b5446]">Répartition</p>
-            </header>
-            <div className="flex items-center justify-center">
-              <div className="relative h-36 w-36">
-                <div className="absolute inset-0 rounded-full border-4 border-[#e5e5e5]"></div>
-                <div className="absolute inset-0 rounded-full border-4 border-t-[#c42d1f] border-r-[#f2a90f] border-b-[#1f6f3a] border-l-[#504c5a]"></div>
-              </div>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3 text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-6 rounded-full bg-[#c42d1f]"></span>P1 Critique
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-6 rounded-full bg-[#f2a90f]"></span>P2 Majeur
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-6 rounded-full bg-[#1f6f3a]"></span>P3 Mineur
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-6 rounded-full bg-[#504c5a]"></span>Résolu
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-[20px] border border-[#f0d7c6] bg-white p-5 shadow-[0_16px_40px_rgba(0,0,0,0.05)]">
-            <header className="mb-4 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[#b86112]">Tickets par priorité</p>
-              <p className="text-xs text-[#6b5446]">Derniers 7 jours</p>
-            </header>
-            <div className="space-y-6">
-              {[
-                { label: "P1 Critique", value: 2, color: "#d63b35" },
-                { label: "P2 Majeur", value: 3, color: "#f2a90f" },
-                { label: "P3 Mineur", value: 1, color: "#1f6f3a" },
-              ].map((serie) => (
-                <div key={serie.label} className="flex items-center gap-3">
-                  <div className="h-24 w-full rounded-[16px] bg-[#f4f2ef]">
-                    <div
-                      className="h-full rounded-[16px]"
-                      style={{
-                        width: `${serie.value * 20}%`,
-                        backgroundColor: serie.color,
-                        boxShadow: `0 10px 35px ${serie.color}80`,
-                      }}
-                    />
-                  </div>
-                  <div className="w-28 text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-[#6b5446]">{serie.label}</div>
-                </div>
-              ))}
-            </div>
-          </section>
+          <button className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#f0a000]">
+            Voir
+          </button>
         </div>
-      </div>
-    </DashboardShell>
+
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="min-w-full border-separate border-spacing-0">
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header, index) => (
+                    <th
+                      key={header.id}
+                      className={`border-b border-[#f1ece6] pb-3 text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9a9187] ${
+                        index === headerGroup.headers.length - 1 ? "text-right" : ""
+                      }`}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr key={row.id} className="align-middle">
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      className="border-b border-[#f5f1eb] py-3 pr-3 text-[12px] text-[#241d16] last:pr-0"
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="space-y-3 lg:hidden">
+          {tickets.map((ticket) => (
+            <MobileTicketCard key={ticket.id} ticket={ticket} />
+          ))}
+        </div>
+      </section>
+
+      {/* Charts */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        {/* Donut */}
+        <div className="rounded-[14px] border border-[#ebe6df] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,17,17,0.03)]">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8f8b85]">
+              Tickets par statut
+            </p>
+          </div>
+
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Legend
+                  verticalAlign="top"
+                  align="center"
+                  iconType="rect"
+                  iconSize={10}
+                  formatter={(value) => (
+                    <span className="text-[11px] text-[#7a7268]">{value}</span>
+                  )}
+                />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 10,
+                    border: "1px solid #ece7df",
+                    fontSize: 12,
+                  }}
+                />
+                <Pie
+                  data={ticketStatusData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="58%"
+                  innerRadius={42}
+                  outerRadius={66}
+                  paddingAngle={2}
+                  stroke="transparent"
+                >
+                  {ticketStatusData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Vertical bar */}
+        <div className="rounded-[14px] border border-[#ebe6df] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,17,17,0.03)]">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8f8b85]">
+              Tickets par priorité
+            </p>
+          </div>
+
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={ticketPriorityData} margin={{ top: 12, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid stroke="#f0ece6" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: "#7d7469" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: "#7d7469" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 10,
+                    border: "1px solid #ece7df",
+                    fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  {ticketPriorityData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

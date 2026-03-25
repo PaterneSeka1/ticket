@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import {
   ColumnDef,
   FilterFn,
+  PaginationState,
+  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -19,6 +21,9 @@ import type { Ticket, TicketPriority, TicketStatus, TicketType } from "@/api/typ
 
 type StatusFilter = TicketStatus | "Tous";
 type PriorityFilter = TicketPriority | "Tous";
+
+const cn = (...classes: Array<string | false | null | undefined>) =>
+  classes.filter(Boolean).join(" ");
 
 const statusLabels: Record<TicketStatus, { label: string; color: string }> = {
   RECU: { label: "Reçu", color: "bg-[#ffe9d6] text-[#c4620c]" },
@@ -35,7 +40,7 @@ const priorityLabels: Record<TicketPriority, { label: string; tone: string }> = 
   CRITIQUE: { label: "P1", tone: "bg-[#fee2e0] text-[#c42d1f]" },
   HAUT: { label: "P2", tone: "bg-[#fff1d6] text-[#d9731d]" },
   MOYEN: { label: "P3", tone: "bg-[#e8f6eb] text-[#1f6f3a]" },
-  BAS: { label: "P4", tone: "bg-[#f0f4ff] text-[#1f4bbf]" },
+  BAS: { label: "P4", tone: "bg-[#eef5ff] text-[#1f4bbf]" },
 };
 
 const typeLabels: Record<TicketType, string> = {
@@ -47,27 +52,25 @@ const statusOrder = Object.keys(statusLabels) as TicketStatus[];
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return "—";
+
   return new Intl.DateTimeFormat("fr-FR", {
-    month: "2-digit",
     day: "2-digit",
+    month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
 };
 
 const formatDuration = (minutes?: number | null) => {
-  if (minutes === undefined || minutes === null) {
-    return "—";
-  }
+  if (minutes === undefined || minutes === null) return "—";
+
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   const parts: string[] = [];
-  if (hours) {
-    parts.push(`${hours}h`);
-  }
-  if (remainder || !parts.length) {
-    parts.push(`${remainder}m`);
-  }
+
+  if (hours) parts.push(`${hours}h`);
+  if (remainder || !parts.length) parts.push(`${remainder}m`);
+
   return parts.join(" ");
 };
 
@@ -77,20 +80,50 @@ const getSlaProgress = (ticket: Ticket) => {
   return Math.min(100, Math.round((consumed / ticket.slaMaxMinutes) * 100));
 };
 
+const getSlaTone = (progress: number) => {
+  if (progress >= 85) {
+    return {
+      text: "text-[#c42d1f]",
+      bar: "from-[#d92d20] to-[#ff8a65]",
+      track: "bg-[#fbe4df]",
+    };
+  }
+
+  if (progress >= 55) {
+    return {
+      text: "text-[#b45309]",
+      bar: "from-[#f59e0b] to-[#facc15]",
+      track: "bg-[#fff1d6]",
+    };
+  }
+
+  return {
+    text: "text-[#15803d]",
+    bar: "from-[#22c55e] to-[#86efac]",
+    track: "bg-[#e6f6ea]",
+  };
+};
+
 export default function AdminTicketListPage() {
   const router = useRouter();
   const { user, status } = useCurrentUser();
+
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Tous");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("Tous");
   const [serviceFilter, setServiceFilter] = useState("Tous services");
   const [globalFilter, setGlobalFilter] = useState("");
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 6 });
+
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 6,
+  });
 
   useEffect(() => {
     if (status !== "ready" || !user) return;
+
     if (!["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
       router.replace(getRedirectRouteForRole(user.role));
     }
@@ -98,9 +131,12 @@ export default function AdminTicketListPage() {
 
   useEffect(() => {
     if (status !== "ready") return;
+
     let cancelled = false;
+
     const loadTickets = async () => {
       setLoading(true);
+
       try {
         const data = await fetchTickets();
         if (!cancelled) {
@@ -116,17 +152,18 @@ export default function AdminTicketListPage() {
         }
       }
     };
+
     void loadTickets();
+
     return () => {
       cancelled = true;
     };
   }, [status]);
 
   const serviceOptions = useMemo(() => {
-    const services = Array.from(
+    return Array.from(
       new Set(tickets.map((ticket) => ticket.assignedService ?? "").filter(Boolean)),
     );
-    return services;
   }, [tickets]);
 
   const filteredTickets = useMemo(() => {
@@ -135,28 +172,17 @@ export default function AdminTicketListPage() {
       const matchesPriority = priorityFilter === "Tous" || ticket.priority === priorityFilter;
       const matchesService =
         serviceFilter === "Tous services" || ticket.assignedService === serviceFilter;
+
       return matchesStatus && matchesPriority && matchesService;
     });
   }, [tickets, statusFilter, priorityFilter, serviceFilter]);
 
-  const ticketColumns = useMemo<ColumnDef<Ticket>[]>(
-    () => [
-      { id: "code", accessorFn: (ticket) => ticket.code },
-      { id: "category", accessorFn: (ticket) => ticket.category.libelle },
-      { id: "description", accessorFn: (ticket) => ticket.description },
-      { id: "status", accessorFn: (ticket) => ticket.status },
-      { id: "priority", accessorFn: (ticket) => ticket.priority },
-      { id: "emitter", accessorFn: (ticket) => `${ticket.emitter.prenom} ${ticket.emitter.nom}` },
-    ],
-    [],
-  );
-
-  const ticketGlobalFilter = useCallback<FilterFn<Ticket>>((row, columnId, filterValue) => {
+  const ticketGlobalFilter = useCallback<FilterFn<Ticket>>((row, _columnId, filterValue) => {
     const query = String(filterValue ?? "").trim().toLowerCase();
-    if (!query) {
-      return true;
-    }
+    if (!query) return true;
+
     const ticket = row.original;
+
     const haystack = [
       ticket.code,
       ticket.category.libelle,
@@ -167,11 +193,172 @@ export default function AdminTicketListPage() {
       ticket.assignedService ?? "",
       ticket.priority,
       ticket.status,
+      ticket.type,
     ]
       .join(" ")
       .toLowerCase();
+
     return haystack.includes(query);
   }, []);
+
+  const ticketColumns = useMemo<ColumnDef<Ticket>[]>(
+    () => [
+      {
+        id: "code",
+        accessorFn: (ticket) => ticket.code,
+        header: "ID",
+        cell: ({ row }) => (
+          <span className="inline-flex rounded-[8px] bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold text-[#4b5563]">
+            {row.original.code}
+          </span>
+        ),
+        size: 110,
+      },
+      {
+        id: "categoryTitle",
+        header: "Catégorie / Titre",
+        cell: ({ row }) => {
+          const ticket = row.original;
+
+          return (
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-semibold text-[#23160c]">
+                {ticket.category.libelle}
+              </p>
+              <p className="truncate text-[12px] text-[#7b6655]">{ticket.description}</p>
+            </div>
+          );
+        },
+        size: 280,
+      },
+      {
+        id: "type",
+        accessorFn: (ticket) => ticket.type,
+        header: "Type",
+        cell: ({ row }) => (
+          <span className="text-[11px] uppercase tracking-[0.16em] text-[#6b5446]">
+            {typeLabels[row.original.type]}
+          </span>
+        ),
+        size: 90,
+      },
+      {
+        id: "priority",
+        accessorFn: (ticket) => ticket.priority,
+        header: "Priorité",
+        cell: ({ row }) => {
+          const priority = priorityLabels[row.original.priority];
+
+          return (
+            <span
+              className={cn(
+                "inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em]",
+                priority.tone,
+              )}
+            >
+              {priority.label}
+            </span>
+          );
+        },
+        size: 90,
+      },
+      {
+        id: "sla",
+        header: "SLA",
+        cell: ({ row }) => {
+          const ticket = row.original;
+          const progress = getSlaProgress(ticket);
+          const tone = getSlaTone(progress);
+          const label = formatDuration(ticket.waitMinutes ?? ticket.slaMaxMinutes);
+
+          return (
+            <div className="w-full min-w-[110px]">
+              <div className={cn("mb-1 text-[11px] font-semibold", tone.text)}>{label}</div>
+              <div className={cn("h-1.5 overflow-hidden rounded-full", tone.track)}>
+                <div
+                  className={cn("h-full rounded-full bg-gradient-to-r", tone.bar)}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          );
+        },
+        size: 130,
+      },
+      {
+        id: "status",
+        accessorFn: (ticket) => ticket.status,
+        header: "Statut",
+        cell: ({ row }) => {
+          const statusInfo = statusLabels[row.original.status];
+
+          return (
+            <span
+              className={cn(
+                "inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]",
+                statusInfo.color,
+              )}
+            >
+              {statusInfo.label}
+            </span>
+          );
+        },
+        size: 150,
+      },
+      {
+        id: "assignedService",
+        accessorFn: (ticket) => ticket.assignedService ?? "",
+        header: "Service assigné",
+        cell: ({ row }) => (
+          <span className="text-[12px] text-[#2b1d10]">
+            {row.original.assignedService ?? "—"}
+          </span>
+        ),
+        size: 140,
+      },
+      {
+        id: "emitter",
+        accessorFn: (ticket) => `${ticket.emitter.prenom} ${ticket.emitter.nom}`,
+        header: "Émetteur",
+        cell: ({ row }) => (
+          <span className="text-[12px] text-[#2b1d10]">
+            {row.original.emitter.prenom} {row.original.emitter.nom}
+          </span>
+        ),
+        size: 130,
+      },
+      {
+        id: "date",
+        accessorFn: (ticket) => ticket.detectedAt ?? ticket.createdAt ?? "",
+        header: "Date",
+        cell: ({ row }) => (
+          <span className="text-[12px] text-[#5f4d3f]">
+            {formatDateTime(row.original.detectedAt ?? row.original.createdAt)}
+          </span>
+        ),
+        size: 100,
+      },
+      {
+        id: "actions",
+        header: "Action",
+        cell: ({ row }) => (
+          <button
+            type="button"
+            className="rounded-[10px] border border-[#d8cabc] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#faf6f1]"
+            onClick={() => {
+              // Remplace cette route par la tienne si besoin.
+              // Exemple : router.push(`/dashboard/admin/tickets/${row.original.id}`);
+              console.log("Voir ticket", row.original.id);
+            }}
+          >
+            Détail
+          </button>
+        ),
+        size: 90,
+      },
+    ],
+    [],
+  );
 
   const table = useReactTable({
     data: filteredTickets,
@@ -186,65 +373,80 @@ export default function AdminTicketListPage() {
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    defaultColumn: {
+      minSize: 60,
+      size: 120,
+    },
   });
 
   useEffect(() => {
-    setGlobalFilter(search);
-  }, [search]);
-
-  useEffect(() => {
     table.setPageIndex(0);
-  }, [filteredTickets.length, table]);
+  }, [globalFilter, statusFilter, priorityFilter, serviceFilter, table]);
 
   const paginatedRows = table.getPaginationRowModel().rows;
   const filteredCount = table.getFilteredRowModel().rows.length;
+  const totalColumns = table.getAllLeafColumns().length;
 
   if (status !== "ready" || !user) {
     return (
       <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
         <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Préparation de la gestion des tickets…</p>
+          <p className="text-sm text-[var(--vdm-muted)]">
+            Préparation de la gestion des tickets…
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <DashboardShell user={user} title="Gestion des tickets" subtitle={`${tickets.length} ticket(s) au total`}>
-      <div className="space-y-5 rounded-[32px] border border-[#f0d7c6] bg-[#fffdf7] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.08)]">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-[#6b5446]">
-            {loading ? "Chargement des tickets…" : `${filteredCount} ticket(s) trié(s)`}.
-          </p>
-          <div className="flex flex-wrap gap-3">
+    <DashboardShell
+      user={user}
+      title="Gestion des tickets"
+      subtitle={`${tickets.length} ticket(s) au total`}
+    >
+      <div className="space-y-4 rounded-[24px] border border-[#f1e5d7] bg-[#fffaf5] p-5 shadow-[0_18px_40px_rgba(43,29,16,0.05)]">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#b87731]">
+              Ticketing Vedem
+            </p>
+            <p className="mt-1 text-[13px] text-[#7b6655]">
+              {loading ? "Chargement des tickets…" : `${filteredCount} ticket(s) trié(s).`}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="flex items-center gap-2 rounded-full border border-[#d6c5b4] px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#2b1d10]"
+              className="inline-flex h-9 items-center gap-2 rounded-full border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#faf6f1]"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-3.5 w-3.5" />
               CSV
             </button>
+
             <button
               type="button"
-              className="flex items-center gap-2 rounded-full border border-[#d6c5b4] px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#2b1d10]"
+              className="inline-flex h-9 items-center gap-2 rounded-full border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#faf6f1]"
             >
-              <FileText className="h-4 w-4" />
+              <FileText className="h-3.5 w-3.5" />
               PDF
             </button>
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 items-end">
+        <div className="grid gap-2 md:grid-cols-[minmax(0,1.4fr)_180px_180px_180px]">
           <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            value={globalFilter}
+            onChange={(event) => setGlobalFilter(event.target.value)}
             placeholder="Rechercher par ref, titre, client..."
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+            className="h-10 rounded-[12px] border border-[#e7ddd2] bg-white px-3 text-sm text-[#2b1d10] placeholder:text-[#a28d7b] focus:border-[#d29b55] focus:outline-none"
           />
+
           <select
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+            className="h-10 rounded-[12px] border border-[#e7ddd2] bg-white px-3 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none"
           >
             <option value="Tous">Tous statuts</option>
             {statusOrder.map((statusKey) => (
@@ -253,10 +455,11 @@ export default function AdminTicketListPage() {
               </option>
             ))}
           </select>
+
           <select
             value={priorityFilter}
             onChange={(event) => setPriorityFilter(event.target.value as PriorityFilter)}
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+            className="h-10 rounded-[12px] border border-[#e7ddd2] bg-white px-3 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none"
           >
             <option value="Tous">Toutes priorités</option>
             {Object.entries(priorityLabels).map(([key, data]) => (
@@ -265,10 +468,11 @@ export default function AdminTicketListPage() {
               </option>
             ))}
           </select>
+
           <select
             value={serviceFilter}
             onChange={(event) => setServiceFilter(event.target.value)}
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+            className="h-10 rounded-[12px] border border-[#e7ddd2] bg-white px-3 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none"
           >
             <option value="Tous services">Tous services</option>
             {serviceOptions.map((service) => (
@@ -279,129 +483,182 @@ export default function AdminTicketListPage() {
           </select>
         </div>
 
-        <div className="overflow-x-auto rounded-[24px] border border-[#f3ece2]">
-          <table
-            className="min-w-full table-fixed text-left text-sm"
-            style={{ tableLayout: "fixed" }}
-          >
-            <thead className="text-xs uppercase tracking-[0.35em] text-[#8a7c6c]">
-              <tr>
-                <th className="pb-3">ID</th>
-                <th className="pb-3">Catégorie / Titre</th>
-                <th className="pb-3">Type</th>
-                <th className="pb-3">Priorité</th>
-                <th className="pb-3">SLA</th>
-                <th className="pb-3">Statut</th>
-                <th className="pb-3">Service assigné</th>
-                <th className="pb-3">Émetteur</th>
-                <th className="pb-3">Date</th>
-                <th className="pb-3 text-right w-32">Action</th>
-              </tr>
-            </thead>
-            <tbody className="text-[#2b1d10]">
-              {loading && !paginatedRows.length ? (
-                <tr>
-                  <td colSpan={10} className="py-10 text-center text-sm text-[#6b5446]">
-                    Chargement en cours…
-                  </td>
-                </tr>
-              ) : filteredCount ? (
-                paginatedRows.map((row) => {
-                  const ticket = row.original;
-                  const priority = priorityLabels[ticket.priority];
-                  const statusInfo = statusLabels[ticket.status];
-                  const slaProgress = getSlaProgress(ticket);
-                  const slaLabel = formatDuration(ticket.slaMaxMinutes);
-                  return (
-                    <tr key={ticket.id} className="border-b border-[#f3ece2]">
-                      <td className="py-4 font-semibold text-[#2b1d10]">{ticket.code}</td>
-                      <td className="py-4">
-                        <p className="font-semibold text-[#2b1d10]">{ticket.category.libelle}</p>
-                        <p className="text-xs text-[#6b5446]">{ticket.description}</p>
-                      </td>
-                      <td className="py-4">
-                        <span className="text-xs uppercase tracking-[0.3em] text-[#6b5446]">
-                          {typeLabels[ticket.type]}
-                        </span>
-                      </td>
-                      <td className="py-4">
-                        <span
-                          className={`rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] ${priority.tone}`}
-                        >
-                          {priority.label}
-                        </span>
-                      </td>
-                      <td className="py-4">
-                        <div className="mb-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#6b5446]">
-                          {slaLabel}
-                        </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-[#f3ece2]">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-[#c42d1f] to-[#f2976a]"
-                            style={{ width: `${slaProgress}%` }}
-                          />
-                        </div>
-                      </td>
-                      <td className="py-4">
-                        <span
-                          className={`rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] ${statusInfo.color}`}
-                        >
-                          {statusInfo.label}
-                        </span>
-                      </td>
-                      <td className="py-4">{ticket.assignedService ?? "—"}</td>
-                      <td className="py-4">
-                        {ticket.emitter.prenom} {ticket.emitter.nom}
-                      </td>
-                      <td className="py-4">{formatDateTime(ticket.detectedAt ?? ticket.createdAt)}</td>
-                      <td className="py-4 text-right w-32">
-                        <button className="rounded-full border border-[#c6b6a9] px-4 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#2b1d10]">
-                          Détail
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={10} className="py-10 text-center text-sm text-[#6b5446]">
-                    Aucun ticket disponible.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="md:hidden space-y-4">
+          {loading && !paginatedRows.length ? (
+            <div className="rounded-[18px] border border-[#eee3d6] bg-white/70 px-4 py-8 text-center text-sm text-[#6b5446]">
+              Chargement en cours…
+            </div>
+          ) : filteredCount ? (
+            paginatedRows.map((row) => {
+              const ticket = row.original;
+              const progress = getSlaProgress(ticket);
+              const tone = getSlaTone(progress);
+              const slaLabel = formatDuration(ticket.waitMinutes ?? ticket.slaMaxMinutes);
+              const priority = priorityLabels[ticket.priority];
+              const statusInfo = statusLabels[ticket.status];
+
+              return (
+                <article
+                  key={row.id}
+                  className="space-y-4 rounded-[22px] border border-[#eee3d6] bg-white p-4 shadow-sm"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-[#23160c]">{ticket.code}</span>
+                    <span
+                      className={cn(
+                        "rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.12em]",
+                        statusInfo.color,
+                      )}
+                    >
+                      {statusInfo.label}
+                    </span>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-[#23160c]">{ticket.category.libelle}</p>
+                    <p className="text-xs text-[#6b5446]">{ticket.description}</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 text-[0.65rem] uppercase tracking-[0.2em] text-[#6b5446]">
+                    <span className="rounded-full border border-[#e2dbd1] px-2 py-1">{typeLabels[ticket.type]}</span>
+                    <span className={`rounded-full px-2 py-1 ${priority.tone}`}>{priority.label}</span>
+                  </div>
+
+                  <div className="space-y-2 text-[0.7rem] text-[#6b5446]">
+                    <div className="flex items-center justify-between">
+                      <span>SLA</span>
+                      <span className={tone.text}>{slaLabel}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-[#f3ece2]">
+                      <div
+                        className={cn("h-full rounded-full bg-gradient-to-r", tone.bar)}
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 text-[0.8rem] text-[#2b1d10]">
+                    <p className="text-[#6b5446]">
+                      <span className="font-semibold text-[#23160c]">Service</span> • {ticket.assignedService ?? "—"}
+                    </p>
+                    <p className="text-[#6b5446]">
+                      <span className="font-semibold text-[#23160c]">Émetteur</span> • {ticket.emitter.prenom} {ticket.emitter.nom}
+                    </p>
+                    <p className="text-[#6b5446]">
+                      <span className="font-semibold text-[#23160c]">Date</span> • {formatDateTime(ticket.detectedAt ?? ticket.createdAt)}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      className="rounded-full border border-[#c6b6a9] px-4 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#2b1d10]"
+                    >
+                      Détail
+                    </button>
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <div className="rounded-[18px] border border-[#eee3d6] bg-white/70 px-4 py-8 text-center text-sm text-[#6b5446]">
+              Aucun ticket disponible.
+            </div>
+          )}
         </div>
-        <div className="mt-4 flex flex-col gap-3 rounded-[20px] border border-[#f3ece2] bg-white/50 px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
+
+        <div className="hidden md:block overflow-hidden rounded-[18px] border border-[#eee3d6] bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full border-separate border-spacing-0 text-left">
+              <thead className="bg-[#f7f1ea]">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        style={{ width: header.getSize() }}
+                        className="border-b border-[#eee3d6] px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8b7765]"
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+
+              <tbody>
+                {loading && !paginatedRows.length ? (
+                  <tr>
+                    <td
+                      colSpan={totalColumns}
+                      className="px-4 py-8 text-center text-sm text-[#6b5446]"
+                    >
+                      Chargement en cours…
+                    </td>
+                  </tr>
+                ) : filteredCount ? (
+                  paginatedRows.map((row) => (
+                    <tr key={row.id} className="bg-white transition hover:bg-[#fcfaf7]">
+                      {row.getVisibleCells().map((cell) => (
+                        <td
+                          key={cell.id}
+                          className="border-b border-[#f4ece3] px-4 py-3 align-middle"
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={totalColumns}
+                      className="px-4 py-8 text-center text-sm text-[#6b5446]"
+                    >
+                      Aucun ticket disponible.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 rounded-[16px] border border-[#f1e6da] bg-[#fffdfb] px-4 py-3 md:flex-row md:items-center md:justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7b6655]">
             {filteredCount} résultat(s) • page {table.getState().pagination.pageIndex + 1} /{" "}
             {table.getPageCount() || 1}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
-              className="rounded-full border border-[#d6c5b4] px-4 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#2b1d10] disabled:opacity-50"
+              className="rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40"
             >
               Précédent
             </button>
+
             <button
               type="button"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
-              className="rounded-full border border-[#d6c5b4] px-4 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#2b1d10] disabled:opacity-50"
+              className="rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40"
             >
               Suivant
             </button>
+
             <select
               value={table.getState().pagination.pageSize}
               onChange={(event) => table.setPageSize(Number(event.target.value))}
-              className="rounded-[12px] border border-[#e2dbd1] bg-white px-3 py-1 text-[0.7rem] text-[#2b1d10]"
+              className="h-8 rounded-[10px] border border-[#e7ddd2] bg-white px-2 text-[11px] text-[#2b1d10] focus:border-[#d29b55] focus:outline-none"
             >
               {[6, 12, 24].map((size) => (
                 <option key={size} value={size}>
-                  Afficher {size}
+                  {size} / page
                 </option>
               ))}
             </select>
