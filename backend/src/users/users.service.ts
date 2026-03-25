@@ -51,8 +51,16 @@ export class UsersService {
     }
   }
 
-  async findAll(): Promise<UserDto[]> {
-    const users = await this.prisma.client.user.findMany();
+  async findAll(actor?: AuthenticatedUserDto): Promise<UserDto[]> {
+    let where: Prisma.UserWhereInput | undefined;
+
+    if (actor?.role === UserRole.SUPER_ADMIN) {
+      where = { NOT: { id: actor.id } };
+    } else if (actor) {
+      where = { role: UserRole.USER };
+    }
+
+    const users = await this.prisma.client.user.findMany({ where });
     return users.map(toUserDto);
   }
 

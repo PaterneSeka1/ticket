@@ -53,14 +53,20 @@ const roleRoutes: Record<UserRole, { tickets: string; newTicket: string; myTicke
   },
 };
 
-const buildNavSections = (routes: { tickets: string; newTicket: string; myTickets: string }) => {
+const buildNavSections = (
+  routes: { tickets: string; newTicket: string; myTickets: string },
+  includeAllTicketsLink: boolean,
+) => {
   const principal: NavSection = {
     heading: "Principal",
     items: [
       { label: "Tableau de bord", href: "/dashboard", icon: <Activity className="h-4 w-4" /> },
       { label: "Nouveau ticket", href: routes.newTicket, icon: <PlusCircle className="h-4 w-4" /> },
       { label: "Mes tickets", href: routes.myTickets, icon: <List className="h-4 w-4" /> },
-    ],
+      includeAllTicketsLink
+        ? { label: "Tous les tickets", href: routes.tickets, icon: <Layers className="h-4 w-4" /> }
+        : null,
+    ].filter(Boolean) as NavSection["items"],
   };
 
   const administration: NavSection = {
@@ -118,7 +124,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
   const currentRole = (user?.role as UserRole) ?? "USER";
   const currentSections = useMemo(() => {
-    const sections = buildNavSections(roleRoutes[currentRole]);
+    const includeAllTicketsLink = currentRole !== "USER";
+    const sections = buildNavSections(roleRoutes[currentRole], includeAllTicketsLink);
     if (currentRole === "SUPER_ADMIN") {
       return [sections.principal, sections.administration, sections.superAdmin, sections.analyse];
     }

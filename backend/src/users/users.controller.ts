@@ -36,8 +36,8 @@ export class UsersController {
   }
 
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@CurrentUser() user: AuthenticatedUserDto) {
+    return this.usersService.findAll(user);
   }
 
   @Get(':id')
