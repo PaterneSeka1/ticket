@@ -35,53 +35,64 @@ type NavSection = {
   roles?: UserRole[];
 };
 
-const navSections: NavSection[] = [
-      {
-        heading: "Principal",
-        items: [
-          { label: "Tableau de bord", href: "/dashboard", icon: <Activity className="h-4 w-4" /> },
-          { label: "Gestion tickets", href: "/dashboard/admin/tickets", icon: <Layers className="h-4 w-4" /> },
-          { label: "Nouveau ticket", href: "/dashboard/nouveau-ticket", icon: <PlusCircle className="h-4 w-4" /> },
-        ],
-      },
-    {
-      heading: "Administration",
-      roles: ["ADMIN", "SUPER_ADMIN"],
-        items: [
-          { label: "Utilisateurs", href: "/dashboard/admin/users", icon: <Users className="h-4 w-4" /> },
-          { label: "Créer un utilisateur", href: "/dashboard/users/create", icon: <UserPlus className="h-4 w-4" /> },
-          { label: "Configuration", href: "/dashboard/admin", icon: <Settings className="h-4 w-4" /> },
-          { label: "Journal d'activité", href: "/dashboard/admin", icon: <List className="h-4 w-4" /> },
-          { label: "Catégories", href: "/dashboard/admin/categories", icon: <Tag className="h-4 w-4" /> },
-        ],
-      },
-    {
-      heading: "Super-admin",
-      roles: ["SUPER_ADMIN"],
-        items: [
-          {
-            label: "Catégories",
-            href: "/dashboard/super-admin/categories",
-            icon: <Shield className="h-4 w-4" />,
-          },
-          {
-            label: "Utilisateurs",
-            href: "/dashboard/super-admin/users",
-            icon: <Users className="h-4 w-4" />,
-          },
-          {
-            label: "Créer un utilisateur",
-            href: "/dashboard/users/create",
-            icon: <UserPlus className="h-4 w-4" />,
-          },
-        ],
-      },
-  {
+const roleRoutes: Record<UserRole, { tickets: string; newTicket: string; myTickets: string }> = {
+  ADMIN: {
+    tickets: "/dashboard/admin/tickets",
+    newTicket: "/dashboard/admin/nouveau-ticket",
+    myTickets: "/dashboard/admin/mes-tickets",
+  },
+  SUPER_ADMIN: {
+    tickets: "/dashboard/super-admin/tickets",
+    newTicket: "/dashboard/super-admin/nouveau-ticket",
+    myTickets: "/dashboard/super-admin/mes-tickets",
+  },
+  USER: {
+    tickets: "/dashboard/employe/mes-tickets",
+    newTicket: "/dashboard/employe/nouveau-ticket",
+    myTickets: "/dashboard/employe/mes-tickets",
+  },
+};
+
+const buildNavSections = (routes: { tickets: string; newTicket: string; myTickets: string }) => {
+  const principal: NavSection = {
+    heading: "Principal",
+    items: [
+      { label: "Tableau de bord", href: "/dashboard", icon: <Activity className="h-4 w-4" /> },
+      { label: "Nouveau ticket", href: routes.newTicket, icon: <PlusCircle className="h-4 w-4" /> },
+      { label: "Mes tickets", href: routes.myTickets, icon: <List className="h-4 w-4" /> },
+    ],
+  };
+
+  const administration: NavSection = {
+    heading: "Administration",
+    roles: ["ADMIN", "SUPER_ADMIN"],
+    items: [
+      { label: "Utilisateurs", href: "/dashboard/admin/users", icon: <Users className="h-4 w-4" /> },
+      { label: "Créer un utilisateur", href: "/dashboard/users/create", icon: <UserPlus className="h-4 w-4" /> },
+      { label: "Configuration", href: "/dashboard/admin", icon: <Settings className="h-4 w-4" /> },
+      { label: "Journal d'activité", href: "/dashboard/admin", icon: <List className="h-4 w-4" /> },
+      { label: "Catégories", href: "/dashboard/admin/categories", icon: <Tag className="h-4 w-4" /> },
+    ],
+  };
+
+  const superAdminSection: NavSection = {
+    heading: "Super-admin",
+    roles: ["SUPER_ADMIN"],
+    items: [
+      { label: "Catégories", href: "/dashboard/super-admin/categories", icon: <Shield className="h-4 w-4" /> },
+      { label: "Utilisateurs", href: "/dashboard/super-admin/users", icon: <Users className="h-4 w-4" /> },
+      { label: "Créer un utilisateur", href: "/dashboard/users/create", icon: <UserPlus className="h-4 w-4" /> },
+    ],
+  };
+
+  const analyse: NavSection = {
     heading: "Analyse",
     roles: ["SUPER_ADMIN"],
     items: [{ label: "Rapports", href: "/dashboard/super-admin", icon: <BarChart2 className="h-4 w-4" /> }],
-  },
-];
+  };
+
+  return { principal, administration, superAdmin: superAdminSection, analyse };
+};
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const { user } = useCurrentUser();
@@ -105,15 +116,27 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     );
   }, [user]);
 
+  const currentRole = (user?.role as UserRole) ?? "USER";
+  const currentSections = useMemo(() => {
+    const sections = buildNavSections(roleRoutes[currentRole]);
+    if (currentRole === "SUPER_ADMIN") {
+      return [sections.principal, sections.administration, sections.superAdmin, sections.analyse];
+    }
+    if (currentRole === "ADMIN") {
+      return [sections.principal, sections.administration];
+    }
+    return [sections.principal];
+  }, [currentRole]);
+
   const visibleNavSections = useMemo(() => {
     if (!user) {
-      return navSections.filter((section) => !section.roles);
+      return currentSections.filter((section) => !section.roles);
     }
     if (["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
-      return navSections;
+      return currentSections;
     }
-    return navSections.filter((section) => !section.roles || section.roles.includes(user.role));
-  }, [user]);
+    return currentSections.filter((section) => !section.roles || section.roles.includes(user.role));
+  }, [user, currentSections]);
 
   const handleLogout = async () => {
     try {
