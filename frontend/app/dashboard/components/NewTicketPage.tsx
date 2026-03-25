@@ -170,19 +170,6 @@ export default function NewTicketPage() {
 
   const userRecord = (user ?? {}) as Record<string, unknown>;
 
-  const requesterName = useMemo(() => {
-    const prenom = getTextValue(userRecord.prenom);
-    const nom = getTextValue(userRecord.nom);
-    const name = getTextValue(userRecord.name);
-    const email = getTextValue(userRecord.email);
-
-    const fullName = [prenom, nom].filter(Boolean).join(" ").trim();
-    return fullName || name || email || "Utilisateur connecté";
-  }, [userRecord]);
-
-  const requesterMatricule = getTextValue(userRecord.matricule) || "—";
-  const requesterService = getTextValue(userRecord.service) || "—";
-
   const requiresClientFields = selectedIncidentType === "CLIENT";
 
   const isSubmitDisabled =
@@ -342,25 +329,7 @@ export default function NewTicketPage() {
                 />
               </label>
 
-              <label>
-                <span className={labelClass}>Matricule</span>
-                <input type="text" value={requesterMatricule} readOnly className={readOnlyClass} />
-              </label>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <label>
-                <span className={labelClass}>
-                  Nom du demandeur <span className="text-[#d92d20]">*</span>
-                </span>
-                <input type="text" value={requesterName} readOnly className={readOnlyClass} />
-              </label>
-
-              <label>
-                <span className={labelClass}>Service / Direction</span>
-                <input type="text" value={requesterService} readOnly className={readOnlyClass} />
-              </label>
-            </div>
+          </div>
 
             <div>
               <p className={labelClass}>

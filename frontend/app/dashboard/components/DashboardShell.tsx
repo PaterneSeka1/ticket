@@ -9,11 +9,25 @@ interface DashboardShellProps {
   title: string;
   subtitle: string;
   children: ReactNode;
+  className?: string;
 }
 
-export function DashboardShell({ user, title, subtitle, children }: DashboardShellProps) {
+export function DashboardShell({
+  user,
+  title,
+  subtitle,
+  children,
+  className = "",
+}: DashboardShellProps) {
+  const sectionClasses = [
+    "space-y-6 rounded-[32px] border border-[#f0d7c6] bg-white/90 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.08)]",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <section className="space-y-6 rounded-[32px] border border-[#f0d7c6] bg-white/90 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.08)]">
+    <section className={sectionClasses}>
       <header className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#b86112]">Ticketing Vedem</p>
         <h1 className="text-3xl font-semibold text-[#2b1d10]">{title}</h1>

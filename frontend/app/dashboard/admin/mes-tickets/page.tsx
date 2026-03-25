@@ -1,14 +1,18 @@
 "use client";
 
-import { DashboardShell } from "@/app/dashboard/components/DashboardShell";
-import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
+import { useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { DashboardShell } from "@/app/dashboard/components/DashboardShell";
 import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
-import { useEffect } from "react";
+import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
+import { TicketTablePanel } from "@/app/dashboard/components/TicketTablePanel";
+import { useTickets } from "@/app/dashboard/hooks/useTickets";
+import type { Ticket } from "@/api/types";
 
 export default function AdminMesTicketsPage() {
-  const { user, status } = useCurrentUser();
   const router = useRouter();
+  const { user, status } = useCurrentUser();
+  const { tickets, loading } = useTickets(status === "ready");
 
   useEffect(() => {
     if (status !== "ready" || !user) return;
@@ -17,25 +21,25 @@ export default function AdminMesTicketsPage() {
     }
   }, [status, user, router]);
 
+  const ticketFilter = useMemo(
+    () => (ticket: Ticket) =>
+      ticket.emitter.id === user?.id || (user?.service && ticket.assignedService === user.service),
+    [user],
+  );
+
   if (status !== "ready" || !user) {
     return (
       <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
         <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Chargement de vos tickets…</p>
+          <p className="text-sm text-[var(--vdm-muted)]">Préparation de vos tickets…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <DashboardShell
-      user={user}
-      title="Mes tickets"
-      subtitle="Suivez l’avancement de vos demandes assignées"
-    >
-      <p className="text-sm text-[#6b5446]">
-        Cette page sera bientôt connectée aux données personnelles de chaque utilisateur.
-      </p>
+    <DashboardShell user={user} title="Mes tickets" subtitle="Les tickets qui vous concernent">
+      <TicketTablePanel tickets={tickets} loading={loading} ticketFilter={ticketFilter} />
     </DashboardShell>
   );
 }
