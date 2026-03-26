@@ -25,7 +25,7 @@ import {
   TicketType,
   UserRole,
 } from '../prisma/enums.js';
-import type { Prisma } from '../../generated/prisma/client.js';
+import type { Prisma, User } from '../../generated/prisma/index.js';
 
 const STATUS_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   [TicketStatus.RECU]: [TicketStatus.EN_COURS, TicketStatus.ABANDONNE],
@@ -616,7 +616,7 @@ export class TicketsService {
     });
   }
 
-  private getRecipientLabel(user: Prisma.User) {
+  private getRecipientLabel(user: User) {
     if (user.role === UserRole.SUPER_ADMIN) return 'super-admin';
     if (user.direction === DirectionType.DSI) return 'service DSI';
     return 'administration';
