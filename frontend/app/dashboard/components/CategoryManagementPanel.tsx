@@ -15,6 +15,25 @@ type EditableCategoryFields = {
 
 const ticketTypeOptions: TicketType[] = ["INCIDENT", "DEMANDE"];
 
+const cn = (...classes: Array<string | false | null | undefined>) =>
+  classes.filter(Boolean).join(" ");
+
+function getTypeLabel(type: TicketType) {
+  return type === "INCIDENT" ? "Incident interne" : "Réclamation client";
+}
+
+function getTypeBadgeClass(type: TicketType) {
+  return type === "INCIDENT"
+    ? "bg-[#fff2df] text-[#b96d12]"
+    : "bg-[#eaf6f0] text-[#1f7a58]";
+}
+
+function getStatusBadgeClass(isActive: boolean) {
+  return isActive
+    ? "bg-[#e8f5ec] text-[#257347]"
+    : "bg-[#fdeaea] text-[#be3d33]";
+}
+
 export function CategoryManagementPanel() {
   const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,7 +48,11 @@ export function CategoryManagementPanel() {
       const data = await fetchCategories();
       setCategories(data);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Impossible de charger les catégories.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Impossible de charger les catégories."
+      );
     } finally {
       setLoading(false);
     }
@@ -56,6 +79,7 @@ export function CategoryManagementPanel() {
 
   const handleUpdate = async () => {
     if (!editingId || !editValues) return;
+
     setIsActing(true);
     try {
       await updateCategory(editingId, {
@@ -68,7 +92,11 @@ export function CategoryManagementPanel() {
       await loadCategories();
       cancelEditing();
     } catch (err) {
-    toast.error(err instanceof Error ? err.message : "Impossible de mettre à jour la catégorie.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Impossible de mettre à jour la catégorie."
+      );
     } finally {
       setIsActing(false);
     }
@@ -84,6 +112,7 @@ export function CategoryManagementPanel() {
 
   const confirmDisableCategory = async () => {
     if (!categoryToDisable) return;
+
     setIsActing(true);
     try {
       await updateCategory(categoryToDisable.id, {
@@ -97,171 +126,299 @@ export function CategoryManagementPanel() {
       if (editingId === categoryToDisable.id) cancelEditing();
       closeDisableModal();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Impossible de désactiver la catégorie.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Impossible de désactiver la catégorie."
+      );
     } finally {
       setIsActing(false);
     }
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <CategoryCreateForm onSuccess={loadCategories} />
-      <div className="space-y-4 rounded-[32px] border border-[#f0d7c6] bg-white/70 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.04)]">
-        <header className="border-b border-[#f1e6dd] pb-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#b86112]">Liste des catégories</p>
-          <p className="text-sm text-[#6b5446]">Activez, modifiez ou supprimez un libellé de ticket.</p>
+
+      <section className="rounded-[14px] border border-[#ebe6df] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,17,17,0.03)]">
+        <header className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8f8b85]">
+              Liste des catégories
+            </p>
+            <p className="mt-1 text-[11px] text-[#8a8176]">
+              Activez, modifiez ou désactivez un libellé de ticket.
+            </p>
+          </div>
+
+          <span className="rounded-full bg-[#f5f3ef] px-2.5 py-1 text-[10px] font-medium text-[#7d7469]">
+            {loading ? "Chargement…" : `${categories.length} catégorie(s)`}
+          </span>
         </header>
-        {loading && <p className="text-sm text-[#6b5446]">Chargement des catégories…</p>}
-        <div className="space-y-4">
-          {categories.map((category) => {
-            const isEditing = editingId === category.id;
-            return (
-              <div key={category.id} className="rounded-[20px] border border-[#f1e6dd] bg-[#fffdf7] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
-                {isEditing && editValues ? (
-                  <div className="space-y-3">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-                        Libellé
-                        <input
-                          value={editValues.libelle}
-                          onChange={(event) => setEditValues({ ...editValues, libelle: event.target.value })}
-                          className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+
+        {loading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="rounded-[12px] border border-[#f1ede8] bg-[#fcfbf9] px-4 py-4"
+              >
+                <div className="mb-2 h-4 w-40 animate-pulse rounded bg-[#efebe5]" />
+                <div className="mb-2 h-3 w-28 animate-pulse rounded bg-[#f3efe9]" />
+                <div className="h-3 w-2/3 animate-pulse rounded bg-[#f3efe9]" />
+              </div>
+            ))}
+          </div>
+        ) : categories.length ? (
+          <div className="space-y-3">
+            {categories.map((category) => {
+              const isEditing = editingId === category.id;
+
+              return (
+                <article
+                  key={category.id}
+                  className={cn(
+                    "rounded-[12px] border px-4 py-4 transition",
+                    isEditing
+                      ? "border-[#ecd8b6] bg-[#fffdf8]"
+                      : "border-[#f1ede8] bg-[#fcfbf9]"
+                  )}
+                >
+                  {isEditing && editValues ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-[#241d16]">
+                            Modifier la catégorie
+                          </p>
+                          <p className="text-[11px] text-[#8a8176]">
+                            Mettez à jour les champs puis enregistrez.
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-[#fff3dd] px-2.5 py-1 text-[10px] font-semibold text-[#b26a0b]">
+                          Édition
+                        </span>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <label className="space-y-2">
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8f8b85]">
+                            Libellé
+                          </span>
+                          <input
+                            value={editValues.libelle}
+                            onChange={(event) =>
+                              setEditValues({
+                                ...editValues,
+                                libelle: event.target.value,
+                              })
+                            }
+                            className="w-full rounded-[10px] border border-[#ded8d0] bg-white px-3 py-2.5 text-sm text-[#241d16] outline-none transition focus:border-[#e1b24f]"
+                          />
+                        </label>
+
+                        <label className="space-y-2">
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8f8b85]">
+                            Type
+                          </span>
+                          <select
+                            value={editValues.type}
+                            onChange={(event) =>
+                              setEditValues({
+                                ...editValues,
+                                type: event.target.value as TicketType,
+                              })
+                            }
+                            className="w-full rounded-[10px] border border-[#ded8d0] bg-white px-3 py-2.5 text-sm text-[#241d16] outline-none transition focus:border-[#e1b24f]"
+                          >
+                            {ticketTypeOptions.map((option) => (
+                              <option key={option} value={option}>
+                                {getTypeLabel(option)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+
+                      <label className="block space-y-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8f8b85]">
+                          Description
+                        </span>
+                        <textarea
+                          value={editValues.description}
+                          onChange={(event) =>
+                            setEditValues({
+                              ...editValues,
+                              description: event.target.value,
+                            })
+                          }
+                          rows={3}
+                          className="w-full rounded-[10px] border border-[#ded8d0] bg-white px-3 py-2.5 text-sm text-[#241d16] outline-none transition focus:border-[#e1b24f]"
                         />
                       </label>
-                      <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-                        Type
-                        <select
-                          value={editValues.type}
-                          onChange={(event) => setEditValues({ ...editValues, type: event.target.value as TicketType })}
-                          className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[#efeae3] bg-white px-3 py-3">
+                        <div>
+                          <p className="text-sm font-medium text-[#241d16]">
+                            Activer la catégorie
+                          </p>
+                          <p className="text-[11px] text-[#8a8176]">
+                            La catégorie sera disponible dans les tickets.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditValues({
+                              ...editValues,
+                              isActive: !editValues.isActive,
+                            })
+                          }
+                          className={cn(
+                            "relative h-7 w-14 rounded-full border transition",
+                            editValues.isActive
+                              ? "border-[#dfb14b] bg-[#f3d678]"
+                              : "border-[#d8d2c9] bg-[#f2f1ee]"
+                          )}
+                          aria-pressed={editValues.isActive}
                         >
-                          {ticketTypeOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option === "INCIDENT" ? "Incident interne" : "Réclamation client"}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                          <span
+                            className={cn(
+                              "absolute top-[3px] h-5 w-5 rounded-full bg-white shadow-sm transition",
+                              editValues.isActive ? "left-[31px]" : "left-[3px]"
+                            )}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={isActing}
+                          onClick={handleUpdate}
+                          className="rounded-[10px] bg-[#f4b227] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#2b1d10] transition hover:brightness-105 disabled:opacity-50"
+                        >
+                          {isActing ? "Enregistrement…" : "Enregistrer"}
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isActing}
+                          onClick={cancelEditing}
+                          className="rounded-[10px] border border-[#d9d3ca] bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#3e3127] transition hover:bg-[#faf8f5] disabled:opacity-50"
+                        >
+                          Annuler
+                        </button>
+                      </div>
                     </div>
-                    <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-                      Description
-                      <textarea
-                        value={editValues.description}
-                        onChange={(event) => setEditValues({ ...editValues, description: event.target.value })}
-                        rows={3}
-                        className="w-full rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-                      />
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-                        <input
-                          type="checkbox"
-                          checked={editValues.isActive}
-                          onChange={(event) => setEditValues({ ...editValues, isActive: event.target.checked })}
-                          className="h-4 w-4 rounded border border-[#e2dbd1]"
-                        />
-                        Activer la catégorie
-                      </label>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={isActing}
-                        onClick={handleUpdate}
-                        className="rounded-full bg-gradient-to-r from-[#d9731d] to-[#bb5b0f] px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white"
-                      >
-                        {isActing ? "Enregistrement…" : "Enregistrer"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isActing}
-                        onClick={cancelEditing}
-                        className="rounded-full border border-[#c6b6a9] px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#2b1d10]"
-                      >
-                        Annuler
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-[#2b1d10]">{category.libelle}</p>
-                        <p className="text-xs uppercase tracking-[0.2em] text-[#6b5446]">
-                          {category.type === "INCIDENT" ? "Incident interne" : "Réclamation client"}
+                  ) : (
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-[14px] font-semibold text-[#241d16]">
+                            {category.libelle}
+                          </h3>
+
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-[4px] text-[10px] font-semibold",
+                              getTypeBadgeClass(category.type)
+                            )}
+                          >
+                            {getTypeLabel(category.type)}
+                          </span>
+
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-[4px] text-[10px] font-semibold",
+                              getStatusBadgeClass(category.isActive)
+                            )}
+                          >
+                            {category.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+
+                        <p className="mt-2 text-[12px] leading-5 text-[#665c51]">
+                          {category.description || "Aucune description fournie."}
                         </p>
                       </div>
-                      <div className="flex gap-2">
+
+                      <div className="flex shrink-0 flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => startEditing(category)}
-                          className="rounded-full border border-[#d6c5b4] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#2b1d10]"
+                          className="rounded-[10px] border border-[#d9d3ca] bg-white px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#2b1d10] transition hover:bg-[#faf8f5]"
                         >
                           Modifier
                         </button>
+
                         {category.isActive && (
                           <button
                             type="button"
                             disabled={isActing}
                             onClick={() => openDisableModal(category)}
-                            className="rounded-full border border-[#c42d1f] bg-[#fde8e7] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#c42d1f]"
+                            className="rounded-[10px] border border-[#efc9c6] bg-[#fff3f2] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#be3d33] transition hover:bg-[#ffeae8] disabled:opacity-50"
                           >
                             Désactiver
                           </button>
                         )}
                       </div>
                     </div>
-                    <p className="text-xs text-[#6b5446]">{category.description || "Aucune description fournie."}</p>
-                    <span
-                      className={`inline-flex w-fit rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] ${
-                        category.isActive ? "bg-[#e6f4ed] text-[#1f6f3a]" : "bg-[#fde8e7] text-[#c42d1f]"
-                      }`}
-                    >
-                      {category.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {!categories.length && !loading && <p className="text-sm text-[#6b5446]">Aucune catégorie disponible.</p>}
-      </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-[12px] border border-dashed border-[#e6e0d8] bg-[#fcfbf9] px-4 py-8 text-center">
+            <p className="text-sm text-[#665c51]">Aucune catégorie disponible.</p>
+          </div>
+        )}
+      </section>
+
       {categoryToDisable && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center overflow-auto bg-black/40 px-4 py-8">
-          <div className="relative w-full max-w-md rounded-[24px] border border-white/50 bg-white p-6 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
-            <button
-              type="button"
-              onClick={closeDisableModal}
-              className="absolute right-3 top-3 rounded-full border border-[#c6b6a9] bg-white p-2 text-[#2b1d10] transition hover:bg-[#f8f8f8]"
-              aria-label="Fermer la confirmation"
-            >
-              <span className="sr-only">Fermer</span>
-              ×
-            </button>
-            <div className="space-y-3 text-center">
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#c42d1f]">
-                Désactiver une catégorie
-              </p>
-              <p className="text-lg font-semibold text-[#2b1d10]">{categoryToDisable.libelle}</p>
-              <p className="text-sm text-[#6b5446]">
-                Cette action masque la catégorie dans la sélection des tickets. Vous pouvez la réactiver
-                depuis la liste en modifiant l’état.
-              </p>
-            </div>
-            <div className="mt-6 flex flex-col gap-3 text-sm uppercase tracking-[0.3em] text-[#2b1d10] md:flex-row md:justify-end">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/35 px-4">
+          <div className="w-full max-w-md rounded-[14px] border border-[#ebe6df] bg-white p-5 shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#c1463a]">
+                  Désactivation
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-[#241d16]">
+                  {categoryToDisable.libelle}
+                </h3>
+              </div>
+
               <button
                 type="button"
                 onClick={closeDisableModal}
-                className="rounded-full border border-[#c6b6a9] px-4 py-2 font-semibold hover:bg-[#f8f8f8]"
+                className="rounded-[10px] border border-[#ddd7ce] px-2.5 py-1 text-sm text-[#352b23] transition hover:bg-[#faf8f5]"
+                aria-label="Fermer la confirmation"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="mt-3 text-sm leading-6 text-[#665c51]">
+              Cette action masque la catégorie dans la sélection des tickets.
+              Vous pourrez la réactiver plus tard en la modifiant.
+            </p>
+
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeDisableModal}
+                className="rounded-[10px] border border-[#d9d3ca] bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#3e3127] transition hover:bg-[#faf8f5]"
               >
                 Annuler
               </button>
+
               <button
                 type="button"
                 onClick={confirmDisableCategory}
                 disabled={isActing}
-                className="rounded-full bg-[#c42d1f] px-4 py-2 font-semibold text-white transition hover:bg-[#a3261b]"
+                className="rounded-[10px] bg-[#c74437] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-[#b2392d] disabled:opacity-50"
               >
                 {isActing ? "Désactivation…" : "Confirmer"}
               </button>

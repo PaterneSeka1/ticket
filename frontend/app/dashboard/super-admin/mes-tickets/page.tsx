@@ -6,13 +6,13 @@ import { DashboardShell } from "@/app/dashboard/components/DashboardShell";
 import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { TicketTablePanel } from "@/app/dashboard/components/TicketTablePanel";
-import { useTickets } from "@/app/dashboard/hooks/useTickets";
+import { useMyTickets } from "@/app/dashboard/hooks/useMyTickets";
 import type { Ticket } from "@/api/types";
 
 export default function SuperAdminMesTicketsPage() {
   const router = useRouter();
   const { user, status } = useCurrentUser();
-  const { tickets, loading } = useTickets(status === "ready");
+  const { tickets, loading } = useMyTickets(status === "ready");
 
   useEffect(() => {
     if (status !== "ready" || !user) return;
@@ -22,8 +22,7 @@ export default function SuperAdminMesTicketsPage() {
   }, [status, user, router]);
 
   const ticketFilter = useMemo(
-    () => (ticket: Ticket) =>
-      ticket.emitter.id === user?.id || (user?.service && ticket.assignedService === user.service),
+    () => (ticket: Ticket) => ticket.emitter.id === user?.id,
     [user],
   );
 
