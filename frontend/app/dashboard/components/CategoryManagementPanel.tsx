@@ -34,7 +34,11 @@ function getStatusBadgeClass(isActive: boolean) {
     : "bg-[#fdeaea] text-[#be3d33]";
 }
 
-export function CategoryManagementPanel() {
+interface CategoryManagementPanelProps {
+  showCreateForm?: boolean;
+}
+
+export function CategoryManagementPanel({ showCreateForm = true }: CategoryManagementPanelProps) {
   const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -138,7 +142,7 @@ export function CategoryManagementPanel() {
 
   return (
     <div className="space-y-4">
-      <CategoryCreateForm onSuccess={loadCategories} />
+      {showCreateForm && <CategoryCreateForm onSuccess={loadCategories} />}
 
       <section className="rounded-[14px] border border-[#ebe6df] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,17,17,0.03)]">
         <header className="mb-4 flex items-start justify-between gap-3">

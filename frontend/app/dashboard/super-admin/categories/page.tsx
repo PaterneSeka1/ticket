@@ -36,7 +36,7 @@ export default function SuperAdminCategoriesPage() {
       title="Catégories – Super-admin"
       subtitle="Animez la stratégie des catégories à l’échelle du groupe."
     >
-      <CategoryManagementPanel />
+      <CategoryManagementPanel showCreateForm={false} />
     </DashboardShell>
   );
 }

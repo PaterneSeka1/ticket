@@ -82,7 +82,6 @@ const buildNavSections = (
       { label: "Utilisateurs", href: "/dashboard/admin/users", icon: <Users className="h-4 w-4" /> },
       { label: "Créer un utilisateur", href: "/dashboard/admin/users/create", icon: <UserPlus className="h-4 w-4" /> },
       { label: "Configuration", href: "/dashboard/admin/configuration", icon: <Settings className="h-4 w-4" /> },
-      { label: "Journal d'activité", href: "/dashboard/admin/journal", icon: <List className="h-4 w-4" /> },
       { label: "Catégories", href: "/dashboard/admin/categories", icon: <Tag className="h-4 w-4" /> },
     ],
   };
@@ -96,6 +95,7 @@ const buildNavSections = (
       { label: "Utilisateurs", href: "/dashboard/super-admin/users", icon: <Users className="h-4 w-4" /> },
       { label: "Créer un utilisateur", href: "/dashboard/super-admin/users/create", icon: <UserPlus className="h-4 w-4" /> },
       { label: "Configuration", href: "/dashboard/super-admin/configuration", icon: <Settings className="h-4 w-4" /> },
+      { label: "Journal d'activité", href: "/dashboard/super-admin/journal", icon: <List className="h-4 w-4" /> },
     ],
   };
 
@@ -144,7 +144,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       return [sections.principal, sections.superAdmin, sections.analyse];
     }
     if (currentRole === "ADMIN") {
-      return [sections.principal, sections.administration];
+      return [sections.principal, sections.administration, sections.analyseAdmin];
     }
     return [sections.principal];
   }, [currentRole]);
