@@ -126,7 +126,7 @@ export default function AdminRapportsPage() {
     const sorted = Array.from(bucket.values()).sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
     if (sorted.length === 0) {
       const fallbackLabel = new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(new Date());
-      return [{ label: fallbackLabel, opened: 0, resolved: 0 }];
+      return [{ label: fallbackLabel, ouvert: 0, resolu: 0 }];
     }
     return sorted.map((entry) => ({
       label: entry.label,

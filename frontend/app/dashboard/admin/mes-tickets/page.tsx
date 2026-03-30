@@ -22,8 +22,15 @@ export default function AdminMesTicketsPage() {
   }, [status, user, router]);
 
   const ticketFilter = useMemo(
-    () => (ticket: Ticket) =>
-      ticket.emitter.id === user?.id || (user?.service && ticket.assignedService === user.service),
+    () => (ticket: Ticket) => {
+      if (ticket.emitter.id === user?.id) {
+        return true;
+      }
+      if (user?.service) {
+        return ticket.assignedService === user.service;
+      }
+      return false;
+    },
     [user],
   );
 

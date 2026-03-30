@@ -8,13 +8,11 @@ type Props = {
   open: boolean;
   policy: SlaPolicy | null;
   values: {
-    responseMinutes: number;
     resolutionMinutes: number;
-    isActive: boolean;
   };
   saving: boolean;
   error: string | null;
-  onChange: (field: keyof Props["values"], value: number | boolean) => void;
+  onChange: (value: number) => void;
   onSave: () => void;
   onClose: () => void;
 };
@@ -40,14 +38,9 @@ export function SlaPolicyModal({
     return null;
   }
 
-  const handleNumberChange = (field: keyof Omit<Props["values"], "isActive">) =>
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const parsed = event.target.valueAsNumber;
-      onChange(field, Number.isNaN(parsed) ? 0 : parsed);
-    };
-
-  const handleToggle = () => {
-    onChange("isActive", !values.isActive);
+  const handleResolutionChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const parsed = event.target.valueAsNumber;
+    onChange(Number.isNaN(parsed) ? 0 : parsed);
   };
 
   const badgeTone = priorityLabels[policy.priority];
@@ -72,33 +65,17 @@ export function SlaPolicyModal({
 
         <div className="mt-6 space-y-4 rounded-[20px] border border-[#ebe6df] bg-[#f3f3f2] p-4">
           <label className="text-[0.65rem] font-semibold uppercase tracking-[0.4em] text-[#9a928a]">Prise en charge</label>
-          <input
-            type="number"
-            min={0}
-            value={values.responseMinutes}
-            onChange={handleNumberChange("responseMinutes")}
-            className="w-full rounded-[12px] border border-[#e2dcd2] bg-white px-3 py-2 text-sm font-semibold text-[#2b1d10]"
-          />
+          <p className="text-sm font-semibold text-[#2b1d10]">
+            {formatDuration(policy.responseMinutes)}
+          </p>
           <label className="text-[0.65rem] font-semibold uppercase tracking-[0.4em] text-[#9a928a]">Résolution</label>
           <input
             type="number"
             min={0}
             value={values.resolutionMinutes}
-            onChange={handleNumberChange("resolutionMinutes")}
+            onChange={handleResolutionChange}
             className="w-full rounded-[12px] border border-[#e2dcd2] bg-white px-3 py-2 text-sm font-semibold text-[#2b1d10]"
           />
-          <div className="flex items-center justify-between">
-            <span className="text-[0.65rem] font-semibold uppercase tracking-[0.4em] text-[#9a928a]">Statut</span>
-            <button
-              type="button"
-              onClick={handleToggle}
-              className={`rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.34em] ${
-                values.isActive ? "bg-[#e6f5ec] text-[#1f6f3a]" : "bg-[#fde8e5] text-[#a42c1d]"
-              }`}
-            >
-              {values.isActive ? "Actif" : "Désactivé"}
-            </button>
-          </div>
         </div>
 
         {error && <p className="mt-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#c42d1f]">{error}</p>}

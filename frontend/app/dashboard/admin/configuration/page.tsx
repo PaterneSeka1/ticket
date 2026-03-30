@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DashboardShell } from "@/app/dashboard/components/DashboardShell";
-import { SlaConfigurationPanel } from "@/app/dashboard/components/SlaConfigurationPanel";
+import { SlaConfigurationManager } from "@/app/dashboard/components/SlaConfigurationManager";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { useRouter } from "next/navigation";
 import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
@@ -75,7 +75,7 @@ export default function AdminConfigurationPage() {
     <DashboardShell user={user} title="Configuration" subtitle="SLA, alertes, services et workflow">
       <div className="space-y-6">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-          <SlaConfigurationPanel />
+          <SlaConfigurationManager />
 
           <section className="rounded-[24px] border border-[#e5e1dc] bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
             <div className="flex flex-col gap-1">

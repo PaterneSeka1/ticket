@@ -1,7 +1,18 @@
+/// <reference types="node" />
 import 'dotenv/config';
 import { PrismaClient } from '../generated/prisma/client.js';
-import { TicketPriority as TicketPriorityEnum, UserRole as UserRoleEnum } from '../generated/prisma/index.js';
-import type { TicketPriority as TicketPriorityType, UserRole as UserRoleType } from '../generated/prisma/index.js';
+import {
+  TicketPriority as TicketPriorityEnum,
+  UserRole as UserRoleEnum,
+  DsiTicketRole as DsiTicketRoleEnum,
+  DirectionType as DirectionTypeEnum,
+} from '../generated/prisma/index.js';
+import type {
+  TicketPriority as TicketPriorityType,
+  UserRole as UserRoleType,
+  DsiTicketRole as DsiTicketRoleType,
+  DirectionType as DirectionTypeType,
+} from '../generated/prisma/index.js';
 import { hash } from 'bcryptjs';
 
 const seedLog = (message: string) => {
@@ -12,6 +23,8 @@ seedLog('seed : script chargé');
 
 type UserRole = UserRoleType;
 type TicketPriority = TicketPriorityType;
+type DsiTicketRole = DsiTicketRoleType;
+type DirectionType = DirectionTypeType;
 
 const prisma = new PrismaClient();
 const BASE_PASSWORD = 'ChangeMe123!';
@@ -22,24 +35,28 @@ async function ensureAccount(details: {
   role: UserRole;
   nom: string;
   prenom: string;
+  direction?: DirectionType;
+  dsiTicketRole?: DsiTicketRole;
 }) {
     seedLog(
       `seed : traitement de ${details.nom} ${details.prenom} (${details.email}) [matricule ${details.matricule}]`,
     );
   const passwordHash = await hash(BASE_PASSWORD, 10);
   const now = new Date();
-  const data = {
-    matricule: details.matricule,
-    nom: details.nom,
-    prenom: details.prenom,
-    role: details.role,
-    passwordHash,
-    isActive: true,
-    accessReport: true,
-    exportReport: true,
-    lastLogin: now,
-    updatedAt: now,
-  };
+    const data = {
+      matricule: details.matricule,
+      nom: details.nom,
+      prenom: details.prenom,
+      role: details.role,
+      direction: details.direction ?? null,
+      dsiTicketRole: details.dsiTicketRole ?? null,
+      passwordHash,
+      isActive: true,
+      accessReport: true,
+      exportReport: true,
+      lastLogin: now,
+      updatedAt: now,
+    };
 
   const existing = await prisma.user.findUnique({
     where: { email: details.email },
@@ -144,6 +161,8 @@ async function main() {
       nom: 'Super',
       prenom: 'Admin',
       role: UserRoleEnum.SUPER_ADMIN,
+      direction: DirectionTypeEnum.DSI,
+      dsiTicketRole: DsiTicketRoleEnum.RESPONSABLE,
     }),
     ensureAccount({
       email: 'admin@example.com',
