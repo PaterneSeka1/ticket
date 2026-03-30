@@ -9,6 +9,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ActivityLogService } from '../activity/activity-log.service.js';
 import { AuthenticatedUserDto } from '../auth/dto/authenticated-user.dto.js';
+import { SlaService } from '../sla/sla.service.js';
 import { CreateTicketDto } from './dto/create-ticket.dto.js';
 import { CreateTicketCategoryDto } from './dto/create-ticket-category.dto.js';
 import { CreateTicketCommentDto } from './dto/create-ticket-comment.dto.js';
@@ -21,6 +22,7 @@ import {
   DirectionType,
   DsiTicketRole,
   TimelineEventType,
+  TicketPriority,
   TicketStatus,
   TicketType,
   UserRole,
@@ -57,6 +59,7 @@ export class TicketsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: ActivityLogService,
+    private readonly sla: SlaService,
   ) {}
 
   async create(dto: CreateTicketDto, emitter: AuthenticatedUserDto) {
@@ -68,6 +71,10 @@ export class TicketsService {
     const recipient = await this.findTicketRecipient();
     const code = await this.generateTicketCode();
     const now = new Date();
+    const slaMaxMinutes = await this.resolveSlaMaxMinutes(
+      dto.priority,
+      dto.slaMaxMinutes ?? null,
+    );
 
     let ticket: TicketWithRelations;
     try {
@@ -86,12 +93,12 @@ export class TicketsService {
           attachmentName: dto.attachmentName ?? null,
           detectedAt: dto.detectedAt ? new Date(dto.detectedAt) : null,
           resolvedAt: dto.resolvedAt ? new Date(dto.resolvedAt) : null,
-          slaMaxMinutes: dto.slaMaxMinutes ?? null,
-          waitMinutes: dto.waitMinutes ?? null,
-      receivedBy: { connect: { id: recipient.id } },
-      receivedAt: now,
-    },
-    include: this.ticketInclude,
+          slaMaxMinutes,
+          waitMinutes: dto.waitMinutes ?? 0,
+          receivedBy: { connect: { id: recipient.id } },
+          receivedAt: now,
+        },
+        include: this.ticketInclude,
       });
     } catch (error) {
       this.handleConflict(error);
@@ -212,6 +219,12 @@ export class TicketsService {
     }
 
     const data = this.buildUpdatePayload(dto);
+    if (dto.priority && dto.slaMaxMinutes === undefined) {
+      const policy = await this.sla.getPolicy(dto.priority);
+      if (policy) {
+        data.slaMaxMinutes = policy.resolutionMinutes;
+      }
+    }
     if (!Object.keys(data).length) {
       throw new BadRequestException('Aucune donnée à mettre à jour.');
     }
@@ -493,7 +506,35 @@ export class TicketsService {
     return payload;
   }
 
+  private async resolveSlaMaxMinutes(
+    priority: TicketPriority,
+    override: number | null,
+  ) {
+    if (override !== null && override !== undefined) {
+      return override;
+    }
+    const policy = await this.sla.getPolicy(priority);
+    return policy?.resolutionMinutes ?? null;
+  }
+
+  private computeWaitMinutes(ticket: TicketWithRelations) {
+    if (typeof ticket.waitMinutes === 'number') {
+      return ticket.waitMinutes;
+    }
+    const baseline = ticket.receivedAt ?? ticket.createdAt;
+    if (!baseline) {
+      return 0;
+    }
+    const target =
+      ticket.resolvedAt && ticket.resolvedAt.getTime() > baseline.getTime()
+        ? ticket.resolvedAt
+        : new Date();
+    const diffMs = target.getTime() - baseline.getTime();
+    return Math.max(0, Math.floor(diffMs / 60000));
+  }
+
   private toTicketDto(ticket: TicketWithRelations) {
+    const waitMinutes = this.computeWaitMinutes(ticket);
     return {
       id: ticket.id,
       code: ticket.code,
@@ -526,7 +567,7 @@ export class TicketsService {
       detectedAt: ticket.detectedAt,
       resolvedAt: ticket.resolvedAt,
       slaMaxMinutes: ticket.slaMaxMinutes,
-      waitMinutes: ticket.waitMinutes,
+      waitMinutes,
       comments: ticket.comments.map((comment) => this.mapComment(comment)),
       timeline: ticket.timelineEvents.map((event) => this.mapTimeline(event)),
       createdAt: ticket.createdAt,

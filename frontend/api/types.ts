@@ -107,3 +107,10 @@ export interface Ticket {
   comments: TicketComment[];
   timeline: TicketTimeline[];
 }
+
+export interface SlaPolicy {
+  priority: TicketPriority;
+  responseMinutes: number;
+  resolutionMinutes: number;
+  isActive: boolean;
+}

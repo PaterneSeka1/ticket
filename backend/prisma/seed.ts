@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient } from '../generated/prisma/client.js';
-import { UserRole as UserRoleEnum } from '../generated/prisma/index.js';
-import type { UserRole as UserRoleType } from '../generated/prisma/index.js';
+import { TicketPriority as TicketPriorityEnum, UserRole as UserRoleEnum } from '../generated/prisma/index.js';
+import type { TicketPriority as TicketPriorityType, UserRole as UserRoleType } from '../generated/prisma/index.js';
 import { hash } from 'bcryptjs';
 
 const seedLog = (message: string) => {
@@ -11,6 +11,7 @@ const seedLog = (message: string) => {
 seedLog('seed : script chargé');
 
 type UserRole = UserRoleType;
+type TicketPriority = TicketPriorityType;
 
 const prisma = new PrismaClient();
 const BASE_PASSWORD = 'ChangeMe123!';
@@ -70,6 +71,62 @@ async function ensureAccount(details: {
   }
 }
 
+const slaDefaults: Array<{
+  priority: TicketPriority;
+  responseMinutes: number;
+  resolutionMinutes: number;
+}> = [
+  {
+    priority: TicketPriorityEnum.CRITIQUE,
+    responseMinutes: 30,
+    resolutionMinutes: 240,
+  },
+  {
+    priority: TicketPriorityEnum.HAUT,
+    responseMinutes: 120,
+    resolutionMinutes: 480,
+  },
+  {
+    priority: TicketPriorityEnum.MOYEN,
+    responseMinutes: 1440,
+    resolutionMinutes: 4320,
+  },
+  {
+    priority: TicketPriorityEnum.BAS,
+    responseMinutes: 2880,
+    resolutionMinutes: 10080,
+  },
+];
+
+async function ensureDefaultSlaPolicies() {
+  for (const policy of slaDefaults) {
+    await ensureSlaPolicy(policy);
+  }
+}
+
+async function ensureSlaPolicy(details: {
+  priority: TicketPriority;
+  responseMinutes: number;
+  resolutionMinutes: number;
+}) {
+  const { priority, responseMinutes, resolutionMinutes } = details;
+  await prisma.slaPolicy.upsert({
+    where: { priority },
+    create: {
+      priority,
+      responseMinutes,
+      resolutionMinutes,
+      isActive: true,
+    },
+    update: {
+      responseMinutes,
+      resolutionMinutes,
+      isActive: true,
+    },
+  });
+  seedLog(`seed : SLA ${priority} mis à jour`);
+}
+
 async function main() {
   seedLog('seed : démarrage');
   if (!process.env.DATABASE_URL) {
@@ -96,7 +153,8 @@ async function main() {
       role: UserRoleEnum.ADMIN,
     }),
   ]);
-  seedLog('seed : comptes sauvegardés');
+  await ensureDefaultSlaPolicies();
+  seedLog('seed : comptes et SLA sauvegardés');
 }
 
 void main()

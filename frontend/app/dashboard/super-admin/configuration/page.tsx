@@ -2,15 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DashboardShell } from "@/app/dashboard/components/DashboardShell";
+import { SlaConfigurationPanel } from "@/app/dashboard/components/SlaConfigurationPanel";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { useRouter } from "next/navigation";
 import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
-
-const slaRows = [
-  { priority: "P1", prise: "30 min", resolution: "4h" },
-  { priority: "P2", prise: "2h", resolution: "8h" },
-  { priority: "P3", prise: "24h", resolution: "72h" },
-];
 
 const alertRows = [
   {
@@ -80,48 +75,7 @@ export default function SuperAdminConfigurationPage() {
     <DashboardShell user={user} title="Configuration" subtitle="SLA, alertes, services et workflow">
       <div className="space-y-6">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-          <section className="rounded-[24px] border border-[#e5e1dc] bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-            <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">SLA par priorité</p>
-              <p className="text-sm text-[#2b1d10]">Ajustez les engagements de prise en charge et de résolution.</p>
-            </div>
-            <div className="mt-6 overflow-hidden rounded-[20px] border border-[#ebe6df] bg-[#f3f3f2]">
-              <div className="grid grid-cols-[1.5fr_1fr_1fr] gap-4 px-6 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#9a928a]">
-                <span>Priorité</span>
-                <span>Prise en charge</span>
-                <span>Résolution</span>
-              </div>
-              <div className="space-y-4 px-6 py-4">
-                {slaRows.map((row) => (
-                  <div
-                    key={row.priority}
-                    className="flex items-center justify-between gap-6 rounded-[14px] bg-white px-4 py-3 text-sm text-[#2b1d10] shadow-[0_6px_20px_rgba(15,20,10,0.08)]"
-                  >
-                    <div className="flex flex-1 items-center gap-2">
-                      <span
-                        className={`inline-flex h-8 w-16 items-center justify-center rounded-full text-[0.7rem] font-bold uppercase ${
-                          row.priority === "P1"
-                            ? "bg-[#fde8e5] text-[#d73b2f]"
-                            : row.priority === "P2"
-                            ? "bg-[#fffad8] text-[#d69007]"
-                            : "bg-[#e6f5ec] text-[#2f8f58]"
-                        }`}
-                      >
-                        {row.priority}
-                      </span>
-                    </div>
-                    <span className="w-32 text-center font-semibold text-[#f73b35]" role="status">
-                      {row.prise}
-                    </span>
-                    <span className="w-32 text-center font-semibold text-[#434343]">{row.resolution}</span>
-                    <button className="rounded-full border border-[#dcd5ce] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#4b3e32] transition hover:border-[#f0a31c] hover:text-[#f0a31c]">
-                      Modifier
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+          <SlaConfigurationPanel />
 
           <section className="rounded-[24px] border border-[#e5e1dc] bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
             <div className="flex flex-col gap-1">

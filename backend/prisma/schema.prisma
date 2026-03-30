@@ -157,6 +157,17 @@ model Ticket {
   @@index([categoryId])
 }
 
+model SlaPolicy {
+  id               String         @id @default(auto()) @map("_id") @db.ObjectId
+  priority         TicketPriority @unique
+  responseMinutes  Int
+  resolutionMinutes  Int
+  isActive         Boolean        @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model TicketComment {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   ticketId  String   @db.ObjectId
