@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import {
@@ -23,7 +24,47 @@ import {
 import { DashboardShell } from "../components/DashboardShell";
 import { getRedirectRouteForRole } from "../lib/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useTickets } from "../hooks/useTickets";
 import { useRouter } from "next/navigation";
+import type { Ticket, TicketPriority, TicketStatus } from "@/api/types";
+import {
+  formatDuration,
+  getSlaProgress,
+  getSlaTone,
+  priorityLabels,
+  statusLabels,
+} from "@/app/dashboard/lib/ticket-formatters";
+
+const STATUS_CHART_COLORS: Record<TicketStatus, string> = {
+  RECU: "#d9d9d9",
+  EN_COURS: "#6d35d9",
+  AJOURNE: "#b4a5f0",
+  RESOLU: "#1f6c97",
+  ABANDONNE: "#d63b35",
+  FERME: "#727885",
+  OUVERT: "#f4b000",
+  PRIS: "#2dad5b",
+};
+
+const PRIORITY_CHART_COLORS: Record<TicketPriority, string> = {
+  CRITIQUE: "#e53935",
+  HAUT: "#f4a300",
+  MOYEN: "#2ba84a",
+  BAS: "#1f6bb7",
+};
+
+const PRIORITY_DISPLAY_NAMES: Record<TicketPriority, string> = {
+  CRITIQUE: "Critique",
+  HAUT: "Haut",
+  MOYEN: "Moyen",
+  BAS: "Bas",
+};
+
+const OPEN_STATUSES = new Set<TicketStatus>(["RECU", "EN_COURS", "OUVERT", "PRIS"]);
+const RESOLVED_STATUSES = new Set<TicketStatus>(["RESOLU", "FERME", "ABANDONNE"]);
+
+const STATUS_LIST = Object.keys(statusLabels) as TicketStatus[];
+const PRIORITY_LIST: TicketPriority[] = ["CRITIQUE", "HAUT", "MOYEN", "BAS"];
 
 type Metric = {
   label: string;
@@ -33,124 +74,37 @@ type Metric = {
   accent: string;
 };
 
-type Ticket = {
-  id: string;
-  titre: string;
-  prio: "P1" | "P2" | "P3";
-  sla: string;
-  status: "Reçu" | "En cours de résolution" | "Ouvert" | "Pris en charge";
-  assigne: string;
-  slaProgress: number;
-};
-
-const metrics: Metric[] = [
-  {
-    label: "TOTAL TICKETS",
-    value: "6",
-    detail: "2 aujourd’hui",
-    valueColor: "text-[#181818]",
-    accent: "bg-[#f1efe9]",
-  },
-  {
-    label: "P1 CRITIQUES",
-    value: "1",
-    detail: "1 non ouvert",
-    valueColor: "text-[#d73b2f]",
-    accent: "bg-[#fde7e4]",
-  },
-  {
-    label: "EN COURS",
-    value: "4",
-    detail: "SLA moyen P2 : 2h",
-    valueColor: "text-[#f0a11d]",
-    accent: "bg-[#fff1d7]",
-  },
-  {
-    label: "RÉSOLUS / FERMÉS",
-    value: "2",
-    detail: "Taux : 33%",
-    valueColor: "text-[#2fa26b]",
-    accent: "bg-[#e4f5ec]",
-  },
-];
-
-const tickets: Ticket[] = [
-  {
-    id: "#TK-001",
-    titre: "Inaccessibilité à une plateforme métier",
-    prio: "P1",
-    sla: "2h 38m",
-    status: "Reçu",
-    assigne: "DSI",
-    slaProgress: 92,
-  },
-  {
-    id: "#TK-002",
-    titre: "SOTRA — Retard de réception",
-    prio: "P2",
-    sla: "58m",
-    status: "En cours de résolution",
-    assigne: "Relation Clientèle",
-    slaProgress: 58,
-  },
-  {
-    id: "#TK-003",
-    titre: "Plateforme — Bugs / Lenteurs",
-    prio: "P2",
-    sla: "1h 50m",
-    status: "Ouvert",
-    assigne: "DSI",
-    slaProgress: 68,
-  },
-  {
-    id: "#TK-004",
-    titre: "Dysfonctionnement d’un portail externe",
-    prio: "P2",
-    sla: "1h 12m",
-    status: "Pris en charge",
-    assigne: "Boldcode",
-    slaProgress: 44,
-  },
-];
-
-const ticketStatusData = [
-  { name: "Reçu", value: 1, color: "#d9d9d9" },
-  { name: "Ouvert", value: 1, color: "#f4b000" },
-  { name: "Pris en charge", value: 1, color: "#2dad5b" },
-  { name: "En cours de résolution", value: 1, color: "#6d35d9" },
-  { name: "Résolu", value: 1, color: "#727885" },
-  { name: "Fermé", value: 1, color: "#1f6c97" },
-];
-
-const ticketPriorityData = [
-  { name: "P1 Critique", value: 2, fill: "#e53935" },
-  { name: "P2 Majeur", value: 3, fill: "#f4a300" },
-  { name: "P3 Mineur", value: 1, fill: "#2ba84a" },
-];
-
-function priorityBadge(prio: Ticket["prio"]) {
-  if (prio === "P1") {
-    return "bg-[#fde8e5] text-[#d73b2f]";
-  }
-  if (prio === "P2") {
-    return "bg-[#fff2db] text-[#d69007]";
-  }
-  return "bg-[#e7f5ec] text-[#2f8f58]";
+function priorityBadge(priority: TicketPriority) {
+  return `inline-flex rounded-full px-2 py-[3px] text-[10px] font-semibold uppercase ${priorityLabels[priority].tone}`;
 }
 
-function statusBadge(status: Ticket["status"]) {
-  switch (status) {
-    case "Reçu":
-      return "bg-[#eceff3] text-[#5b6370]";
-    case "En cours de résolution":
-      return "bg-[#fff0bf] text-[#987100]";
-    case "Ouvert":
-      return "bg-[#fff5de] text-[#a76800]";
-    case "Pris en charge":
-      return "bg-[#e6f4ff] text-[#1d79c4]";
-    default:
-      return "bg-[#eceff3] text-[#5b6370]";
+function statusBadge(status: TicketStatus) {
+  return statusLabels[status].color;
+}
+
+function getAssigneeLabel(ticket: Ticket) {
+  if (ticket.receivedBy) {
+    return `${ticket.receivedBy.prenom} ${ticket.receivedBy.nom}`;
   }
+  return ticket.assignedService ?? "—";
+}
+
+function SlaBar({ ticket }: { ticket: Ticket }) {
+  const progress = getSlaProgress(ticket);
+  const tone = getSlaTone(progress);
+  const label = formatDuration(ticket.waitMinutes ?? ticket.slaMaxMinutes);
+
+  return (
+    <div className="flex min-w-[120px] items-center gap-2">
+      <div className={`h-[4px] w-[72px] overflow-hidden rounded-full ${tone.track}`}>
+        <div
+          className={`h-full rounded-full bg-gradient-to-r ${tone.bar}`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <span className="text-[11px] text-[#7d7267]">{label}</span>
+    </div>
+  );
 }
 
 function MetricCard({ metric }: { metric: Metric }) {
@@ -198,41 +152,28 @@ export default function AdminDashboardPage() {
   );
 }
 
-function SlaBar({ progress, label }: { progress: number; label: string }) {
-  return (
-    <div className="flex min-w-[120px] items-center gap-2">
-      <div className="h-[4px] w-[72px] overflow-hidden rounded-full bg-[#e8e0d7]">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-[#d63b35] to-[#f1a456]"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-      <span className="text-[11px] text-[#7d7267]">{label}</span>
-    </div>
-  );
-}
-
 function MobileTicketCard({ ticket }: { ticket: Ticket }) {
   return (
     <article className="space-y-2 rounded-[12px] border border-[#ebe6df] bg-white px-4 py-3 shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8a8176]">
-          {ticket.id}
+          {ticket.code}
         </span>
-        <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-semibold uppercase ${priorityBadge(ticket.prio)}`}>
-          {ticket.prio}
+        <span className={priorityBadge(ticket.priority)}>
+          {priorityLabels[ticket.priority].label}
         </span>
       </div>
-      <p className="text-sm font-semibold text-[#2b1d10]">{ticket.titre}</p>
+      <p className="text-sm font-semibold text-[#2b1d10]">{ticket.category.libelle}</p>
+      <p className="text-[12px] text-[#7d7267]">{ticket.description}</p>
       <div className="flex flex-wrap items-center gap-2 text-[10px] text-[#7d7267]">
         <span className="inline-flex items-center gap-1 rounded-full bg-[#f3f5f7] px-2 py-1 uppercase tracking-[0.2em] text-[#5c5c5c]">
-          {ticket.assigne}
+          {getAssigneeLabel(ticket)}
         </span>
         <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-medium ${statusBadge(ticket.status)}`}>
-          {ticket.status}
+          {statusLabels[ticket.status].label}
         </span>
       </div>
-      <SlaBar progress={ticket.slaProgress} label={ticket.sla} />
+      <SlaBar ticket={ticket} />
       <div className="flex justify-end">
         <button className="rounded-full bg-[#f9b800] px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#352300] shadow-[0_8px_16px_rgba(249,184,0,0.18)]">
           Voir
@@ -243,45 +184,147 @@ function MobileTicketCard({ ticket }: { ticket: Ticket }) {
 }
 
 export function AdminDashboardContent() {
+  const { tickets, loading } = useTickets(true);
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 6 });
+
+  const { metrics, ticketStatusData, ticketPriorityData } = useMemo(() => {
+    const todayKey = new Date().toDateString();
+    const statusTotals: Record<TicketStatus, number> = {} as Record<TicketStatus, number>;
+    STATUS_LIST.forEach((status) => {
+      statusTotals[status] = 0;
+    });
+
+    const priorityTotals: Record<TicketPriority, number> = {} as Record<TicketPriority, number>;
+    PRIORITY_LIST.forEach((priority) => {
+      priorityTotals[priority] = 0;
+    });
+
+    let todayCount = 0;
+    let unresolvedCritical = 0;
+    let openCount = 0;
+    let resolvedCount = 0;
+    const highWaits: number[] = [];
+
+    for (const ticket of tickets) {
+      const createdAt = new Date(ticket.createdAt);
+      if (!Number.isNaN(createdAt.getTime()) && createdAt.toDateString() === todayKey) {
+        todayCount += 1;
+      }
+
+      statusTotals[ticket.status] += 1;
+      priorityTotals[ticket.priority] += 1;
+
+      if (ticket.priority === "CRITIQUE" && !RESOLVED_STATUSES.has(ticket.status)) {
+        unresolvedCritical += 1;
+      }
+
+      if (OPEN_STATUSES.has(ticket.status)) {
+        openCount += 1;
+      }
+
+      if (RESOLVED_STATUSES.has(ticket.status)) {
+        resolvedCount += 1;
+      }
+
+      if (ticket.priority === "HAUT" && ticket.waitMinutes != null) {
+        highWaits.push(ticket.waitMinutes);
+      }
+    }
+
+    const averageHighWait =
+      highWaits.length > 0
+        ? Math.round(highWaits.reduce((sum, value) => sum + value, 0) / highWaits.length)
+        : undefined;
+    const resolvedPercent = tickets.length ? Math.round((resolvedCount / tickets.length) * 100) : 0;
+
+    const normalizedStatusData = STATUS_LIST.map((status) => ({
+      name: statusLabels[status].label,
+      value: statusTotals[status],
+      color: STATUS_CHART_COLORS[status],
+    })).filter((entry) => entry.value > 0);
+
+    const normalizedPriorityData = PRIORITY_LIST.map((priority) => ({
+      name: `${priorityLabels[priority].label} ${PRIORITY_DISPLAY_NAMES[priority]}`,
+      value: priorityTotals[priority],
+      fill: PRIORITY_CHART_COLORS[priority],
+    })).filter((entry) => entry.value > 0);
+
+    return {
+      metrics: [
+        {
+          label: "TOTAL TICKETS",
+          value: `${tickets.length}`,
+          detail: `${todayCount} déposés aujourd’hui`,
+          valueColor: "text-[#181818]",
+          accent: "bg-[#f1efe9]",
+        },
+        {
+          label: "P1 CRITIQUES",
+          value: `${priorityTotals.CRITIQUE}`,
+          detail: `${unresolvedCritical} non résolus`,
+          valueColor: "text-[#d73b2f]",
+          accent: "bg-[#fde7e4]",
+        },
+        {
+          label: "EN COURS",
+          value: `${openCount}`,
+          detail: `SLA moyen HAUT : ${formatDuration(averageHighWait)}`,
+          valueColor: "text-[#f0a11d]",
+          accent: "bg-[#fff1d7]",
+        },
+        {
+          label: "RÉSOLUS / FERMÉS",
+          value: `${resolvedCount}`,
+          detail: `Taux : ${resolvedPercent}%`,
+          valueColor: "text-[#2fa26b]",
+          accent: "bg-[#e4f5ec]",
+        },
+      ],
+      ticketStatusData: normalizedStatusData.length
+        ? normalizedStatusData
+        : [{ name: "Aucun ticket", value: 1, color: "#d9d9d9" }],
+      ticketPriorityData: normalizedPriorityData.length
+        ? normalizedPriorityData
+        : [{ name: "Aucune priorité", value: 1, fill: "#d9d9d9" }],
+    };
+  }, [tickets]);
+
   const columns = useMemo<ColumnDef<Ticket>[]>(
     () => [
       {
-        accessorKey: "id",
+        accessorKey: "code",
         header: "ID",
         cell: ({ row }) => (
           <span className="inline-flex rounded-md bg-[#f3f5f7] px-2 py-[3px] text-[10px] font-semibold text-[#6e7681]">
-            {row.original.id}
+            {row.original.code}
           </span>
         ),
       },
       {
-        accessorKey: "titre",
+        id: "title",
         header: "TITRE",
         cell: ({ row }) => (
-          <span className="block max-w-[320px] truncate text-[12px] text-[#241d16]">
-            {row.original.titre}
-          </span>
+          <div className="max-w-[320px]">
+            <p className="truncate text-[12px] font-semibold text-[#241d16]">
+              {row.original.category.libelle}
+            </p>
+            <p className="truncate text-[11px] text-[#7d7267]">{row.original.description}</p>
+          </div>
         ),
       },
       {
-        accessorKey: "prio",
+        accessorKey: "priority",
         header: "PRIO",
         cell: ({ row }) => (
-          <span
-            className={`inline-flex rounded-full px-2 py-[3px] text-[10px] font-semibold uppercase ${priorityBadge(
-              row.original.prio
-            )}`}
-          >
-            {row.original.prio}
+          <span className={priorityBadge(row.original.priority)}>
+            {priorityLabels[row.original.priority].label}
           </span>
         ),
       },
       {
-        accessorKey: "sla",
+        id: "sla",
         header: "SLA",
-        cell: ({ row }) => (
-          <SlaBar progress={row.original.slaProgress} label={row.original.sla} />
-        ),
+        cell: ({ row }) => <SlaBar ticket={row.original} />,
       },
       {
         accessorKey: "status",
@@ -292,15 +335,15 @@ export function AdminDashboardContent() {
               row.original.status
             )}`}
           >
-            {row.original.status}
+            {statusLabels[row.original.status].label}
           </span>
         ),
       },
       {
-        accessorKey: "assigne",
+        id: "assigne",
         header: "ASSIGNÉ",
         cell: ({ row }) => (
-          <span className="text-[12px] text-[#544a40]">{row.original.assigne}</span>
+          <span className="text-[12px] text-[#544a40]">{getAssigneeLabel(row.original)}</span>
         ),
       },
       {
@@ -322,8 +365,21 @@ export function AdminDashboardContent() {
   const table = useReactTable({
     data: tickets,
     columns,
+    state: { pagination },
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
+
+  useEffect(() => {
+    setPagination((current) =>
+      current.pageIndex !== 0 ? { ...current, pageIndex: 0 } : current,
+    );
+  }, [tickets]);
+
+  const paginatedRows = table.getPaginationRowModel().rows;
+  const totalColumns = table.getAllLeafColumns().length;
+  const hasTickets = tickets.length > 0;
 
   return (
     <div className="space-y-4 w-full max-w-full">
@@ -364,7 +420,9 @@ export function AdminDashboardContent() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8f8b85]">
               Tickets actifs — SLA
             </p>
-            <p className="mt-1 text-[11px] text-[#8a8176]">4 ticket(s)</p>
+            <p className="mt-1 text-[11px] text-[#8a8176]">
+              {loading ? "Chargement des tickets…" : `${tickets.length} ticket(s)`}
+            </p>
           </div>
 
           <button className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#f0a000]">
@@ -397,25 +455,84 @@ export function AdminDashboardContent() {
             </thead>
 
             <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="align-middle">
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      className="border-b border-[#f5f1eb] py-3 pr-3 text-[12px] text-[#241d16] last:pr-0"
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+              {loading && !paginatedRows.length ? (
+                <tr>
+                  <td colSpan={totalColumns} className="px-4 py-8 text-center text-sm text-[#6b5446]">
+                    Chargement en cours…
+                  </td>
                 </tr>
-              ))}
+              ) : hasTickets ? (
+                paginatedRows.map((row) => (
+                  <tr key={row.id} className="align-middle">
+                    {row.getVisibleCells().map((cell) => (
+                      <td
+                        key={cell.id}
+                        className="border-b border-[#f5f1eb] py-3 pr-3 text-[12px] text-[#241d16] last:pr-0"
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={totalColumns} className="px-4 py-8 text-center text-sm text-[#6b5446]">
+                    Aucun ticket disponible.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
+        <div className="mt-3 flex flex-col gap-3 rounded-[14px] border border-[#f1e6da] bg-[#fffdfb] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7b6655]">
+            {tickets.length} ticket(s) • page {table.getState().pagination.pageIndex + 1} /{" "}
+            {table.getPageCount() || 1}
+          </div>
+          <div className="flex flex-col items-stretch gap-2 lg:flex-row lg:items-center lg:gap-2">
+            <button
+              type="button"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              className="w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40 lg:w-auto"
+            >
+              Précédent
+            </button>
+            <button
+              type="button"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              className="w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40 lg:w-auto"
+            >
+              Suivant
+            </button>
+            <select
+              value={table.getState().pagination.pageSize}
+              onChange={(event) => table.setPageSize(Number(event.target.value))}
+              className="h-8 w-full rounded-[10px] border border-[#e7ddd2] bg-white px-2 text-[11px] text-[#2b1d10] focus:border-[#d29b55] focus:outline-none lg:w-auto"
+            >
+              {[6, 12, 24].map((size) => (
+                <option key={size} value={size}>
+                  {size} / page
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         <div className="space-y-3 lg:hidden">
-          {tickets.map((ticket) => (
-            <MobileTicketCard key={ticket.id} ticket={ticket} />
-          ))}
+          {loading ? (
+            <div className="rounded-[12px] border border-[#ebe6df] bg-[#f9fafb] px-4 py-3 text-[12px] text-[#7d7267]">
+              Chargement des tickets…
+            </div>
+          ) : tickets.length ? (
+            tickets.map((ticket) => (
+              <MobileTicketCard key={ticket.id} ticket={ticket} />
+            ))
+          ) : (
+            <div className="rounded-[12px] border border-[#ebe6df] bg-[#f9fafb] px-4 py-3 text-[12px] text-[#7d7267]">
+              Aucun ticket actif pour le moment.
+            </div>
+          )}
         </div>
       </section>
 

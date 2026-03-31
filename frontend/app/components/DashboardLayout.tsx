@@ -114,6 +114,8 @@ const buildNavSections = (
   return { principal, administration, superAdmin: superAdminSection, analyse: analyseSection, analyseAdmin: analyseSectionAdmin };
 };
 
+const HEADER_HEIGHT = 50;
+
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const { user } = useCurrentUser();
   const pathname = usePathname();
@@ -219,8 +221,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff8ef] via-[#fff1e6] to-[#f2e1d0] text-[#2b1d10]">
       <div className="relative">
-        <header className="sticky top-0 z-30 border-b-3 border-yellow-400 bg-gray-300/90 px-6 py-1 shadow-[0_10px_35px_rgba(0,0,0,0.08)] backdrop-blur">
-          <div className="flex items-center gap-8">
+        <header
+          className="fixed top-0 inset-x-0 z-30 border-b-3 border-yellow-400 bg-gray-300/90 px-6 shadow-[0_10px_35px_rgba(0,0,0,0.08)] backdrop-blur"
+          style={{ height: `${HEADER_HEIGHT}px` }}
+        >
+          <div className="flex h-full items-center gap-8">
             <div className="flex items-center gap-3">
               <Image src="/logo1.png" alt="Logo Ticketing Vedem" width={85} height={80} className="object-contain" />
             </div>
@@ -290,8 +295,14 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         )}
       </div>
 
-      <div className="flex bg-white/90">
-        <aside className="hidden h-screen flex-col border-r-2 border-yellow-400 bg-white px-6 py-6 text-[#2b1d10] lg:flex lg:w-70">
+      <div className="flex bg-white/90" style={{ paddingTop: HEADER_HEIGHT }}>
+        <aside
+          className="hidden lg:flex lg:w-70 flex-col border-r-2 border-yellow-400 bg-white px-6 py-6 text-[#2b1d10] lg:sticky"
+          style={{
+            top: HEADER_HEIGHT,
+            maxHeight: `calc(100vh - ${HEADER_HEIGHT}px)`,
+          }}
+        >
           <div className="flex-1 space-y-5 overflow-y-auto pr-1">{renderNavContent()}</div>
         </aside>
         <main className="flex-1 px-4 py-2 lg:px-2">
