@@ -13,13 +13,18 @@ export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const roles = this.reflector.get<UserRole[]>(RolesGuard.ROLES_KEY, context.getHandler());
+    const roles = this.reflector.get<UserRole[]>(
+      RolesGuard.ROLES_KEY,
+      context.getHandler(),
+    );
     if (!roles?.length) {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
-    const user: AuthenticatedUserDto | undefined = request.user;
+    const request = context.switchToHttp().getRequest<{
+      user?: AuthenticatedUserDto;
+    }>();
+    const user = request.user;
     if (!user) {
       throw new ForbiddenException('Accès interdit.');
     }

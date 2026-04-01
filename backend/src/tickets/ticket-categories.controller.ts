@@ -51,10 +51,7 @@ export class TicketCategoriesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUserDto,
-  ) {
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUserDto) {
     return this.ticketsService.deleteCategory(id, user);
   }
 }

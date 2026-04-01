@@ -36,7 +36,7 @@ export class ActivityLogService {
     });
   }
 
-  async fetchLogs(options: FetchOptions = {}) {
+  fetchLogs(options: FetchOptions = {}): Promise<Prisma.ActivityLog[]> {
     const sanitizedLimit = Math.max(1, Math.min(options.limit ?? 100, 200));
     const where: Prisma.ActivityLogWhereInput = {};
     if (options.actions?.length) {

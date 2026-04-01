@@ -10,9 +10,20 @@ type Props = {
   onEdit: (policy: SlaPolicy) => void;
 };
 
-const fallbackPriorities: TicketPriority[] = ["CRITIQUE", "HAUT", "MOYEN", "BAS"];
+const SLA_PRIORITIES: TicketPriority[] = ["CRITIQUE", "HAUT", "MOYEN"];
 
 export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Props) {
+  const displayPolicies: SlaPolicy[] = SLA_PRIORITIES.map((priority) => {
+    const existing = policies.find((policy) => policy.priority === priority);
+    return (
+      existing ?? {
+        priority,
+        responseMinutes: 0,
+        resolutionMinutes: 0,
+        isActive: false,
+      }
+    );
+  });
   return (
     <section className="rounded-[24px] border border-[#e5e1dc] bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
       <div className="flex flex-col gap-1">
@@ -31,12 +42,7 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
               Chargement des engagements...
             </div>
           ) : (
-            (policies.length ? policies : fallbackPriorities.map((priority) => ({
-              priority,
-              responseMinutes: 0,
-              resolutionMinutes: 0,
-              isActive: false,
-            })) as SlaPolicy[]).map((policy) => {
+            displayPolicies.map((policy) => {
               const badge = priorityLabels[policy.priority];
               return (
                 <div

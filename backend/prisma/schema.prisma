@@ -269,6 +269,23 @@ model Notification {
   @@index([ticketId])
 }
 
+model ActivityLog {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  action    String
+  details   String?
+  actorId   String?   @db.ObjectId
+  actorName String?
+  role      UserRole?
+  ticketId  String?   @db.ObjectId
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([action])
+  @@index([actorId])
+  @@index([ticketId])
+  @@index([createdAt])
+}
+
 model AuditLog {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
   action    String
@@ -283,4 +300,16 @@ model AuditLog {
 
   @@index([actorId])
   @@index([ticketId])
+}
+
+model SlaPolicy {
+  id                String         @id @default(auto()) @map("_id") @db.ObjectId
+  priority          TicketPriority @unique
+  responseMinutes   Int            @default(0)
+  resolutionMinutes Int            @default(0)
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([isActive])
 }

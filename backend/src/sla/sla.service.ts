@@ -5,6 +5,12 @@ import { TicketPriority } from '../prisma/enums.js';
 import type { AuthenticatedUserDto } from '../auth/dto/authenticated-user.dto.js';
 import { UpdateSlaPolicyDto } from './dto/update-sla-policy.dto.js';
 
+const SLA_PRIORITIES: TicketPriority[] = [
+  TicketPriority.CRITICAL,
+  TicketPriority.HIGH,
+  TicketPriority.MEDIUM,
+];
+
 @Injectable()
 export class SlaService {
   constructor(
@@ -14,6 +20,7 @@ export class SlaService {
 
   listPolicies() {
     return this.prisma.client.slaPolicy.findMany({
+      where: { priority: { in: SLA_PRIORITIES } },
       orderBy: { priority: 'asc' },
     });
   }
@@ -27,6 +34,11 @@ export class SlaService {
     dto: UpdateSlaPolicyDto,
     actor: AuthenticatedUserDto,
   ) {
+    if (!SLA_PRIORITIES.includes(priority)) {
+      throw new BadRequestException(
+        'Les SLA ne couvrent que les priorités P1, P2 et P3.',
+      );
+    }
     const data = this.buildPayload(dto);
     if (!Object.keys(data).length) {
       throw new BadRequestException('Aucune donnée à mettre à jour.');
@@ -37,10 +49,8 @@ export class SlaService {
       update: data,
       create: {
         priority,
-        responseMinutes:
-          data.responseMinutes ?? dto.responseMinutes ?? 0,
-        resolutionMinutes:
-          data.resolutionMinutes ?? dto.resolutionMinutes ?? 0,
+        responseMinutes: data.responseMinutes ?? dto.responseMinutes ?? 0,
+        resolutionMinutes: data.resolutionMinutes ?? dto.resolutionMinutes ?? 0,
         isActive: data.isActive ?? dto.isActive ?? true,
       },
     });

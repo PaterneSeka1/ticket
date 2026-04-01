@@ -29,7 +29,8 @@ export class SlaController {
 
   @Patch('priorities/:priority')
   updatePolicy(
-    @Param('priority', new ParseEnumPipe(TicketPriority)) priority: TicketPriority,
+    @Param('priority', new ParseEnumPipe(TicketPriority))
+    priority: TicketPriority,
     @Body() dto: UpdateSlaPolicyDto,
     @CurrentUser() user: AuthenticatedUserDto,
   ) {

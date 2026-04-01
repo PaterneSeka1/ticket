@@ -12,8 +12,6 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 import { UserRole } from '../prisma/enums.js';
 import { ActivityLogService } from './activity-log.service.js';
 
-const AUTH_ACTIONS = ['auth.login', 'auth.logout'];
-
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.SUPER_ADMIN)
 @Controller('activity/logs')

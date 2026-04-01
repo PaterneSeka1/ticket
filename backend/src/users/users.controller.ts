@@ -56,18 +56,12 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUserDto,
-  ) {
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUserDto) {
     return this.usersService.remove(id, user);
   }
 
   @Patch(':id/activate')
-  activate(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUserDto,
-  ) {
+  activate(@Param('id') id: string, @CurrentUser() user: AuthenticatedUserDto) {
     return this.usersService.activate(id, user);
   }
 
