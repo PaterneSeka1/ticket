@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ActivityLogService } from '../activity/activity-log.service.js';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LoginResponseDto } from './dto/login-response.dto.js';
@@ -16,7 +17,10 @@ import { CurrentUser } from './decorators/current-user.decorator.js';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly activity: ActivityLogService,
+  ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -33,7 +37,13 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
-  logout(): void {
-    // Stateless logout: client should drop the token, server acknowledges the call.
+  async logout(@CurrentUser() user: AuthenticatedUserDto): Promise<void> {
+    await this.activity.log({
+      action: 'auth.logout',
+      details: `${user.email} déconnecté.`,
+      actorId: user.id,
+      actorName: `${user.nom} ${user.prenom}`.trim(),
+      role: user.role,
+    });
   }
 }

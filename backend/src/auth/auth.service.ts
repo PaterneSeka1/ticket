@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { compare } from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ActivityLogService } from '../activity/activity-log.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LoginResponseDto } from './dto/login-response.dto.js';
 import type { User } from '../../generated/prisma/client.js';
@@ -12,6 +13,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly activity: ActivityLogService,
   ) {}
 
   async login(dto: LoginDto): Promise<LoginResponseDto> {
@@ -32,6 +34,14 @@ export class AuthService {
     });
 
     const accessToken = await this.jwtService.signAsync({ sub: user.id });
+
+    await this.activity.log({
+      action: 'auth.login',
+      details: `${user.email} connecté.`,
+      actorId: user.id,
+      actorName: `${user.nom} ${user.prenom}`.trim(),
+      role: user.role,
+    });
 
     return {
       user: toUserDto(updatedUser),

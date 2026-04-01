@@ -108,6 +108,17 @@ export interface Ticket {
   timeline: TicketTimeline[];
 }
 
+export interface ActivityLogEntry {
+  id: string;
+  action: string;
+  details?: string | null;
+  actorId?: string | null;
+  actorName?: string | null;
+  role?: string | null;
+  ticketId?: string | null;
+  createdAt: string;
+}
+
 export interface SlaPolicy {
   priority: TicketPriority;
   responseMinutes: number;
