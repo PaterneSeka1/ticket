@@ -1,5 +1,5 @@
-import { IsEnum, IsMongoId, IsOptional, IsString } from 'class-validator';
-import { TicketStatus, TimelineEventType } from '../../prisma/enums.js';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { TicketStatus } from '../../prisma/enums.js';
 
 export class UpdateTicketStatusDto {
   @IsEnum(TicketStatus)
@@ -7,13 +7,5 @@ export class UpdateTicketStatusDto {
 
   @IsOptional()
   @IsString()
-  actorName?: string;
-
-  @IsOptional()
-  @IsMongoId()
-  receivedById?: string;
-
-  @IsOptional()
-  @IsEnum(TimelineEventType)
-  eventType?: TimelineEventType;
+  resolutionComment?: string;
 }

@@ -14,11 +14,7 @@ import { UserDto } from './dto/user.dto.js';
 import { toUserDto } from './users.mapper.js';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import type { Prisma } from '../../generated/prisma/client.js';
-import {
-  DirectionType,
-  OperationService,
-  UserRole,
-} from '../prisma/enums.js';
+import { UserRole } from '../prisma/enums.js';
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -34,7 +30,6 @@ export class UsersService {
     actor?: AuthenticatedUserDto,
   ): Promise<UserDto> {
     const passwordHash = await this.hashPassword(dto.passwordHash);
-    this.ensureServiceReservedToDo(dto.service, dto.direction ?? null);
     const data = this.buildCreatePayload(dto, passwordHash);
 
     try {
@@ -55,9 +50,11 @@ export class UsersService {
     let where: Prisma.UserWhereInput | undefined;
 
     if (actor?.role === UserRole.SUPER_ADMIN) {
-      where = { NOT: { id: actor.id } };
+      where = {};
+    } else if (actor?.role === UserRole.ADMIN) {
+      where = { role: { notIn: [UserRole.SUPER_ADMIN, UserRole.ADMIN] } };
     } else if (actor) {
-      where = { role: UserRole.USER };
+      where = { id: actor.id };
     }
 
     const users = await this.prisma.client.user.findMany({ where });
@@ -86,10 +83,6 @@ export class UsersService {
     if (!existingUser) {
       throw new NotFoundException(`Utilisateur ${id} introuvable.`);
     }
-    const directionAfterUpdate =
-      dto.direction ?? existingUser.direction ?? null;
-    const serviceAfterUpdate = dto.service ?? existingUser.service ?? null;
-    this.ensureServiceReservedToDo(serviceAfterUpdate, directionAfterUpdate);
     const data = this.buildUpdatePayload(dto, passwordHash);
 
     if (!Object.keys(data).length) {
@@ -114,17 +107,11 @@ export class UsersService {
     }
   }
 
-  async remove(
-    id: string,
-    actor?: AuthenticatedUserDto,
-  ): Promise<void> {
+  async remove(id: string, actor?: AuthenticatedUserDto): Promise<void> {
     await this.deactivate(id, actor);
   }
 
-  async activate(
-    id: string,
-    actor?: AuthenticatedUserDto,
-  ): Promise<UserDto> {
+  async activate(id: string, actor?: AuthenticatedUserDto): Promise<UserDto> {
     try {
       const user = await this.prisma.client.user.update({
         where: { id },
@@ -142,10 +129,7 @@ export class UsersService {
     }
   }
 
-  async deactivate(
-    id: string,
-    actor?: AuthenticatedUserDto,
-  ): Promise<UserDto> {
+  async deactivate(id: string, actor?: AuthenticatedUserDto): Promise<UserDto> {
     try {
       const user = await this.prisma.client.user.update({
         where: { id },
@@ -173,16 +157,12 @@ export class UsersService {
       email: dto.email.trim().toLowerCase(),
       matricule: dto.matricule.trim(),
       passwordHash: hashedPassword,
-      role: dto.role ?? UserRole.USER,
-      direction: dto.direction ?? null,
-      service: dto.service ?? null,
+      role: dto.role ?? UserRole.EMPLOYE,
+      departmentId: dto.departmentId ?? null,
+      serviceId: dto.serviceId ?? null,
       isActive: dto.isActive ?? true,
-      accessReport: dto.accessReport ?? false,
-      exportReport: dto.exportReport ?? false,
-      isResponsable: dto.isResponsable ?? false,
-      dsiTicketRole: dto.dsiTicketRole ?? null,
+      receiveEmails: dto.receiveEmails ?? true,
       createdById: dto.createdById ?? null,
-      lastLogin: dto.lastLogin ?? null,
     };
   }
 
@@ -198,62 +178,35 @@ export class UsersService {
     if (dto.prenom) {
       payload.prenom = dto.prenom.trim();
     }
-    if (dto.email) {
-      payload.email = dto.email.trim().toLowerCase();
-    }
     if (dto.matricule) {
       payload.matricule = dto.matricule.trim();
     }
-    if (dto.passwordHash) {
-      payload.passwordHash = hashedPassword ?? dto.passwordHash;
+    if (dto.email) {
+      payload.email = dto.email.trim().toLowerCase();
+    }
+    if (dto.passwordHash && hashedPassword) {
+      payload.passwordHash = hashedPassword;
     }
     if (dto.role) {
       payload.role = dto.role;
     }
-    if (dto.direction !== undefined) {
-      payload.direction = dto.direction;
+    if (dto.departmentId !== undefined) {
+      payload.departmentId = dto.departmentId ?? null;
     }
-    if (dto.service !== undefined) {
-      payload.service = dto.service;
+    if (dto.serviceId !== undefined) {
+      payload.serviceId = dto.serviceId ?? null;
     }
     if (typeof dto.isActive === 'boolean') {
       payload.isActive = dto.isActive;
     }
-    if (typeof dto.accessReport === 'boolean') {
-      payload.accessReport = dto.accessReport;
-    }
-    if (typeof dto.exportReport === 'boolean') {
-      payload.exportReport = dto.exportReport;
-    }
-    if (typeof dto.isResponsable === 'boolean') {
-      payload.isResponsable = dto.isResponsable;
-    }
-    if (dto.dsiTicketRole !== undefined) {
-      payload.dsiTicketRole = dto.dsiTicketRole ?? null;
+    if (typeof dto.receiveEmails === 'boolean') {
+      payload.receiveEmails = dto.receiveEmails;
     }
     if (dto.createdById !== undefined) {
       payload.createdById = dto.createdById ?? null;
     }
-    if (dto.lastLogin !== undefined) {
-      payload.lastLogin = dto.lastLogin;
-    }
 
     return payload;
-  }
-
-  private ensureServiceReservedToDo(
-    service: OperationService | null | undefined,
-    direction: DirectionType | null | undefined,
-  ) {
-    if (!service) {
-      return;
-    }
-
-    if (direction !== DirectionType.DO) {
-      throw new BadRequestException(
-        'Le champ service est réservé à la direction DO.',
-      );
-    }
   }
 
   private async hashPassword(password: string): Promise<string> {
@@ -265,9 +218,7 @@ export class UsersService {
       error instanceof PrismaClientKnownRequestError &&
       error.code === 'P2002'
     ) {
-      throw new ConflictException(
-        'Un utilisateur avec cet email ou matricule existe déjà.',
-      );
+      throw new ConflictException('Un utilisateur avec cet email existe déjà.');
     }
   }
 

@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -9,7 +8,6 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ActivityLogService } from '../activity/activity-log.service.js';
 import { AuthenticatedUserDto } from '../auth/dto/authenticated-user.dto.js';
-import { SlaService } from '../sla/sla.service.js';
 import { CreateTicketDto } from './dto/create-ticket.dto.js';
 import { CreateTicketCategoryDto } from './dto/create-ticket-category.dto.js';
 import { CreateTicketCommentDto } from './dto/create-ticket-comment.dto.js';
@@ -18,120 +16,85 @@ import { TicketFiltersDto } from './dto/ticket-filters.dto.js';
 import { UpdateTicketCategoryDto } from './dto/update-ticket-category.dto.js';
 import { UpdateTicketDto } from './dto/update-ticket.dto.js';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto.js';
-import {
-  DirectionType,
-  DsiTicketRole,
-  TimelineEventType,
-  TicketPriority,
-  TicketStatus,
-  TicketType,
-  UserRole,
-} from '../prisma/enums.js';
-import type { Prisma, User } from '../../generated/prisma/index.js';
+import { TicketPriority, TicketStatus } from '../prisma/enums.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 
 const STATUS_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
-  [TicketStatus.RECU]: [TicketStatus.EN_COURS, TicketStatus.ABANDONNE],
-  [TicketStatus.EN_COURS]: [
-    TicketStatus.AJOURNE,
-    TicketStatus.RESOLU,
-    TicketStatus.ABANDONNE,
+  [TicketStatus.PENDING_ASSIGNMENT]: [
+    TicketStatus.ASSIGNED,
+    TicketStatus.CANCELLED,
   ],
-  [TicketStatus.AJOURNE]: [TicketStatus.EN_COURS, TicketStatus.ABANDONNE],
-  [TicketStatus.RESOLU]: [TicketStatus.FERME],
-  [TicketStatus.ABANDONNE]: [],
-  [TicketStatus.FERME]: [],
-  [TicketStatus.OUVERT]: [],
-  [TicketStatus.PRIS]: [],
+  [TicketStatus.ASSIGNED]: [TicketStatus.IN_PROGRESS, TicketStatus.CANCELLED],
+  [TicketStatus.IN_PROGRESS]: [TicketStatus.RESOLVED, TicketStatus.ASSIGNED],
+  [TicketStatus.RESOLVED]: [TicketStatus.CLOSED, TicketStatus.REOPENED],
+  [TicketStatus.CLOSED]: [TicketStatus.REOPENED],
+  [TicketStatus.REOPENED]: [TicketStatus.ASSIGNED, TicketStatus.IN_PROGRESS],
+  [TicketStatus.CANCELLED]: [],
 };
-
-type TicketWithRelations = Prisma.TicketGetPayload<{
-  include: {
-    category: true;
-    emitter: true;
-    receivedBy: true;
-    timelineEvents: { orderBy: { createdAt: 'asc' } };
-    comments: { include: { author: true }; orderBy: { createdAt: 'asc' } };
-  };
-}>;
 
 @Injectable()
 export class TicketsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: ActivityLogService,
-    private readonly sla: SlaService,
   ) {}
 
+  private ticketInclude = {
+    attachments: true,
+    category: { include: { incidentType: true } },
+    incidentType: true,
+    assignedResponsible: true,
+    createdBy: true,
+    statusHistory: { orderBy: { createdAt: 'asc' as const } },
+    comments: {
+      orderBy: { createdAt: 'asc' as const },
+      include: { author: true },
+    },
+  } as const;
+
   async create(dto: CreateTicketDto, emitter: AuthenticatedUserDto) {
-    const category = await this.getActiveCategory(dto.categoryId);
-    if (category.type !== dto.type) {
-      throw new BadRequestException('La catégorie ne correspond pas au type.');
-    }
+    await this.ensureCategory(dto.categoryId, dto.incidentTypeId);
+    const ticketNumber = await this.generateTicketNumber();
+    const attachments = dto.attachments?.map((attachment) => ({
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      url: attachment.url,
+      uploadedById: emitter.id,
+    }));
 
-    const recipient = await this.findTicketRecipient();
-    const code = await this.generateTicketCode();
-    const now = new Date();
-    const slaMaxMinutes = await this.resolveSlaMaxMinutes(
-      dto.priority,
-      dto.slaMaxMinutes ?? null,
-    );
+    const ticket = await this.prisma.client.ticket.create({
+      data: {
+        ticketNumber,
+        title: dto.title.trim(),
+        description: dto.description.trim(),
+        incidentTypeId: dto.incidentTypeId,
+        categoryId: dto.categoryId,
+        priority: dto.priority ?? TicketPriority.MEDIUM,
+        status: TicketStatus.PENDING_ASSIGNMENT,
+        createdById: emitter.id,
+        assignedResponsibleId: dto.assignedResponsibleId ?? null,
+        assignedAt: dto.assignedResponsibleId ? new Date() : null,
+        attachments: attachments?.length ? { create: attachments } : undefined,
+      },
+      include: this.ticketInclude,
+    });
 
-    let ticket: TicketWithRelations;
-    try {
-      ticket = await this.prisma.client.ticket.create({
-        data: {
-          code,
-          type: dto.type,
-          priority: dto.priority,
-          status: TicketStatus.RECU,
-          category: { connect: { id: dto.categoryId } },
-          description: dto.description,
-          emitter: { connect: { id: emitter.id } },
-          assignedService: dto.assignedService ?? null,
-          clientName: dto.clientName ?? null,
-          product: dto.product ?? null,
-          attachmentName: dto.attachmentName ?? null,
-          detectedAt: dto.detectedAt ? new Date(dto.detectedAt) : null,
-          resolvedAt: dto.resolvedAt ? new Date(dto.resolvedAt) : null,
-          slaMaxMinutes,
-          waitMinutes: dto.waitMinutes ?? 0,
-          receivedBy: { connect: { id: recipient.id } },
-          receivedAt: now,
-        },
-        include: this.ticketInclude,
-      });
-    } catch (error) {
-      this.handleConflict(error);
-      throw error;
-    }
-
-    await this.recordTimelineEvent(
+    await this.createStatusLog(
       ticket.id,
-      TimelineEventType.CREATE,
+      null,
+      TicketStatus.PENDING_ASSIGNMENT,
+      emitter.id,
       'Ticket créé',
-      `${emitter.nom} ${emitter.prenom}`.trim(),
     );
-    await this.recordTimelineEvent(
+    await this.logActivity(
+      'ticket.created',
+      `${ticket.ticketNumber} créé`,
+      emitter,
       ticket.id,
-      TimelineEventType.RECEIVE,
-      `Ticket réceptionné par le ${this.getRecipientLabel(recipient)}`,
-      `${recipient.nom} ${recipient.prenom}`.trim(),
     );
 
-    await this.logActivity({
-      action: 'ticket.created',
-      details: `${ticket.code} créé par ${emitter.email}`,
-      actor: emitter,
-      ticketId: ticket.id,
-    });
-    await this.logActivity({
-      action: 'ticket.received',
-      details: `${ticket.code} reçu par ${recipient.email}`,
-      actor: recipient,
-      ticketId: ticket.id,
-    });
-
-    return this.toTicketDto(ticket);
+    return ticket;
   }
 
   async findAll(filters: TicketFiltersDto) {
@@ -139,30 +102,26 @@ export class TicketsService {
     if (filters.status) {
       where.status = filters.status;
     }
-    if (filters.type) {
-      where.type = filters.type;
-    }
     if (filters.priority) {
       where.priority = filters.priority;
     }
-    if (filters.emitterId) {
-      where.emitterId = filters.emitterId;
+    if (filters.incidentTypeId) {
+      where.incidentTypeId = filters.incidentTypeId;
     }
     if (filters.categoryId) {
       where.categoryId = filters.categoryId;
     }
-    if (filters.receivedById) {
-      where.receivedById = filters.receivedById;
+    if (filters.assignedResponsibleId) {
+      where.assignedResponsibleId = filters.assignedResponsibleId;
     }
-    const createdAtFilter: Prisma.DateTimeFilter = {};
-    if (filters.createdAfter) {
-      createdAtFilter.gte = new Date(filters.createdAfter);
+    if (filters.createdById) {
+      where.createdById = filters.createdById;
     }
-    if (filters.createdBefore) {
-      createdAtFilter.lt = new Date(filters.createdBefore);
-    }
-    if (Object.keys(createdAtFilter).length) {
-      where.createdAt = createdAtFilter;
+    if (filters.createdAfter || filters.createdBefore) {
+      where.createdAt = {
+        gte: filters.createdAfter ? new Date(filters.createdAfter) : undefined,
+        lt: filters.createdBefore ? new Date(filters.createdBefore) : undefined,
+      };
     }
 
     const tickets = await this.prisma.client.ticket.findMany({
@@ -171,26 +130,26 @@ export class TicketsService {
       include: this.ticketInclude,
     });
 
-    return tickets.map((ticket) => this.toTicketDto(ticket));
+    return tickets;
   }
 
   async findMine(userId: string) {
-    const tickets = await this.prisma.client.ticket.findMany({
-      where: { emitterId: userId },
+    return this.prisma.client.ticket.findMany({
+      where: { createdById: userId },
       orderBy: { createdAt: 'desc' },
       include: this.ticketInclude,
     });
-    return tickets.map((ticket) => this.toTicketDto(ticket));
   }
 
   async findReceivedByDsi(user: AuthenticatedUserDto) {
-    this.ensureUserCanSeeDsiList(user);
-    const tickets = await this.prisma.client.ticket.findMany({
-      where: { receivedById: user.id },
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Accès réservé aux administrateurs.');
+    }
+    return this.prisma.client.ticket.findMany({
+      where: { assignedResponsibleId: user.id },
       orderBy: { createdAt: 'desc' },
       include: this.ticketInclude,
     });
-    return tickets.map((ticket) => this.toTicketDto(ticket));
   }
 
   async findOne(id: string) {
@@ -201,46 +160,57 @@ export class TicketsService {
     if (!ticket) {
       throw new NotFoundException(`Ticket ${id} introuvable.`);
     }
-    return this.toTicketDto(ticket);
+    return ticket;
   }
 
-  async update(id: string, dto: UpdateTicketDto) {
-    const existing = await this.prisma.client.ticket.findUnique({ where: { id } });
-    if (!existing) {
-      throw new NotFoundException(`Ticket ${id} introuvable.`);
+  async update(id: string, dto: UpdateTicketDto, actor?: AuthenticatedUserDto) {
+    const ticket = await this.findOne(id);
+    const data: Prisma.TicketUncheckedUpdateInput = {};
+    if (dto.title) {
+      data.title = dto.title.trim();
     }
-
-    const finalType = dto.type ?? existing.type;
+    if (dto.description) {
+      data.description = dto.description.trim();
+    }
+    if (dto.incidentTypeId) {
+      await this.ensureIncidentType(dto.incidentTypeId);
+      data.incidentTypeId = dto.incidentTypeId;
+    }
     if (dto.categoryId) {
-      const category = await this.getActiveCategory(dto.categoryId);
-      if (category.type !== finalType) {
-        throw new BadRequestException('La catégorie ne correspond pas au type.');
+      if (!dto.incidentTypeId) {
+        await this.ensureCategory(dto.categoryId, ticket.incidentTypeId);
+      } else {
+        await this.ensureCategory(dto.categoryId, dto.incidentTypeId);
       }
+      data.categoryId = dto.categoryId;
+    }
+    if (dto.priority) {
+      data.priority = dto.priority;
+    }
+    if (dto.assignedResponsibleId !== undefined) {
+      data.assignedResponsibleId = dto.assignedResponsibleId ?? null;
+      data.assignedAt = dto.assignedResponsibleId ? new Date() : null;
+    }
+    if (dto.resolutionComment !== undefined) {
+      data.resolutionComment = dto.resolutionComment;
     }
 
-    const data = this.buildUpdatePayload(dto);
-    if (dto.priority && dto.slaMaxMinutes === undefined) {
-      const policy = await this.sla.getPolicy(dto.priority);
-      if (policy) {
-        data.slaMaxMinutes = policy.resolutionMinutes;
-      }
-    }
     if (!Object.keys(data).length) {
       throw new BadRequestException('Aucune donnée à mettre à jour.');
     }
 
-    try {
-      const ticket = await this.prisma.client.ticket.update({
-        where: { id },
-        data,
-        include: this.ticketInclude,
-      });
-      return this.toTicketDto(ticket);
-    } catch (error) {
-      this.handleConflict(error);
-      this.handleNotFound(id, error);
-      throw error;
-    }
+    const updated = await this.prisma.client.ticket.update({
+      where: { id },
+      data,
+      include: this.ticketInclude,
+    });
+    await this.logActivity(
+      'ticket.updated',
+      `${updated.ticketNumber} mis à jour`,
+      actor,
+      updated.id,
+    );
+    return updated;
   }
 
   async updateStatus(
@@ -248,46 +218,76 @@ export class TicketsService {
     dto: UpdateTicketStatusDto,
     actor: AuthenticatedUserDto,
   ) {
-    const ticket = await this.prisma.client.ticket.findUnique({ where: { id } });
-    if (!ticket) {
-      throw new NotFoundException(`Ticket ${id} introuvable.`);
+    const ticket = await this.findOne(id);
+    const allowed = STATUS_TRANSITIONS[ticket.status];
+    if (!allowed.includes(dto.status)) {
+      throw new BadRequestException('Transition de statut interdite.');
     }
-
-    if (!this.canActOnStatus(actor)) {
-      throw new ForbiddenException('Accès interdit au changement de statut.');
-    }
-
-    this.ensureTransition(ticket.status, dto.status);
-
-    const payload: Prisma.TicketUncheckedUpdateInput = {
+    const now = new Date();
+    const data: Prisma.TicketUncheckedUpdateInput = {
       status: dto.status,
     };
-
-    if (dto.status === TicketStatus.RESOLU) {
-      payload.resolvedAt = new Date();
+    if (dto.status === TicketStatus.RESOLVED && !dto.resolutionComment) {
+      throw new BadRequestException('Le commentaire de résolution est requis.');
+    }
+    if (dto.status === TicketStatus.RESOLVED) {
+      data.resolutionComment = dto.resolutionComment;
+      data.resolvedAt = now;
+    }
+    if (dto.status === TicketStatus.CLOSED) {
+      data.closedAt = now;
+    }
+    if (dto.status === TicketStatus.ASSIGNED) {
+      data.assignedAt = now;
+    }
+    if (dto.status === TicketStatus.REOPENED) {
+      data.resolutionComment = dto.resolutionComment ?? null;
+      data.closedAt = null;
+      data.resolvedAt = null;
     }
 
     const updated = await this.prisma.client.ticket.update({
       where: { id },
-      data: payload,
+      data,
       include: this.ticketInclude,
     });
 
-    await this.recordTimelineEvent(
-      id,
-      dto.eventType ?? TimelineEventType.STATUS_CHANGE,
-      `Statut ${ticket.status} → ${dto.status}`,
-      `${actor.nom} ${actor.prenom}`.trim(),
+    await this.createStatusLog(
+      ticket.id,
+      ticket.status,
+      dto.status,
+      actor.id,
+      dto.resolutionComment ?? '',
     );
-
-    await this.logActivity({
-      action: 'ticket.status',
-      details: `${ticket.code} statut ${ticket.status} → ${dto.status}`,
+    await this.logActivity(
+      'ticket.status.changed',
+      `${ticket.ticketNumber} → ${dto.status}`,
       actor,
-      ticketId: id,
-    });
+      ticket.id,
+    );
+    return updated;
+  }
 
-    return this.toTicketDto(updated);
+  async addComment(
+    id: string,
+    dto: CreateTicketCommentDto,
+    author: AuthenticatedUserDto,
+  ) {
+    await this.findOne(id);
+    const comment = await this.prisma.client.ticketComment.create({
+      data: {
+        ticketId: id,
+        authorId: author.id,
+        content: dto.content.trim(),
+      },
+    });
+    await this.logActivity(
+      'ticket.comment',
+      `Commentaire ajouté au ticket ${id}`,
+      author,
+      id,
+    );
+    return comment;
   }
 
   async recordTimeline(
@@ -295,86 +295,76 @@ export class TicketsService {
     dto: CreateTicketTimelineDto,
     actor: AuthenticatedUserDto,
   ) {
-    await this.ensureTicketExists(id);
-    await this.recordTimelineEvent(
+    await this.findOne(id);
+    const status = dto.status ?? undefined;
+    await this.createStatusLog(
       id,
-      dto.type,
-      dto.label,
-      dto.actorName,
+      undefined,
+      status,
+      actor.id,
+      dto.comment ?? dto.label,
     );
-    await this.logActivity({
-      action: 'ticket.timeline',
-      details: `${id} - ${dto.label}`,
+    await this.logActivity(
+      'ticket.timeline',
+      `${dto.label} (${status ?? 'note'})`,
       actor,
-      ticketId: id,
-    });
-    const events = await this.prisma.client.ticketTimeline.findMany({
-      where: { ticketId: id },
-      orderBy: { createdAt: 'asc' },
-    });
-    return events.map((event) => this.mapTimeline(event));
+      id,
+    );
+    return { id, label: dto.label, comment: dto.comment, status };
   }
 
-  async addComment(
-    id: string,
-    dto: CreateTicketCommentDto,
+  async remove(id: string, actor?: AuthenticatedUserDto) {
+    const ticket = await this.findOne(id);
+    await this.prisma.client.ticket.update({
+      where: { id },
+      data: { status: TicketStatus.CANCELLED },
+    });
+    if (actor) {
+      await this.logActivity(
+        'ticket.deleted',
+        `${ticket.ticketNumber} annulé`,
+        actor,
+        id,
+      );
+    }
+  }
+
+  listCategories() {
+    return this.prisma.client.category.findMany({
+      include: { incidentType: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createCategory(
+    dto: CreateTicketCategoryDto,
     actor: AuthenticatedUserDto,
   ) {
-    await this.ensureTicketExists(id);
-    const comment = await this.prisma.client.ticketComment.create({
-      data: {
-        ticket: { connect: { id } },
-        author: { connect: { id: actor.id } },
-        content: dto.content,
-      },
-      include: { author: true },
-    });
-    await this.recordTimelineEvent(
-      id,
-      TimelineEventType.ACTION,
-      'Commentaire ajouté',
-      `${actor.nom} ${actor.prenom}`.trim(),
-    );
-    await this.logActivity({
-      action: 'ticket.comment',
-      details: `${actor.email} a commenté ${id}`,
-      actor,
-      ticketId: id,
-    });
-    return this.mapComment(comment);
-  }
-
-  async listCategories() {
-    return this.prisma.client.ticketCategory.findMany({
-      orderBy: { libelle: 'asc' },
-    });
-  }
-
-  async createCategory(dto: CreateTicketCategoryDto, actor: AuthenticatedUserDto) {
-    const existing = await this.prisma.client.ticketCategory.findFirst({
-      where: {
-        libelle: { equals: dto.libelle, mode: 'insensitive' },
-        type: dto.type,
-      },
-    });
-    if (existing) {
-      throw new ConflictException('Cette catégorie existe déjà.');
+    await this.ensureIncidentType(dto.incidentTypeId);
+    try {
+      const category = await this.prisma.client.category.create({
+        data: {
+          name: dto.name.trim(),
+          incidentTypeId: dto.incidentTypeId,
+          description: dto.description,
+          isActive: dto.isActive ?? true,
+        },
+      });
+      await this.logActivity(
+        'ticket.category.created',
+        `Catégorie ${category.name} créée`,
+        actor,
+      );
+      return category;
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new BadRequestException('Une catégorie identique existe déjà.');
+      }
+      throw error;
     }
-
-    const category = await this.prisma.client.ticketCategory.create({
-      data: {
-        libelle: dto.libelle.trim(),
-        type: dto.type,
-        description: dto.description ?? null,
-        isActive: dto.isActive ?? true,
-      },
-    });
-    await this.logActivity({
-      action: 'category.created',
-      details: `Catégorie ${category.libelle} créée.`,
-      actor,
-    });
-    return category;
   }
 
   async updateCategory(
@@ -382,392 +372,114 @@ export class TicketsService {
     dto: UpdateTicketCategoryDto,
     actor: AuthenticatedUserDto,
   ) {
-    if (dto.libelle) {
-      dto.libelle = dto.libelle.trim();
+    if (dto.incidentTypeId) {
+      await this.ensureIncidentType(dto.incidentTypeId);
     }
-    try {
-      const category = await this.prisma.client.ticketCategory.update({
-        where: { id },
-        data: {
-          libelle: dto.libelle,
-          type: dto.type,
-          description: dto.description,
-          isActive: dto.isActive,
-        },
-      });
-      await this.logActivity({
-        action: 'category.updated',
-        details: `Catégorie ${id} mise à jour.`,
-        actor,
-      });
-      return category;
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException(`Catégorie ${id} introuvable.`);
-      }
-      throw error;
-    }
+    const category = await this.prisma.client.category.update({
+      where: { id },
+      data: {
+        name: dto.name?.trim(),
+        incidentTypeId: dto.incidentTypeId,
+        description: dto.description,
+        isActive: dto.isActive,
+      },
+    });
+    await this.logActivity(
+      'ticket.category.updated',
+      `Catégorie ${category.name} modifiée`,
+      actor,
+    );
+    return category;
   }
 
   async deleteCategory(id: string, actor: AuthenticatedUserDto) {
-    try {
-      const category = await this.prisma.client.ticketCategory.update({
-        where: { id },
-        data: { isActive: false },
-      });
-      await this.logActivity({
-        action: 'category.disabled',
-        details: `Catégorie ${category.libelle} désactivée.`,
-        actor,
-      });
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException(`Catégorie ${id} introuvable.`);
-      }
-      throw error;
-    }
-  }
-
-  async remove(id: string) {
-    await this.ensureTicketExists(id);
-    const ticket = await this.prisma.client.ticket.findUnique({ where: { id } });
-    if (!ticket) {
-      throw new NotFoundException(`Ticket ${id} introuvable.`);
-    }
-    await this.prisma.client.$transaction([
-      this.prisma.client.ticketComment.deleteMany({ where: { ticketId: id } }),
-      this.prisma.client.ticketTimeline.deleteMany({ where: { ticketId: id } }),
-      this.prisma.client.activityLog.deleteMany({ where: { ticketId: id } }),
-      this.prisma.client.ticket.delete({ where: { id } }),
-    ]);
-    await this.activity.log({
-      action: 'ticket.deleted',
-      details: `Ticket ${ticket.code} supprimé.`,
-      ticketId: id,
-    });
-  }
-
-  private get ticketInclude() {
-    return {
-      category: true,
-      emitter: true,
-      receivedBy: true,
-      timelineEvents: { orderBy: { createdAt: 'asc' } },
-      comments: { include: { author: true }, orderBy: { createdAt: 'asc' } },
-    } as const;
-  }
-
-  private buildUpdatePayload(dto: UpdateTicketDto) {
-    const payload: Prisma.TicketUncheckedUpdateInput = {};
-
-    if (dto.type) {
-      payload.type = dto.type;
-    }
-    if (dto.priority) {
-      payload.priority = dto.priority;
-    }
-    if (dto.categoryId) {
-      payload.categoryId = dto.categoryId;
-    }
-    if (dto.description) {
-      payload.description = dto.description;
-    }
-    if (dto.assignedService !== undefined) {
-      payload.assignedService = dto.assignedService ?? null;
-    }
-    if (dto.clientName !== undefined) {
-      payload.clientName = dto.clientName ?? null;
-    }
-    if (dto.product !== undefined) {
-      payload.product = dto.product ?? null;
-    }
-    if (dto.attachmentName !== undefined) {
-      payload.attachmentName = dto.attachmentName ?? null;
-    }
-    if (dto.detectedAt !== undefined) {
-      payload.detectedAt = dto.detectedAt ? new Date(dto.detectedAt) : null;
-    }
-    if (dto.resolvedAt !== undefined) {
-      payload.resolvedAt = dto.resolvedAt ? new Date(dto.resolvedAt) : null;
-    }
-    if (dto.slaMaxMinutes !== undefined) {
-      payload.slaMaxMinutes = dto.slaMaxMinutes ?? null;
-    }
-    if (dto.waitMinutes !== undefined) {
-      payload.waitMinutes = dto.waitMinutes ?? null;
-    }
-
-    return payload;
-  }
-
-  private async resolveSlaMaxMinutes(
-    priority: TicketPriority,
-    override: number | null,
-  ) {
-    if (override !== null && override !== undefined) {
-      return override;
-    }
-    const policy = await this.sla.getPolicy(priority);
-    return policy?.resolutionMinutes ?? null;
-  }
-
-  private computeWaitMinutes(ticket: TicketWithRelations) {
-    if (typeof ticket.waitMinutes === 'number') {
-      return ticket.waitMinutes;
-    }
-    const baseline = ticket.receivedAt ?? ticket.createdAt;
-    if (!baseline) {
-      return 0;
-    }
-    const target =
-      ticket.resolvedAt && ticket.resolvedAt.getTime() > baseline.getTime()
-        ? ticket.resolvedAt
-        : new Date();
-    const diffMs = target.getTime() - baseline.getTime();
-    return Math.max(0, Math.floor(diffMs / 60000));
-  }
-
-  private toTicketDto(ticket: TicketWithRelations) {
-    const waitMinutes = this.computeWaitMinutes(ticket);
-    return {
-      id: ticket.id,
-      code: ticket.code,
-      type: ticket.type,
-      priority: ticket.priority,
-      status: ticket.status,
-      category: {
-        id: ticket.category.id,
-        libelle: ticket.category.libelle,
-        type: ticket.category.type,
-      },
-      description: ticket.description,
-      assignedService: ticket.assignedService,
-      emitter: {
-        id: ticket.emitter.id,
-        nom: ticket.emitter.nom,
-        prenom: ticket.emitter.prenom,
-      },
-      receivedBy: ticket.receivedBy
-        ? {
-            id: ticket.receivedBy.id,
-            nom: ticket.receivedBy.nom,
-            prenom: ticket.receivedBy.prenom,
-          }
-        : null,
-      receivedAt: ticket.receivedAt,
-      clientName: ticket.clientName,
-      product: ticket.product,
-      attachmentName: ticket.attachmentName,
-      detectedAt: ticket.detectedAt,
-      resolvedAt: ticket.resolvedAt,
-      slaMaxMinutes: ticket.slaMaxMinutes,
-      waitMinutes,
-      comments: ticket.comments.map((comment) => this.mapComment(comment)),
-      timeline: ticket.timelineEvents.map((event) => this.mapTimeline(event)),
-      createdAt: ticket.createdAt,
-      updatedAt: ticket.updatedAt,
-    };
-  }
-
-  private mapComment(
-    comment: Prisma.TicketCommentGetPayload<{ include: { author: true } }>,
-  ) {
-    return {
-      id: comment.id,
-      content: comment.content,
-      createdAt: comment.createdAt,
-      author: {
-        id: comment.author.id,
-        nom: comment.author.nom,
-        prenom: comment.author.prenom,
-      },
-    };
-  }
-
-  private mapTimeline(event: Prisma.TicketTimelineGetPayload<{}>) {
-    return {
-      id: event.id,
-      type: event.type,
-      label: event.label,
-      actorName: event.actorName,
-      createdAt: event.createdAt,
-    };
-  }
-
-  private async getActiveCategory(id: string) {
-    const category = await this.prisma.client.ticketCategory.findUnique({
+    await this.prisma.client.category.update({
       where: { id },
+      data: { isActive: false },
     });
-    if (!category || !category.isActive) {
-      throw new BadRequestException('Catégorie introuvable ou désactivée.');
+    await this.logActivity(
+      'ticket.category.deleted',
+      `Catégorie ${id} désactivée`,
+      actor,
+    );
+  }
+
+  private async ensureCategory(categoryId: string, incidentTypeId: string) {
+    const category = await this.prisma.client.category.findUnique({
+      where: { id: categoryId },
+    });
+    if (!category) {
+      throw new NotFoundException('Catégorie introuvable.');
+    }
+    if (!category.isActive) {
+      throw new BadRequestException('La catégorie est désactivée.');
+    }
+    if (category.incidentTypeId !== incidentTypeId) {
+      throw new BadRequestException(
+        'La catégorie n’est pas rattachée au type d’incident sélectionné.',
+      );
     }
     return category;
   }
 
-  private async findActiveDsiResponsible() {
-    const responsible = await this.prisma.client.user.findFirst({
-      where: {
-        isActive: true,
-        direction: DirectionType.DSI,
-        dsiTicketRole: {
-          in: [DsiTicketRole.RESPONSABLE, DsiTicketRole.CO_RESPONSABLE],
-        },
-      },
-      orderBy: { dsiTicketRole: 'asc' },
+  private async ensureIncidentType(incidentTypeId: string) {
+    const incidentType = await this.prisma.client.incidentType.findUnique({
+      where: { id: incidentTypeId },
     });
-    if (!responsible) {
-      throw new BadRequestException('Aucun responsable DSI actif trouvé.');
+    if (!incidentType) {
+      throw new NotFoundException('Type d’incident introuvable.');
     }
-    return responsible;
-  }
-
-  private async findTicketRecipient() {
-    const superAdmin = await this.findActiveSuperAdmin();
-    if (superAdmin) {
-      return superAdmin;
+    if (!incidentType.isActive) {
+      throw new BadRequestException('Le type d’incident est désactivé.');
     }
-    try {
-      return await this.findActiveDsiResponsible();
-    } catch {
-      const adminFallback = await this.findAnyAdmin();
-      if (adminFallback) {
-        return adminFallback;
-      }
-      throw new BadRequestException('Aucun destinataire disponible pour ce ticket.');
-    }
+    return incidentType;
   }
 
-  private async findActiveSuperAdmin() {
-    return this.prisma.client.user.findFirst({
-      where: { isActive: true, role: UserRole.SUPER_ADMIN },
-      orderBy: { createdAt: 'asc' },
-    });
-  }
-
-  private async findAnyAdmin() {
-    return this.prisma.client.user.findFirst({
-      where: { isActive: true, role: UserRole.ADMIN },
-      orderBy: { createdAt: 'asc' },
-    });
-  }
-
-  private getRecipientLabel(user: User) {
-    if (user.role === UserRole.SUPER_ADMIN) return 'super-admin';
-    if (user.direction === DirectionType.DSI) return 'service DSI';
-    return 'administration';
-  }
-
-  private ensureTransition(current: TicketStatus, next: TicketStatus) {
-    if (current === next) {
-      return;
-    }
-    const allowed = STATUS_TRANSITIONS[current] ?? [];
-    if (!allowed.includes(next)) {
-      throw new BadRequestException('Transition de statut interdite.');
-    }
-  }
-
-  private canActOnStatus(user: AuthenticatedUserDto) {
-    return (
-      user.isActive &&
-      user.direction === DirectionType.DSI &&
-      user.dsiTicketRole &&
-      [DsiTicketRole.RESPONSABLE, DsiTicketRole.CO_RESPONSABLE].includes(
-        user.dsiTicketRole,
-      )
-    );
-  }
-
-  private ensureUserCanSeeDsiList(user: AuthenticatedUserDto) {
-    if (!this.canActOnStatus(user)) {
-      throw new ForbiddenException('Accès interdit aux tickets DSI.');
-    }
-  }
-
-  private async ensureTicketExists(id: string) {
-    const ticket = await this.prisma.client.ticket.findUnique({ where: { id } });
-    if (!ticket) {
-      throw new NotFoundException(`Ticket ${id} introuvable.`);
-    }
-  }
-
-  private async recordTimelineEvent(
+  private async createStatusLog(
     ticketId: string,
-    type: TimelineEventType,
-    label: string,
-    actorName: string,
+    fromStatus: TicketStatus | null,
+    toStatus: TicketStatus | undefined,
+    changedById: string,
+    comment: string,
   ) {
-    await this.prisma.client.ticketTimeline.create({
+    if (!toStatus) {
+      return null;
+    }
+    return this.prisma.client.statusLog.create({
       data: {
         ticketId,
-        type,
-        label,
-        actorName,
+        fromStatus,
+        toStatus,
+        changedById,
+        comment,
       },
     });
   }
 
-  private async logActivity({
-    action,
-    details,
-    actor,
-    ticketId,
-  }: {
-    action: string;
-    details: string;
-    actor?: AuthenticatedUserDto;
-    ticketId?: string;
-  }) {
+  private async logActivity(
+    action: string,
+    details: string,
+    actor?: AuthenticatedUserDto,
+    ticketId?: string,
+  ) {
     await this.activity.log({
       action,
       details,
-      ticketId: ticketId ?? null,
       actorId: actor?.id ?? null,
       actorName: actor ? `${actor.nom} ${actor.prenom}`.trim() : null,
       role: actor?.role ?? null,
+      ticketId: ticketId ?? null,
     });
   }
 
-  private async generateTicketCode() {
-    const today = new Date();
-    const datePart = today.toISOString().slice(0, 10).replace(/-/g, '');
-    const { start, end } = this.dayRange(today);
+  private async generateTicketNumber() {
+    const date = new Date();
+    const prefix = `INC-${date.getFullYear()}${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}`;
     const count = await this.prisma.client.ticket.count({
-      where: { createdAt: { gte: start, lt: end } },
+      where: { ticketNumber: { startsWith: prefix } },
     });
-    const sequence = String(count + 1).padStart(3, '0');
-    return `TK-${datePart}-${sequence}`;
-  }
-
-  private dayRange(date: Date) {
-    const start = new Date(date);
-    start.setUTCHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 1);
-    return { start, end };
-  }
-
-  private handleConflict(error: unknown): void {
-    if (
-      error instanceof PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
-      throw new ConflictException('Conflit sur les données fournies.');
-    }
-  }
-
-  private handleNotFound(id: string, error: unknown): void {
-    if (
-      error instanceof PrismaClientKnownRequestError &&
-      error.code === 'P2025'
-    ) {
-      throw new NotFoundException(`Ticket ${id} introuvable.`);
-    }
+    return `${prefix}-${(count + 1).toString().padStart(4, '0')}`;
   }
 }

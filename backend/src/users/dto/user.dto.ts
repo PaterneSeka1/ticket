@@ -1,9 +1,4 @@
-import {
-  DsiTicketRole,
-  DirectionType,
-  OperationService,
-  UserRole,
-} from '../../prisma/enums.js';
+import { UserRole } from '../../prisma/enums.js';
 
 export class UserDto {
   id!: string;
@@ -12,15 +7,11 @@ export class UserDto {
   email!: string;
   matricule!: string;
   role!: UserRole;
-  direction?: DirectionType | null;
-  service?: OperationService | null;
-  dsiTicketRole?: DsiTicketRole | null;
+  departmentId?: string | null;
+  serviceId?: string | null;
   isActive!: boolean;
-  isResponsable!: boolean;
-  accessReport!: boolean;
-  exportReport!: boolean;
+  receiveEmails!: boolean;
   createdAt!: Date;
   updatedAt!: Date;
   createdById?: string | null;
-  lastLogin?: Date | null;
 }

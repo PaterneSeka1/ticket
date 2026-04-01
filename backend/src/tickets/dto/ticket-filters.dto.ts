@@ -1,9 +1,5 @@
-import { IsDateString, IsEnum, IsMongoId, IsOptional } from 'class-validator';
-import {
-  TicketPriority,
-  TicketStatus,
-  TicketType,
-} from '../../prisma/enums.js';
+import { IsEnum, IsISO8601, IsMongoId, IsOptional } from 'class-validator';
+import { TicketPriority, TicketStatus } from '../../prisma/enums.js';
 
 export class TicketFiltersDto {
   @IsOptional()
@@ -11,16 +7,12 @@ export class TicketFiltersDto {
   status?: TicketStatus;
 
   @IsOptional()
-  @IsEnum(TicketType)
-  type?: TicketType;
-
-  @IsOptional()
   @IsEnum(TicketPriority)
   priority?: TicketPriority;
 
   @IsOptional()
   @IsMongoId()
-  emitterId?: string;
+  incidentTypeId?: string;
 
   @IsOptional()
   @IsMongoId()
@@ -28,13 +20,17 @@ export class TicketFiltersDto {
 
   @IsOptional()
   @IsMongoId()
-  receivedById?: string;
+  assignedResponsibleId?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsMongoId()
+  createdById?: string;
+
+  @IsOptional()
+  @IsISO8601()
   createdAfter?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsISO8601()
   createdBefore?: string;
 }

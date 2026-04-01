@@ -1,23 +1,22 @@
-import {
-  IsDateString,
-  IsEnum,
-  IsInt,
-  IsMongoId,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  Min,
-} from 'class-validator';
-import {
-  OperationService,
-  TicketPriority,
-  TicketType,
-} from '../../prisma/enums.js';
+import { IsEnum, IsMongoId, IsOptional, IsString } from 'class-validator';
+import { TicketPriority } from '../../prisma/enums.js';
 
 export class UpdateTicketDto {
   @IsOptional()
-  @IsEnum(TicketType)
-  type?: TicketType;
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  incidentTypeId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  categoryId?: string;
 
   @IsOptional()
   @IsEnum(TicketPriority)
@@ -25,44 +24,9 @@ export class UpdateTicketDto {
 
   @IsOptional()
   @IsMongoId()
-  categoryId?: string;
-
-  @IsOptional()
-  @IsNotEmpty()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsEnum(OperationService)
-  assignedService?: OperationService;
+  assignedResponsibleId?: string;
 
   @IsOptional()
   @IsString()
-  clientName?: string;
-
-  @IsOptional()
-  @IsString()
-  product?: string;
-
-  @IsOptional()
-  @IsString()
-  attachmentName?: string;
-
-  @IsOptional()
-  @IsDateString()
-  detectedAt?: string;
-
-  @IsOptional()
-  @IsDateString()
-  resolvedAt?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  slaMaxMinutes?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  waitMinutes?: number;
+  resolutionComment?: string;
 }

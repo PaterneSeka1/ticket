@@ -1,13 +1,18 @@
-import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { TicketType } from '../../prisma/enums.js';
+import {
+  IsBoolean,
+  IsMongoId,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateTicketCategoryDto {
   @IsNotEmpty()
   @IsString()
-  libelle!: string;
+  name!: string;
 
-  @IsEnum(TicketType)
-  type!: TicketType;
+  @IsMongoId()
+  incidentTypeId!: string;
 
   @IsOptional()
   @IsString()

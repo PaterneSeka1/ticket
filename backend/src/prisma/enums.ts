@@ -1,10 +1,8 @@
 export {
   UserRole,
-  DirectionType,
-  OperationService,
-  DsiTicketRole,
-  TimelineEventType,
   TicketPriority,
   TicketStatus,
-  TicketType,
+  IncidentScope,
+  NotificationChannel,
+  NotificationType,
 } from '../../generated/prisma/index.js';

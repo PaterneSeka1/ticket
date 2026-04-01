@@ -1,15 +1,16 @@
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { TimelineEventType } from '../../prisma/enums.js';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { TicketStatus } from '../../prisma/enums.js';
 
 export class CreateTicketTimelineDto {
-  @IsEnum(TimelineEventType)
-  type!: TimelineEventType;
-
   @IsNotEmpty()
   @IsString()
   label!: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  actorName!: string;
+  comment?: string;
+
+  @IsOptional()
+  @IsEnum(TicketStatus)
+  status?: TicketStatus;
 }

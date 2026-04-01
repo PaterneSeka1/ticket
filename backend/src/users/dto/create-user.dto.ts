@@ -1,20 +1,12 @@
 import {
-  DirectionType,
-  DsiTicketRole,
-  OperationService,
-  UserRole,
-} from '../../prisma/enums.js';
-import {
   IsBoolean,
-  IsDate,
   IsEmail,
-  IsEnum,
   IsMongoId,
   IsNotEmpty,
   IsOptional,
   IsString,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { UserRole } from '../../prisma/enums.js';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -38,16 +30,18 @@ export class CreateUserDto {
   passwordHash!: string;
 
   @IsOptional()
+  @IsString()
+  @IsMongoId()
+  departmentId?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  serviceId?: string;
+
+  @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole;
-
-  @IsOptional()
-  @IsEnum(DirectionType)
-  direction?: DirectionType;
-
-  @IsOptional()
-  @IsEnum(OperationService)
-  service?: OperationService;
 
   @IsOptional()
   @IsBoolean()
@@ -55,26 +49,9 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsBoolean()
-  accessReport?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  exportReport?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  isResponsable?: boolean;
-
-  @IsOptional()
-  @IsEnum(DsiTicketRole)
-  dsiTicketRole?: DsiTicketRole;
+  receiveEmails?: boolean;
 
   @IsOptional()
   @IsMongoId()
   createdById?: string;
-
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  lastLogin?: Date;
 }

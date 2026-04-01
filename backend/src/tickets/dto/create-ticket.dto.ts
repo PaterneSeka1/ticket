@@ -1,5 +1,5 @@
 import {
-  IsDateString,
+  IsArray,
   IsEnum,
   IsInt,
   IsMongoId,
@@ -7,58 +7,55 @@ import {
   IsOptional,
   IsString,
   Min,
+  ValidateNested,
 } from 'class-validator';
-import {
-  OperationService,
-  TicketPriority,
-  TicketType,
-} from '../../prisma/enums.js';
+import { Type } from 'class-transformer';
+import { TicketPriority } from '../../prisma/enums.js';
+
+class TicketAttachmentInput {
+  @IsNotEmpty()
+  @IsString()
+  filename!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  mimeType!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  url!: string;
+
+  @IsInt()
+  @Min(0)
+  size!: number;
+}
 
 export class CreateTicketDto {
-  @IsEnum(TicketType)
-  type!: TicketType;
-
-  @IsEnum(TicketPriority)
-  priority!: TicketPriority;
-
-  @IsMongoId()
-  categoryId!: string;
+  @IsNotEmpty()
+  @IsString()
+  title!: string;
 
   @IsNotEmpty()
   @IsString()
   description!: string;
 
-  @IsOptional()
-  @IsEnum(OperationService)
-  assignedService?: OperationService;
+  @IsMongoId()
+  incidentTypeId!: string;
+
+  @IsMongoId()
+  categoryId!: string;
 
   @IsOptional()
-  @IsString()
-  clientName?: string;
+  @IsEnum(TicketPriority)
+  priority?: TicketPriority;
 
   @IsOptional()
-  @IsString()
-  product?: string;
+  @IsMongoId()
+  assignedResponsibleId?: string;
 
   @IsOptional()
-  @IsString()
-  attachmentName?: string;
-
-  @IsOptional()
-  @IsDateString()
-  detectedAt?: string;
-
-  @IsOptional()
-  @IsDateString()
-  resolvedAt?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  slaMaxMinutes?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  waitMinutes?: number;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TicketAttachmentInput)
+  attachments?: TicketAttachmentInput[];
 }

@@ -11,192 +11,276 @@ datasource db {
 enum UserRole {
   SUPER_ADMIN
   ADMIN
-  USER
-}
-
-enum DirectionType {
-  DAF
-  DSI
-  DO
-}
-
-enum OperationService {
-  QUALITE
-  OPERATIONS
-  REPUTATION
-}
-
-enum DsiTicketRole {
-  RESPONSABLE
-  CO_RESPONSABLE
-}
-
-enum TimelineEventType {
-  CREATE
-  RECEIVE
-  STATUS_CHANGE
-  ACTION
+  READER
+  EMPLOYE
 }
 
 enum TicketPriority {
-  BAS
-  MOYEN
-  HAUT
-  CRITIQUE
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
 }
 
 enum TicketStatus {
-  RECU
-  EN_COURS
-  AJOURNE
-  RESOLU
-  ABANDONNE
-  FERME
-  OUVERT
-  PRIS
+  PENDING_ASSIGNMENT
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  REOPENED
+  CANCELLED
 }
 
-enum TicketType {
-  INCIDENT
-  DEMANDE
+enum IncidentScope {
+  INTERNE
+  EXTERNE
+}
+
+enum NotificationType {
+  TICKET_CREATED
+  TICKET_ASSIGNED
+  STATUS_IN_PROGRESS
+  STATUS_RESOLVED
+  STATUS_CLOSED
+  TICKET_REOPENED
+  TICKET_CANCELLED
+  TICKET_REASSIGNED
+  NEW_COMMENT
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
 }
 
 model User {
-  id           String            @id @default(auto()) @map("_id") @db.ObjectId
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  nom           String
+  prenom        String
+  email         String   @unique
+  matricule     String   @unique
+  passwordHash  String
+  role          UserRole @default(EMPLOYE)
+  departmentId  String?  @db.ObjectId
+  serviceId     String?  @db.ObjectId
+  isActive      Boolean  @default(true)
+  receiveEmails Boolean  @default(true)
+  createdById   String?  @db.ObjectId
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  nom          String
-  prenom       String
-
-  email        String            @unique
-  matricule    String            @unique
-
-  passwordHash String
-
-  role         UserRole          @default(USER)
-  isResponsable Boolean           @default(false)
-
-  direction    DirectionType?
-  service      OperationService?
-  dsiTicketRole DsiTicketRole?
-
-  isActive     Boolean           @default(true)
-
-  accessReport Boolean           @default(false)
-  exportReport Boolean           @default(false)
-
-  lastLogin    DateTime?
-
-  createdById  String?           @db.ObjectId
-
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-
-  createdBy    User?             @relation("UserCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  createdUsers User[]            @relation("UserCreator")
-  emittedTickets Ticket[]        @relation("TicketEmitter")
-  receivedTickets Ticket[]       @relation("TicketReceiver")
-  ticketComments TicketComment[] @relation("TicketCommentAuthor")
-  activityLogs ActivityLog[]     @relation("ActivityLogActor")
+  department    Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  service       Service?        @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  createdBy     User?           @relation("UserCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdUsers  User[]          @relation("UserCreator")
+  tickets       Ticket[]        @relation("TicketCreator")
+  notifications Notification[]  @relation("UserNotifications")
+  comments      TicketComment[] @relation("TicketCommentAuthor")
+  statusLogs    StatusLog[]     @relation("StatusLogActor")
+  attachments   Attachment[]
+  auditLogs     AuditLog[]
 
   @@index([role])
-  @@index([direction])
-  @@index([service])
+  @@index([departmentId])
+  @@index([serviceId])
   @@index([isActive])
   @@index([createdAt])
 }
 
-model TicketCategory {
+model Department {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  libelle     String
-  type        TicketType
+  name        String   @unique
   description String?
   isActive    Boolean  @default(true)
-
-  tickets     Ticket[]
-
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  services Service[]
+  users    User[]
+
+  @@index([isActive])
+}
+
+model Service {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  description  String?
+  departmentId String   @db.ObjectId
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  users      User[]
+
+  @@index([departmentId])
+  @@index([isActive])
+}
+
+model ResolutionResponsible {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  firstName  String
+  lastName   String
+  email      String?  @unique
+  phone      String?
+  role       String?
+  department String?
+  isExternal Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tickets Ticket[]
+
+  @@index([isActive])
+}
+
+model IncidentType {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  name        String        @unique
+  scope       IncidentScope
+  description String?
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  categories Category[]
+  tickets    Ticket[]
+
+  @@index([scope])
+  @@index([isActive])
+}
+
+model Category {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  incidentTypeId String   @db.ObjectId
+  description    String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  incidentType IncidentType @relation(fields: [incidentTypeId], references: [id], onDelete: Cascade)
+  tickets      Ticket[]
+
+  @@unique([incidentTypeId, name])
+  @@index([incidentTypeId])
+  @@index([isActive])
 }
 
 model Ticket {
-  id              String               @id @default(auto()) @map("_id") @db.ObjectId
-  code            String               @unique
-  type            TicketType
-  priority        TicketPriority
-  status          TicketStatus
-  description     String
-  assignedService OperationService?
-  emitterId       String               @db.ObjectId
-  emitter         User                 @relation("TicketEmitter", fields: [emitterId], references: [id])
-  receivedById    String?              @db.ObjectId
-  receivedBy      User?                @relation("TicketReceiver", fields: [receivedById], references: [id])
-  categoryId      String               @db.ObjectId
-  category        TicketCategory       @relation(fields: [categoryId], references: [id])
-  receivedAt      DateTime?
-  clientName      String?
-  product         String?
-  attachmentName  String?
-  detectedAt      DateTime?
-  resolvedAt      DateTime?
-  slaMaxMinutes   Int?
-  waitMinutes     Int?
+  id                    String         @id @default(auto()) @map("_id") @db.ObjectId
+  ticketNumber          String         @unique
+  title                 String
+  description           String
+  incidentTypeId        String         @db.ObjectId
+  categoryId            String         @db.ObjectId
+  priority              TicketPriority @default(MEDIUM)
+  status                TicketStatus   @default(PENDING_ASSIGNMENT)
+  createdById           String         @db.ObjectId
+  assignedResponsibleId String?        @db.ObjectId
+  assignedAt            DateTime?
+  resolvedAt            DateTime?
+  closedAt              DateTime?
+  resolutionComment     String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
-  timelineEvents  TicketTimeline[]
-  comments        TicketComment[]
-  activityLogs    ActivityLog[]
-
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  incidentType        IncidentType           @relation(fields: [incidentTypeId], references: [id], onDelete: Restrict)
+  category            Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy           User                   @relation("TicketCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assignedResponsible ResolutionResponsible? @relation(fields: [assignedResponsibleId], references: [id], onDelete: SetNull)
+  attachments         Attachment[]           @relation("TicketAttachments")
+  statusHistory       StatusLog[]            @relation("TicketStatusHistory")
+  comments            TicketComment[]        @relation("TicketComments")
+  notifications       Notification[]         @relation("TicketNotifications")
+  auditLogs           AuditLog[]             @relation("TicketAuditLogs")
 
   @@index([status])
-  @@index([type])
   @@index([priority])
   @@index([createdAt])
-  @@index([receivedById])
-  @@index([emitterId])
+  @@index([incidentTypeId])
   @@index([categoryId])
+  @@index([assignedResponsibleId])
+  @@index([createdById])
 }
 
-model SlaPolicy {
-  id               String         @id @default(auto()) @map("_id") @db.ObjectId
-  priority         TicketPriority @unique
-  responseMinutes  Int
-  resolutionMinutes  Int
-  isActive         Boolean        @default(true)
+model Attachment {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  ticketId     String   @db.ObjectId
+  filename     String
+  mimeType     String
+  size         Int
+  url          String
+  uploadedById String?  @db.ObjectId
+  uploadedAt   DateTime @default(now())
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  ticket     Ticket @relation("TicketAttachments", fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  uploadedBy User?  @relation(fields: [uploadedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([ticketId])
+}
+
+model StatusLog {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  ticketId    String        @db.ObjectId
+  fromStatus  TicketStatus?
+  toStatus    TicketStatus
+  changedById String?       @db.ObjectId
+  comment     String?
+  createdAt   DateTime      @default(now())
+
+  ticket    Ticket @relation("TicketStatusHistory", fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  changedBy User?  @relation("StatusLogActor", fields: [changedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([ticketId])
+  @@index([toStatus])
 }
 
 model TicketComment {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   ticketId  String   @db.ObjectId
-  ticket    Ticket   @relation(fields: [ticketId], references: [id])
   authorId  String   @db.ObjectId
-  author    User     @relation("TicketCommentAuthor", fields: [authorId], references: [id])
   content   String
   createdAt DateTime @default(now())
+
+  ticket Ticket @relation("TicketComments", fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  author User   @relation("TicketCommentAuthor", fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([ticketId])
 }
 
-model TicketTimeline {
-  id        String             @id @default(auto()) @map("_id") @db.ObjectId
-  ticketId  String             @db.ObjectId
-  ticket    Ticket             @relation(fields: [ticketId], references: [id])
-  type      TimelineEventType
-  label     String
-  actorName String
-  createdAt DateTime           @default(now())
+model Notification {
+  id        String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String              @db.ObjectId
+  ticketId  String?             @db.ObjectId
+  type      NotificationType
+  channel   NotificationChannel
+  title     String
+  message   String
+  isRead    Boolean             @default(false)
+  createdAt DateTime            @default(now())
+
+  user   User    @relation("UserNotifications", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ticket Ticket? @relation("TicketNotifications", fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId])
+  @@index([ticketId])
 }
 
-model ActivityLog {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+model AuditLog {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
   action    String
   details   String?
-  actorId   String?  @db.ObjectId
-  actorName String?
-  actor     User?    @relation("ActivityLogActor", fields: [actorId], references: [id])
-  role      String?
-  ticketId  String?  @db.ObjectId
-  ticket    Ticket?  @relation(fields: [ticketId], references: [id])
-  createdAt DateTime @default(now())
+  actorId   String?   @db.ObjectId
+  role      UserRole?
+  ticketId  String?   @db.ObjectId
+  createdAt DateTime  @default(now())
+
+  actor  User?   @relation(fields: [actorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ticket Ticket? @relation("TicketAuditLogs", fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([actorId])
+  @@index([ticketId])
 }
