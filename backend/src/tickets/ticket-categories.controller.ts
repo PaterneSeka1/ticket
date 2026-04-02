@@ -31,6 +31,11 @@ export class TicketCategoriesController {
     return this.ticketsService.listCategories();
   }
 
+  @Get('incident-types')
+  listIncidentTypes() {
+    return this.ticketsService.listIncidentTypes();
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(

@@ -4,9 +4,7 @@ import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 import { createCategory } from "@/api/tickets";
 import type { CreateCategoryPayload } from "@/api/tickets";
-import type { TicketType } from "@/api/types";
-
-const ticketTypeOptions: TicketType[] = ["INCIDENT", "DEMANDE"];
+import { useIncidentTypes } from "@/app/dashboard/hooks/useIncidentTypes";
 
 interface CategoryCreateFormProps {
   onSuccess?: () => void;
@@ -14,10 +12,13 @@ interface CategoryCreateFormProps {
 
 export function CategoryCreateForm({ onSuccess }: CategoryCreateFormProps) {
   const [libelle, setLibelle] = useState("");
-  const [type, setType] = useState<TicketType>("INCIDENT");
   const [description, setDescription] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [selectedIncidentTypeId, setSelectedIncidentTypeId] = useState("");
+  const { incidentTypes, loading: loadingIncidentTypes, error: incidentTypesError } =
+    useIncidentTypes();
+  const currentIncidentTypeId = selectedIncidentTypeId || incidentTypes[0]?.id || "";
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -25,8 +26,8 @@ export function CategoryCreateForm({ onSuccess }: CategoryCreateFormProps) {
     toast.dismiss();
 
     const payload: CreateCategoryPayload = {
-      libelle: libelle.trim(),
-      type,
+      name: libelle.trim(),
+      incidentTypeId: currentIncidentTypeId,
       description: description.trim() || undefined,
       isActive,
     };
@@ -48,7 +49,10 @@ export function CategoryCreateForm({ onSuccess }: CategoryCreateFormProps) {
   };
 
   return (
-    <form className="space-y-6 rounded-[32px] border border-[#f0d7c6] bg-white/90 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]" onSubmit={handleSubmit}>
+    <form
+      className="space-y-6 rounded-[32px] border border-[#f0d7c6] bg-white/90 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]"
+      onSubmit={handleSubmit}
+    >
       <div className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#b86112]">Créer une catégorie</p>
         <p className="text-sm text-[#6b5446]">Ajoutez un libellé qui sera disponible pour les tickets.</p>
@@ -64,18 +68,26 @@ export function CategoryCreateForm({ onSuccess }: CategoryCreateFormProps) {
           />
         </label>
         <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-          Type *
+          Type d’incident *
           <select
-            value={type}
-            onChange={(event) => setType(event.target.value as TicketType)}
+            value={currentIncidentTypeId}
+            onChange={(event) => setSelectedIncidentTypeId(event.target.value)}
+            disabled={loadingIncidentTypes}
             className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+            required
           >
-            {ticketTypeOptions.map((option) => (
-              <option key={option} value={option}>
-                {option === "INCIDENT" ? "Incident interne" : "Réclamation client"}
+            <option value="" disabled>
+              {loadingIncidentTypes ? "Chargement..." : "Sélectionnez un type"}
+            </option>
+            {incidentTypes.map((incidentType) => (
+              <option key={incidentType.id} value={incidentType.id}>
+                {incidentType.name}
               </option>
             ))}
           </select>
+          {incidentTypesError && (
+            <p className="text-[0.6rem] text-[#c42d1f]">{incidentTypesError}</p>
+          )}
         </label>
       </div>
       <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
@@ -101,8 +113,12 @@ export function CategoryCreateForm({ onSuccess }: CategoryCreateFormProps) {
       </div>
       <button
         type="submit"
-        disabled={status === "loading"}
-        className="rounded-full bg-gradient-to-r from-[#d9731d] to-[#bb5b0f] px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white shadow-[0_15px_40px_rgba(217,115,29,0.35)]"
+        disabled={
+          status === "loading" ||
+          loadingIncidentTypes ||
+          !currentIncidentTypeId
+        }
+        className="rounded-full bg-gradient-to-r from-[#d9731d] to-[#bb5b0f] px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white shadow-[0_15px_40px_rgba(217,115,29,0.35)] disabled:opacity-60"
       >
         {status === "loading" ? "En cours..." : "Créer la catégorie"}
       </button>

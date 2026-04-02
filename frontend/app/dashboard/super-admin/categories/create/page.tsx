@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/app/dashboard/components/DashboardShell";
@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
 import { createCategory } from "@/api/tickets";
 import type { TicketType } from "@/api/types";
+import { useIncidentTypes } from "@/app/dashboard/hooks/useIncidentTypes";
 
 const ticketTypes: Array<{ id: TicketType; label: string; description: string }> = [
   {
@@ -32,6 +33,21 @@ export default function SuperAdminCategoryCreatePage() {
   const [description, setDescription] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedIncidentTypeId, setSelectedIncidentTypeId] = useState("");
+  const {
+    incidentTypes,
+    loading: loadingIncidentTypes,
+    error: incidentTypesError,
+  } = useIncidentTypes();
+  const findIncidentTypeId = useCallback(
+    (ticketType: TicketType) => {
+      const incidentType = incidentTypes.find((item) =>
+        ticketType === "INCIDENT" ? item.scope === "INTERNE" : item.scope === "EXTERNE",
+      );
+      return incidentType?.id ?? "";
+    },
+    [incidentTypes],
+  );
 
   useEffect(() => {
     if (status !== "ready" || !user) return;
@@ -40,13 +56,23 @@ export default function SuperAdminCategoryCreatePage() {
     }
   }, [router, status, user]);
 
+  useEffect(() => {
+    if (!selectedIncidentTypeId) {
+      setSelectedIncidentTypeId(findIncidentTypeId(type));
+    }
+  }, [findIncidentTypeId, selectedIncidentTypeId, type]);
+
   const typeCardClasses = (cardType: TicketType) =>
     cn(
       "rounded-[14px] border px-3 py-3 shadow-[0_6px_18px_rgba(0,0,0,0.06)] transition",
       type === cardType ? "border-[#f3b342] bg-[#fff7df]" : "border-[#ede9e0] bg-white",
     );
 
-  const isSubmitDisabled = isSubmitting || !name.trim();
+  const isSubmitDisabled =
+    isSubmitting ||
+    !name.trim() ||
+    !selectedIncidentTypeId ||
+    loadingIncidentTypes;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -54,8 +80,8 @@ export default function SuperAdminCategoryCreatePage() {
     setIsSubmitting(true);
     try {
       await createCategory({
-        libelle: name.trim(),
-        type,
+        name: name.trim(),
+        incidentTypeId: selectedIncidentTypeId,
         description: description.trim() || undefined,
         isActive,
       });
@@ -92,19 +118,25 @@ export default function SuperAdminCategoryCreatePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">Type de catégorie</p>
             <p className="text-sm text-[#2b1d10]">Choisissez l’orientation des tickets associés.</p>
           </header>
-          <div className="grid gap-3 md:grid-cols-2">
-            {ticketTypes.map((option) => (
-              <button
+        <div className="grid gap-3 md:grid-cols-2">
+          {ticketTypes.map((option) => (
+            <button
                 type="button"
                 key={option.id}
                 className={typeCardClasses(option.id)}
-                onClick={() => setType(option.id)}
+                onClick={() => {
+                  setType(option.id);
+                  setSelectedIncidentTypeId(findIncidentTypeId(option.id));
+                }}
               >
                 <p className="text-lg font-semibold text-[#2b1d10]">{option.label}</p>
                 <p className="mt-2 text-sm text-[#5c554b]">{option.description}</p>
               </button>
             ))}
           </div>
+          {incidentTypesError && (
+            <p className="mt-3 text-xs text-[#c42d1f]">{incidentTypesError}</p>
+          )}
         </section>
 
         <form

@@ -296,7 +296,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       </div>
 
       <div
-        className="flex bg-white/90"
+        className="flex bg-white/90 min-h-screen"
         style={{ paddingTop: HEADER_HEIGHT, minHeight: `calc(100vh - ${HEADER_HEIGHT}px)` }}
       >
         <aside

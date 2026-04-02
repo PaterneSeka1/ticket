@@ -5,15 +5,14 @@ import toast from "react-hot-toast";
 import { CategoryCreateForm } from "./CategoryCreateForm";
 import { fetchCategories, updateCategory } from "@/api/tickets";
 import type { TicketCategory, TicketType } from "@/api/types";
+import { useIncidentTypes } from "@/app/dashboard/hooks/useIncidentTypes";
 
 type EditableCategoryFields = {
   libelle: string;
-  type: TicketType;
+  incidentTypeId: string;
   description: string;
   isActive: boolean;
 };
-
-const ticketTypeOptions: TicketType[] = ["INCIDENT", "DEMANDE"];
 
 const cn = (...classes: Array<string | false | null | undefined>) =>
   classes.filter(Boolean).join(" ");
@@ -45,6 +44,11 @@ export function CategoryManagementPanel({ showCreateForm = true }: CategoryManag
   const [editValues, setEditValues] = useState<EditableCategoryFields | null>(null);
   const [isActing, setIsActing] = useState(false);
   const [categoryToDisable, setCategoryToDisable] = useState<TicketCategory | null>(null);
+  const {
+    incidentTypes,
+    loading: loadingIncidentTypes,
+    error: incidentTypesError,
+  } = useIncidentTypes();
 
   const loadCategories = async () => {
     setLoading(true);
@@ -70,7 +74,7 @@ export function CategoryManagementPanel({ showCreateForm = true }: CategoryManag
     setEditingId(category.id);
     setEditValues({
       libelle: category.libelle,
-      type: category.type,
+      incidentTypeId: category.incidentTypeId,
       description: category.description ?? "",
       isActive: category.isActive,
     });
@@ -87,8 +91,8 @@ export function CategoryManagementPanel({ showCreateForm = true }: CategoryManag
     setIsActing(true);
     try {
       await updateCategory(editingId, {
-        libelle: editValues.libelle.trim(),
-        type: editValues.type,
+        name: editValues.libelle.trim(),
+        incidentTypeId: editValues.incidentTypeId,
         description: editValues.description.trim() || undefined,
         isActive: editValues.isActive,
       });
@@ -120,8 +124,8 @@ export function CategoryManagementPanel({ showCreateForm = true }: CategoryManag
     setIsActing(true);
     try {
       await updateCategory(categoryToDisable.id, {
-        libelle: categoryToDisable.libelle.trim(),
-        type: categoryToDisable.type,
+        name: categoryToDisable.libelle.trim(),
+        incidentTypeId: categoryToDisable.incidentTypeId,
         description: categoryToDisable.description?.trim() || undefined,
         isActive: false,
       });
@@ -223,24 +227,31 @@ export function CategoryManagementPanel({ showCreateForm = true }: CategoryManag
 
                         <label className="space-y-2">
                           <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8f8b85]">
-                            Type
+                            Type d’incident
                           </span>
                           <select
-                            value={editValues.type}
+                            value={editValues.incidentTypeId}
                             onChange={(event) =>
                               setEditValues({
                                 ...editValues,
-                                type: event.target.value as TicketType,
+                                incidentTypeId: event.target.value,
                               })
                             }
+                            disabled={loadingIncidentTypes}
                             className="w-full rounded-[10px] border border-[#ded8d0] bg-white px-3 py-2.5 text-sm text-[#241d16] outline-none transition focus:border-[#e1b24f]"
                           >
-                            {ticketTypeOptions.map((option) => (
-                              <option key={option} value={option}>
-                                {getTypeLabel(option)}
+                            <option value="" disabled>
+                              {loadingIncidentTypes ? "Chargement..." : "Choisissez un type"}
+                            </option>
+                            {incidentTypes.map((incidentType) => (
+                              <option key={incidentType.id} value={incidentType.id}>
+                                {incidentType.name}
                               </option>
                             ))}
                           </select>
+                          {incidentTypesError && (
+                            <p className="text-[0.6rem] text-[#c42d1f]">{incidentTypesError}</p>
+                          )}
                         </label>
                       </div>
 

@@ -47,9 +47,20 @@ export interface AuthenticatedUser {
 export interface TicketCategory {
   id: string;
   libelle: string;
+  name: string;
   type: TicketType;
   description?: string | null;
   isActive: boolean;
+  incidentTypeId: string;
+  incidentType: {
+    id: string;
+    name: string;
+    scope: "INTERNE" | "EXTERNE";
+    description?: string | null;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

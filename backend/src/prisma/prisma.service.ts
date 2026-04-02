@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { PrismaClient as PrismaClientGenerated } from '../../generated/prisma/client.js';
+import { importGeneratedPrismaModule } from './generated-prisma-import.js';
 
 @Injectable()
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
@@ -20,9 +21,13 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    const { PrismaClient } = await import('../../generated/prisma/client.js');
-    this.clientInstance = new PrismaClient();
-    await this.clientInstance.$connect();
+    const prismaModule = await importGeneratedPrismaModule<
+      typeof import('../../generated/prisma/client.js')
+    >('client.js');
+    const { PrismaClient } = prismaModule;
+    const instance = new PrismaClient();
+    this.clientInstance = instance;
+    await instance.$connect();
   }
 
   async onModuleDestroy() {

@@ -18,13 +18,15 @@ import { UpdateTicketCategoryDto } from './dto/update-ticket-category.dto.js';
 import { UpdateTicketDto } from './dto/update-ticket.dto.js';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto.js';
 import {
+  IncidentScope,
   NotificationChannel,
   NotificationType,
   TicketPriority,
   TicketStatus,
+  TicketType,
   UserRole,
 } from '../prisma/enums.js';
-import type { Prisma } from '../../generated/prisma/client.js';
+import type { Category, IncidentType, Prisma } from '../../generated/prisma/client.js';
 
 const ticketInclude: Prisma.TicketInclude = {
   attachments: true,
@@ -380,10 +382,12 @@ export class TicketsService {
   }
 
   listCategories() {
-    return this.prisma.client.category.findMany({
-      include: { incidentType: true },
-      orderBy: { name: 'asc' },
-    });
+    return this.prisma.client
+      .category.findMany({
+        include: { incidentType: true },
+        orderBy: { name: 'asc' },
+      })
+      .then((categories) => categories.map((category) => this.mapCategory(category)));
   }
 
   async createCategory(
@@ -399,13 +403,14 @@ export class TicketsService {
           description: dto.description,
           isActive: dto.isActive ?? true,
         },
+        include: { incidentType: true },
       });
       await this.logActivity(
         'ticket.category.created',
         `Catégorie ${category.name} créée`,
         actor,
       );
-      return category;
+      return this.mapCategory(category);
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
@@ -433,13 +438,14 @@ export class TicketsService {
         description: dto.description,
         isActive: dto.isActive,
       },
+      include: { incidentType: true },
     });
     await this.logActivity(
       'ticket.category.updated',
       `Catégorie ${category.name} modifiée`,
       actor,
     );
-    return category;
+    return this.mapCategory(category);
   }
 
   async deleteCategory(id: string, actor: AuthenticatedUserDto) {
@@ -452,6 +458,61 @@ export class TicketsService {
       `Catégorie ${id} désactivée`,
       actor,
     );
+  }
+
+  private mapCategory(
+    category: Category & { incidentType: IncidentType },
+  ): {
+    id: string;
+    libelle: string;
+    name: string;
+    type: TicketType;
+    description: string | null;
+    isActive: boolean;
+    incidentTypeId: string;
+    incidentType: {
+      id: string;
+      name: string;
+      scope: IncidentScope;
+      description?: string | null;
+      isActive: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+    createdAt: Date;
+    updatedAt: Date;
+  } {
+    const type =
+      category.incidentType.scope === IncidentScope.EXTERNE
+        ? TicketType.DEMANDE
+        : TicketType.INCIDENT;
+    return {
+      id: category.id,
+      libelle: category.name,
+      name: category.name,
+      type,
+      description: category.description ?? null,
+      isActive: category.isActive,
+      incidentTypeId: category.incidentTypeId,
+      incidentType: {
+        id: category.incidentType.id,
+        name: category.incidentType.name,
+        scope: category.incidentType.scope,
+        description: category.incidentType.description ?? null,
+        isActive: category.incidentType.isActive,
+        createdAt: category.incidentType.createdAt,
+        updatedAt: category.incidentType.updatedAt,
+      },
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+    };
+  }
+
+  listIncidentTypes() {
+    return this.prisma.client.incidentType.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+    });
   }
 
   private async ensureCategory(categoryId: string, incidentTypeId: string) {

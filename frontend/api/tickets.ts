@@ -43,9 +43,19 @@ export interface CreateTicketTimelinePayload {
   actorName: string;
 }
 
+export interface IncidentTypeSummary {
+  id: string;
+  name: string;
+  scope: "INTERNE" | "EXTERNE";
+  description?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreateCategoryPayload {
-  libelle: string;
-  type: TicketType;
+  name: string;
+  incidentTypeId: string;
   description?: string;
   isActive?: boolean;
 }
@@ -138,4 +148,8 @@ export function deleteCategory(id: string) {
   return apiRequest<void>(`/tickets/categories/${id}`, {
     method: "DELETE",
   });
+}
+
+export function fetchIncidentTypes() {
+  return apiRequest<IncidentTypeSummary[]>("/tickets/categories/incident-types");
 }

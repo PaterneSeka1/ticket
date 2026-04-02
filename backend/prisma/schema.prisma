@@ -22,6 +22,11 @@ enum TicketPriority {
   CRITICAL
 }
 
+enum TicketType {
+  INCIDENT
+  DEMANDE
+}
+
 enum TicketStatus {
   PENDING_ASSIGNMENT
   ASSIGNED
