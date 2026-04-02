@@ -295,12 +295,16 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         )}
       </div>
 
-      <div className="flex bg-white/90" style={{ paddingTop: HEADER_HEIGHT }}>
+      <div
+        className="flex bg-white/90"
+        style={{ paddingTop: HEADER_HEIGHT, minHeight: `calc(100vh - ${HEADER_HEIGHT}px)` }}
+      >
         <aside
           className="hidden lg:flex lg:w-70 flex-col border-r-2 border-yellow-400 bg-white px-6 py-6 text-[#2b1d10] lg:sticky"
           style={{
             top: HEADER_HEIGHT,
-            maxHeight: `calc(100vh - ${HEADER_HEIGHT}px)`,
+            minHeight: `calc(100vh - ${HEADER_HEIGHT}px)`,
+            height: `calc(100vh - ${HEADER_HEIGHT}px)`,
           }}
         >
           <div className="flex-1 space-y-5 overflow-y-auto pr-1">{renderNavContent()}</div>
