@@ -1,26 +1,22 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff, Lock, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
 import { createUser, updateUser } from "@/api/users";
+import { fetchDepartments } from "@/api/departments";
+import { fetchServices } from "@/api/services";
 import type { CreateUserPayload, UpdateUserPayload } from "@/api/users";
 import type {
   AuthenticatedUser,
-  DirectionType,
+  Department,
   DsiTicketRole,
-  OperationService,
+  Service,
   UserResponsibility,
   UserRole,
 } from "@/api/types";
-
-type DirectionOption = DirectionType | "";
-type ServiceOption = OperationService | "";
 type DsiOption = DsiTicketRole | "";
-
-const directionOptions: DirectionType[] = ["DAF", "DSI", "DO"];
-const serviceOptions: OperationService[] = ["QUALITE", "OPERATIONS", "REPUTATION"];
-const roleOptions: UserRole[] = ["SUPER_ADMIN", "ADMIN", "USER"];
+const roleOptions: UserRole[] = ["SUPER_ADMIN", "ADMIN", "READER", "EMPLOYE"];
 const dsiRoleOptions: Array<{ value: DsiOption; label: string }> = [
   { value: "", label: "Employé simple" },
   { value: "RESPONSABLE", label: "Responsable DSI" },
@@ -49,8 +45,8 @@ interface FormState {
   matricule: string;
   email: string;
   role: UserRole;
-  direction: DirectionOption;
-  service: ServiceOption;
+  departmentId: string;
+  serviceId: string;
   password: string;
   confirmPassword: string;
   accessReport: boolean;
@@ -65,9 +61,9 @@ const initialFormState: FormState = {
   nom: "",
   matricule: "",
   email: "",
-  role: "USER",
-  direction: "",
-  service: "",
+  role: "EMPLOYE",
+  departmentId: "",
+  serviceId: "",
   password: "",
   confirmPassword: "",
   accessReport: false,
@@ -86,7 +82,8 @@ interface UserFormProps {
 const roleLabels: Record<UserRole, string> = {
   SUPER_ADMIN: "Super-admin",
   ADMIN: "Admin",
-  USER: "Utilisateur",
+  READER: "Lecteur",
+  EMPLOYE: "Employé",
 };
 
 export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
@@ -94,6 +91,8 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
 
   const isEditMode = Boolean(initialUser);
 
@@ -105,8 +104,8 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
         matricule: initialUser.matricule,
         email: initialUser.email,
         role: initialUser.role,
-        direction: initialUser.direction ?? "",
-        service: initialUser.service ?? "",
+        departmentId: initialUser.departmentId ?? initialUser.department?.id ?? "",
+        serviceId: initialUser.serviceId ?? initialUser.service?.id ?? "",
         password: "",
         confirmPassword: "",
         accessReport: initialUser.accessReport,
@@ -124,11 +123,52 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
     setShowConfirmPassword(false);
   }, [initialUser]);
 
-  const handleDirectionChange = (directionValue: DirectionOption) => {
+  useEffect(() => {
+    let isMounted = true;
+    const loadReferences = async () => {
+      try {
+        const [deptResponse, serviceResponse] = await Promise.all([fetchDepartments(), fetchServices()]);
+        if (!isMounted) return;
+        setDepartments(deptResponse);
+        setServices(serviceResponse);
+      } catch (error) {
+        console.error(error);
+        toast.error("Impossible de charger les départements et services.");
+      }
+    };
+    void loadReferences();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isEditMode) return;
+    if (!departments.length) return;
+    setFormState((state) =>
+      state.departmentId ? state : { ...state, departmentId: departments[0].id },
+    );
+  }, [departments, isEditMode]);
+
+  const servicesForSelectedDepartment = useMemo(
+    () => services.filter((service) => service.departmentId === formState.departmentId),
+    [services, formState.departmentId],
+  );
+
+  useEffect(() => {
+    if (isEditMode) return;
+    if (!servicesForSelectedDepartment.length) return;
+    setFormState((state) =>
+      state.serviceId ? state : { ...state, serviceId: servicesForSelectedDepartment[0].id },
+    );
+  }, [servicesForSelectedDepartment, isEditMode]);
+
+  const handleDepartmentChange = (departmentId: string) => {
+    const choices = services.filter((service) => service.departmentId === departmentId);
     setFormState((state) => ({
       ...state,
-      direction: directionValue,
-      service: directionValue === "DO" ? state.service : "",
+      departmentId,
+      serviceId: choices.some((service) => service.id === state.serviceId) ? state.serviceId : "",
     }));
   };
 
@@ -158,13 +198,9 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
       email: formState.email.trim().toLowerCase(),
       matricule: formState.matricule.trim(),
       role: formState.role,
-      direction: formState.direction || undefined,
-      service: formState.service || undefined,
-      accessReport: formState.accessReport,
-      exportReport: formState.exportReport,
+      departmentId: formState.departmentId || undefined,
+      serviceId: formState.serviceId || undefined,
       isActive: formState.isActive,
-      dsiTicketRole: formState.dsiTicketRole || undefined,
-      isResponsable: formState.accountResponsibility === "RESPONSABLE",
     };
 
     if (formState.password) {
@@ -239,36 +275,38 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
       <div className="grid gap-4 md:grid-cols-2">
         <FieldGroup label="Direction">
           <select
-            value={formState.direction}
-            onChange={(event) => handleDirectionChange(event.target.value as DirectionOption)}
+            value={formState.departmentId}
+            onChange={(event) => handleDepartmentChange(event.target.value)}
             className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+            disabled={!departments.length}
           >
-            <option value="">-- Sélectionner --</option>
-            {directionOptions.map((direction) => (
-              <option key={direction} value={direction}>
-                {direction}
+            <option value="">
+              {departments.length ? "-- Sélectionner --" : "Chargement..."}
+            </option>
+            {departments.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.name}
               </option>
             ))}
           </select>
         </FieldGroup>
-        {formState.direction === "DO" ? (
-          <FieldGroup label="Service">
-            <select
-              value={formState.service}
-              onChange={(event) => setFormState({ ...formState, service: event.target.value as ServiceOption })}
-              className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-            >
-              <option value="">-- Sélectionner --</option>
-              {serviceOptions.map((serviceOption) => (
-                <option key={serviceOption} value={serviceOption}>
-                  {serviceOption}
-                </option>
-              ))}
-            </select>
-          </FieldGroup>
-        ) : (
-          <div />
-        )}
+        <FieldGroup label="Service">
+          <select
+            value={formState.serviceId}
+            onChange={(event) => setFormState({ ...formState, serviceId: event.target.value })}
+            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+            disabled={!servicesForSelectedDepartment.length}
+          >
+            <option value="">
+              {servicesForSelectedDepartment.length ? "-- Sélectionner --" : "Aucun service"}
+            </option>
+            {servicesForSelectedDepartment.map((service) => (
+              <option key={service.id} value={service.id}>
+                {service.name}
+              </option>
+            ))}
+          </select>
+        </FieldGroup>
       </div>
       <div className="grid gap-4 md:grid-cols-4">
         <FieldGroup label="Rôle">

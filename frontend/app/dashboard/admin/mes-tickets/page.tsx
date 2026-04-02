@@ -26,8 +26,8 @@ export default function AdminMesTicketsPage() {
       if (ticket.emitter.id === user?.id) {
         return true;
       }
-      if (user?.service) {
-        return ticket.assignedService === user.service;
+      if (user?.service?.name) {
+        return ticket.assignedService === user.service.name;
       }
       return false;
     },

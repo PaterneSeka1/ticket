@@ -51,7 +51,13 @@ const roleRoutes: Record<
     newTicket: "/dashboard/super-admin/nouveau-ticket",
     myTickets: "/dashboard/super-admin/mes-tickets",
   },
-  USER: {
+  EMPLOYE: {
+    root: "/dashboard/employe",
+    tickets: "/dashboard/employe/mes-tickets",
+    newTicket: "/dashboard/employe/nouveau-ticket",
+    myTickets: "/dashboard/employe/mes-tickets",
+  },
+  READER: {
     root: "/dashboard/employe",
     tickets: "/dashboard/employe/mes-tickets",
     newTicket: "/dashboard/employe/nouveau-ticket",
@@ -138,9 +144,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     );
   }, [user]);
 
-  const currentRole = (user?.role as UserRole) ?? "USER";
+  const currentRole = (user?.role as UserRole) ?? "EMPLOYE";
   const currentSections = useMemo(() => {
-    const includeAllTicketsLink = currentRole !== "USER";
+    const includeAllTicketsLink = currentRole !== "EMPLOYE" && currentRole !== "READER";
     const sections = buildNavSections(roleRoutes[currentRole], includeAllTicketsLink);
     if (currentRole === "SUPER_ADMIN") {
       return [sections.principal, sections.superAdmin, sections.analyse];

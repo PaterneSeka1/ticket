@@ -1,6 +1,15 @@
-export type UserRole = "SUPER_ADMIN" | "ADMIN" | "USER";
+export type UserRole = "SUPER_ADMIN" | "ADMIN" | "READER" | "EMPLOYE";
 
-export type DirectionType = "DAF" | "DSI" | "DO";
+export interface Department {
+  id: string;
+  name: string;
+}
+
+export interface Service {
+  id: string;
+  name: string;
+  departmentId: string;
+}
 
 export type OperationService = "QUALITE" | "OPERATIONS" | "REPUTATION";
 
@@ -31,8 +40,10 @@ export interface AuthenticatedUser {
   email: string;
   matricule: string;
   role: UserRole;
-  direction?: DirectionType | null;
-  service?: OperationService | null;
+  departmentId?: string | null;
+  serviceId?: string | null;
+  department?: Department | null;
+  service?: Service | null;
   dsiTicketRole?: DsiTicketRole | null;
   isResponsable: boolean;
   isActive: boolean;

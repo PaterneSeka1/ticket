@@ -123,7 +123,7 @@ export function UserManagementPanel() {
       { id: "login", accessorFn: (user) => user.matricule },
       { id: "name", accessorFn: (user) => `${user.prenom} ${user.nom}` },
       { id: "email", accessorFn: (user) => user.email },
-      { id: "service", accessorFn: (user) => user.service ?? "" },
+      { id: "service", accessorFn: (user) => user.service?.name ?? "" },
       { id: "role", accessorFn: (user) => user.role },
     ],
     [],
@@ -139,7 +139,7 @@ export function UserManagementPanel() {
       user.nom,
       user.prenom,
       user.email,
-      user.service ?? "",
+      user.service?.name ?? "",
       user.role,
     ]
       .join(" ")
@@ -154,7 +154,7 @@ export function UserManagementPanel() {
     if (currentUser.role === "SUPER_ADMIN") {
       return filtered;
     }
-    return filtered.filter((item) => item.role === "USER");
+    return filtered.filter((item) => item.role === "EMPLOYE" || item.role === "READER");
   }, [currentUser, users]);
 
   const table = useReactTable({
@@ -256,12 +256,12 @@ export function UserManagementPanel() {
                               {user.prenom} {user.nom}
                             </div>
                             <div className="text-[11px] text-[#98a2b3]">
-                              {user.direction ?? "—"}
+                              {user.department?.name ?? "—"}
                             </div>
                           </td>
 
                           <td className="px-4 py-3 text-[#475467]">{user.email}</td>
-                          <td className="px-4 py-3 text-[#475467]">{user.service ?? "—"}</td>
+                          <td className="px-4 py-3 text-[#475467]">{user.service?.name ?? "—"}</td>
                           <td className="px-4 py-3">
                             <Badge tone="orange">{roleLabels[user.role]}</Badge>
                           </td>

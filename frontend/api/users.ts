@@ -1,11 +1,5 @@
 import { apiRequest } from "./client";
-import type {
-  AuthenticatedUser,
-  DirectionType,
-  DsiTicketRole,
-  OperationService,
-  UserRole,
-} from "./types";
+import type { AuthenticatedUser, UserRole } from "./types";
 
 export interface CreateUserPayload {
   nom: string;
@@ -14,15 +8,10 @@ export interface CreateUserPayload {
   matricule: string;
   passwordHash: string;
   role?: UserRole;
-  direction?: DirectionType;
-  service?: OperationService;
+  departmentId?: string;
+  serviceId?: string;
   isActive?: boolean;
   createdById?: string;
-  lastLogin?: string;
-  accessReport?: boolean;
-  exportReport?: boolean;
-  dsiTicketRole?: DsiTicketRole;
-  isResponsable?: boolean;
 }
 
 export type UpdateUserPayload = Partial<CreateUserPayload>;

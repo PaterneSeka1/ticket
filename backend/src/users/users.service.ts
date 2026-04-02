@@ -25,6 +25,21 @@ export class UsersService {
     private readonly activity: ActivityLogService,
   ) {}
 
+  private readonly userInclude = {
+    department: {
+      select: {
+        id: true,
+        name: true,
+      },
+    },
+    service: {
+      select: {
+        id: true,
+        name: true,
+      },
+    },
+  };
+
   async create(
     dto: CreateUserDto,
     actor?: AuthenticatedUserDto,
@@ -33,7 +48,10 @@ export class UsersService {
     const data = this.buildCreatePayload(dto, passwordHash);
 
     try {
-      const user = await this.prisma.client.user.create({ data });
+      const user = await this.prisma.client.user.create({
+        data,
+        include: this.userInclude,
+      });
       await this.logActivity({
         action: 'user.created',
         details: `Utilisateur ${user.email} créé.`,
@@ -57,12 +75,18 @@ export class UsersService {
       where = { id: actor.id };
     }
 
-    const users = await this.prisma.client.user.findMany({ where });
+    const users = await this.prisma.client.user.findMany({
+      where,
+      include: this.userInclude,
+    });
     return users.map(toUserDto);
   }
 
   async findOne(id: string): Promise<UserDto> {
-    const user = await this.prisma.client.user.findUnique({ where: { id } });
+    const user = await this.prisma.client.user.findUnique({
+      where: { id },
+      include: this.userInclude,
+    });
     if (!user) {
       throw new NotFoundException(`Utilisateur ${id} introuvable.`);
     }
@@ -93,6 +117,7 @@ export class UsersService {
       const user = await this.prisma.client.user.update({
         where: { id },
         data,
+        include: this.userInclude,
       });
       await this.logActivity({
         action: 'user.updated',
@@ -116,6 +141,7 @@ export class UsersService {
       const user = await this.prisma.client.user.update({
         where: { id },
         data: { isActive: true },
+        include: this.userInclude,
       });
       await this.logActivity({
         action: 'user.activated',
@@ -134,6 +160,7 @@ export class UsersService {
       const user = await this.prisma.client.user.update({
         where: { id },
         data: { isActive: false },
+        include: this.userInclude,
       });
       await this.logActivity({
         action: 'user.deactivated',

@@ -65,7 +65,7 @@ export default function EmployeDashboardPage() {
 
   useEffect(() => {
     if (status !== "ready" || !user) return;
-    if (user.role !== "USER") {
+    if (!["EMPLOYE", "READER"].includes(user.role)) {
       router.replace(getRedirectRouteForRole(user.role));
     }
   }, [status, user, router]);

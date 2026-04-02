@@ -1,7 +1,8 @@
 export const roleToDashboardRouteMap = {
   SUPER_ADMIN: "/dashboard/super-admin",
   ADMIN: "/dashboard/admin",
-  USER: "/dashboard/employe",
+  EMPLOYE: "/dashboard/employe",
+  READER: "/dashboard/employe",
 } as const;
 
 export type UserRole = keyof typeof roleToDashboardRouteMap;

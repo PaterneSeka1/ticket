@@ -14,4 +14,6 @@ export class UserDto {
   createdAt!: Date;
   updatedAt!: Date;
   createdById?: string | null;
+  department?: { id: string; name: string } | null;
+  service?: { id: string; name: string } | null;
 }
