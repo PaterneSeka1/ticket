@@ -29,7 +29,10 @@ export class ServicesController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateServiceDto, @CurrentUser() user: AuthenticatedUserDto) {
+  create(
+    @Body() dto: CreateServiceDto,
+    @CurrentUser() user: AuthenticatedUserDto,
+  ) {
     return this.servicesService.create(dto, user);
   }
 }

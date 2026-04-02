@@ -9,7 +9,9 @@ const candidateBases = [
   resolve(scriptDirectory, '../../generated/prisma'),
 ];
 
-export async function importGeneratedPrismaModule<T>(fileName: string): Promise<T> {
+export async function importGeneratedPrismaModule<T>(
+  fileName: string,
+): Promise<T> {
   let lastError: unknown;
   for (const base of candidateBases) {
     const targetPath = resolve(base, fileName);
@@ -20,5 +22,8 @@ export async function importGeneratedPrismaModule<T>(fileName: string): Promise<
     }
   }
 
-  throw new Error(`Impossible de charger ${fileName} généré par Prisma.`);
+  const details = lastError instanceof Error ? ` (${lastError.message})` : '';
+  throw new Error(
+    `Impossible de charger ${fileName} généré par Prisma${details}.`,
+  );
 }

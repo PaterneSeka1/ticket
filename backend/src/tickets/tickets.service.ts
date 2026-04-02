@@ -26,7 +26,11 @@ import {
   TicketType,
   UserRole,
 } from '../prisma/enums.js';
-import type { Category, IncidentType, Prisma } from '../../generated/prisma/client.js';
+import type {
+  Category,
+  IncidentType,
+  Prisma,
+} from '../../generated/prisma/client.js';
 
 const ticketInclude: Prisma.TicketInclude = {
   attachments: true,
@@ -382,12 +386,14 @@ export class TicketsService {
   }
 
   listCategories() {
-    return this.prisma.client
-      .category.findMany({
+    return this.prisma.client.category
+      .findMany({
         include: { incidentType: true },
         orderBy: { name: 'asc' },
       })
-      .then((categories) => categories.map((category) => this.mapCategory(category)));
+      .then((categories) =>
+        categories.map((category) => this.mapCategory(category)),
+      );
   }
 
   async createCategory(
@@ -460,9 +466,7 @@ export class TicketsService {
     );
   }
 
-  private mapCategory(
-    category: Category & { incidentType: IncidentType },
-  ): {
+  private mapCategory(category: Category & { incidentType: IncidentType }): {
     id: string;
     libelle: string;
     name: string;

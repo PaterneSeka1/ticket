@@ -121,6 +121,7 @@ const buildNavSections = (
 };
 
 const HEADER_HEIGHT = 50;
+const layoutMinHeight = `calc(100vh - ${HEADER_HEIGHT}px)`;
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const { user } = useCurrentUser();
@@ -303,19 +304,19 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
       <div
         className="flex bg-white/90 min-h-screen"
-        style={{ paddingTop: HEADER_HEIGHT, minHeight: `calc(100vh - ${HEADER_HEIGHT}px)` }}
+        style={{ paddingTop: HEADER_HEIGHT, minHeight: layoutMinHeight }}
       >
         <aside
-          className="hidden lg:flex lg:w-70 flex-col border-r-2 border-yellow-400 bg-white px-6 py-6 text-[#2b1d10] lg:sticky"
+          className="hidden lg:flex lg:w-70 flex-col border-r-2 border-yellow-400 bg-white px-6 py-6 text-[#2b1d10] lg:sticky min-h-[calc(100vh-50px)]"
           style={{
             top: HEADER_HEIGHT,
-            minHeight: `calc(100vh - ${HEADER_HEIGHT}px)`,
-            height: `calc(100vh - ${HEADER_HEIGHT}px)`,
+            minHeight: layoutMinHeight,
+            height: layoutMinHeight,
           }}
         >
           <div className="flex-1 space-y-5 overflow-y-auto pr-1">{renderNavContent()}</div>
         </aside>
-        <main className="flex-1 px-4 py-2 lg:px-2">
+        <main className="flex-1 px-4 py-2 lg:px-2" style={{ minHeight: layoutMinHeight }}>
           <div className="mx-auto w-full max-w-9xl space-y-6">{children}</div>
         </main>
       </div>

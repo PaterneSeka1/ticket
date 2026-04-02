@@ -21,9 +21,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    const prismaModule = await importGeneratedPrismaModule<
-      typeof import('../../generated/prisma/client.js')
-    >('client.js');
+    const prismaModule =
+      await importGeneratedPrismaModule<
+        typeof import('../../generated/prisma/client.js')
+      >('client.js');
     const { PrismaClient } = prismaModule;
     const instance = new PrismaClient();
     this.clientInstance = instance;

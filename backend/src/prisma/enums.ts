@@ -9,9 +9,10 @@ import type {
 } from '../../generated/prisma/index.js';
 import { importGeneratedPrismaModule } from './generated-prisma-import.js';
 
-const prismaEnums = await importGeneratedPrismaModule<typeof import('../../generated/prisma/index.js')>(
-  'index.js',
-);
+const prismaEnums =
+  await importGeneratedPrismaModule<
+    typeof import('../../generated/prisma/index.js')
+  >('index.js');
 
 export const {
   UserRole,

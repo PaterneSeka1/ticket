@@ -22,7 +22,7 @@ export default function SuperAdminMesTicketsPage() {
   }, [status, user, router]);
 
   const ticketFilter = useMemo(
-    () => (ticket: Ticket) => ticket.emitter.id === user?.id,
+    () => (ticket: Ticket) => ticket.emitter?.id === user?.id,
     [user],
   );
 

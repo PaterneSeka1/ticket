@@ -195,16 +195,19 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
         <div className="flex flex-col gap-2">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">Services assignataires</p>
           <p className="text-sm text-[#2b1d10]">
-            Déclarez les équipes ou responsables qui pourront recevoir les tickets une fois envoyés par les admins.
+            Déclarez ici les services ou responsables qui pourront prendre en charge un ticket après soumission par un super-admin ou un admin.
+            Ces assignations ne sont pas liées aux engagements SLA, mais au type de ticket et à la disponibilité des équipes.
           </p>
         </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <article className="space-y-4 rounded-[20px] border border-[#ebe6df] bg-white p-6 shadow-[0_12px_40px_rgba(0,0,0,0.04)]">
+        <div className="grid gap-6 lg:grid-cols-2 items-stretch">
+          <article className="flex h-full flex-col justify-between space-y-4 rounded-[20px] border border-[#ebe6df] bg-white p-6 shadow-[0_12px_40px_rgba(0,0,0,0.04)]">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">Créer un service</p>
-              <p className="text-sm text-[#2b1d10]">Ce formulaire permet de définir un nouveau responsable ou équipe de résolution.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">Déclarer un service assignataire</p>
+              <p className="text-sm text-[#2b1d10]">
+                Enregistrez un service ou responsable capable de récupérer les tickets que vous envoyez. Les admins choisissent ensuite le service qui doit agir, indépendamment des priorités SLA.
+              </p>
             </div>
-            <form className="space-y-6" onSubmit={handleResponsibleCreate}>
+            <form className="flex-1 space-y-6" onSubmit={handleResponsibleCreate}>
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7c6f60]">
                   Prénom *
@@ -284,9 +287,12 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
                 )}
               </div>
             </form>
+            <p className="text-[0.6rem] uppercase tracking-[0.3em] text-[#9a928a]">
+              Les services déclarés restent visibles ici tant qu’ils sont actifs. Ils peuvent être choisis librement lors de l’affectation d’un ticket.
+            </p>
           </article>
 
-          <article className="rounded-[20px] border border-[#ebe6df] bg-white p-6 shadow-[0_12px_40px_rgba(0,0,0,0.04)]">
+          <article className="flex h-full flex-col rounded-[20px] border border-[#ebe6df] bg-white p-6 shadow-[0_12px_40px_rgba(0,0,0,0.04)]">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">Services déclarés</p>
@@ -296,7 +302,7 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
                 {responsibles.length || 0}
               </span>
             </div>
-            <div className="mt-6 space-y-3">
+            <div className="mt-6 space-y-3 flex-1">
               {loadingResponsibles ? (
                 <p className="text-sm text-[#6e6559]">Chargement des responsables...</p>
               ) : responsiblesError ? (
@@ -333,6 +339,9 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
                 ))
               )}
             </div>
+            <p className="mt-4 text-[0.65rem] uppercase tracking-[0.2em] text-[#9a928a]">
+              Ces services sont indépendants des priorités. Un administrateur choisit celui qui doit régler un incident selon son type ou sa criticité.
+            </p>
           </article>
         </div>
       </div>

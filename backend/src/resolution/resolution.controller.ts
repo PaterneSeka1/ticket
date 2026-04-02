@@ -20,7 +20,9 @@ import { ResolutionResponsibleService } from './resolution.service.js';
 @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @Controller('resolution-responsibles')
 export class ResolutionResponsibleController {
-  constructor(private readonly resolutionService: ResolutionResponsibleService) {}
+  constructor(
+    private readonly resolutionService: ResolutionResponsibleService,
+  ) {}
 
   @Get()
   findAll() {

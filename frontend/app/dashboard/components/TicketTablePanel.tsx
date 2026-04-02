@@ -31,6 +31,8 @@ const cn = (...classes: Array<string | false | null | undefined>) =>
   classes.filter(Boolean).join(" ");
 
 const statusOrder = Object.keys(statusLabels) as TicketStatus[];
+const defaultStatusInfo = statusLabels.RECU;
+const resolveStatusInfo = (status?: TicketStatus) => statusLabels[status ?? "RECU"] ?? defaultStatusInfo;
 
 interface TicketTablePanelProps {
   tickets: Ticket[];
@@ -181,7 +183,7 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
         accessorFn: (ticket) => ticket.status,
         header: "Statut",
         cell: ({ row }) => {
-          const statusInfo = statusLabels[row.original.status];
+          const statusInfo = resolveStatusInfo(row.original.status);
 
           return (
             <span
@@ -213,7 +215,7 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
         header: "Émetteur",
         cell: ({ row }) => (
           <span className="text-[12px] text-[#2b1d10]">
-            {row.original.emitter.prenom} {row.original.emitter.nom}
+            {row.original.emitter ? `${row.original.emitter.prenom} ${row.original.emitter.nom}` : "—"}
           </span>
         ),
         size: 130,
@@ -359,7 +361,7 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
             </div>
           ) : (
             mobileRows.map((ticket) => {
-              const statusInfo = statusLabels[ticket.status];
+              const statusInfo = resolveStatusInfo(ticket.status);
               const priorityInfo = priorityLabels[ticket.priority];
 
               return (
@@ -381,7 +383,9 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-[12px] text-[#7b6655]">
                       <span>Service: {ticket.assignedService ?? "—"}</span>
-                      <span>Émetteur: {ticket.emitter.prenom} {ticket.emitter.nom}</span>
+                      <span>
+                        Émetteur: {ticket.emitter ? `${ticket.emitter.prenom} ${ticket.emitter.nom}` : "—"}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[12px] text-[#7b6655]">

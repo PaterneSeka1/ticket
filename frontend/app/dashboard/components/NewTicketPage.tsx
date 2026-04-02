@@ -71,8 +71,6 @@ const getLocalTimeValue = (date = new Date()) => {
   return `${hours}:${minutes}`;
 };
 
-const getTextValue = (value: unknown) => (typeof value === "string" ? value : "");
-
 export default function NewTicketPage() {
   const { user, status } = useCurrentUser();
 
@@ -81,7 +79,8 @@ export default function NewTicketPage() {
 
   const [detectionDate, setDetectionDate] = useState(() => getLocalDateValue());
   const [detectionTime, setDetectionTime] = useState(() => getLocalTimeValue());
-
+  
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [clientName, setClientName] = useState("");
   const [product, setProduct] = useState("");
@@ -157,19 +156,6 @@ export default function NewTicketPage() {
   const selectedCategoryId =
     ticketType === "INCIDENT" ? selectedInternalCategoryId : selectedReclamationCategoryId;
 
-  const detectedAt = useMemo(() => {
-    if (!detectionDate || !detectionTime) return undefined;
-
-    const parsed = new Date(`${detectionDate}T${detectionTime}`);
-    if (Number.isNaN(parsed.getTime())) {
-      return undefined;
-    }
-
-    return parsed.toISOString();
-  }, [detectionDate, detectionTime]);
-
-  const userRecord = (user ?? {}) as Record<string, unknown>;
-
   const requiresClientFields = selectedIncidentType === "CLIENT";
 
   const isSubmitDisabled =
@@ -177,6 +163,7 @@ export default function NewTicketPage() {
     !selectedCategoryId ||
     categoryStatus === "loading" ||
     categoryStatus === "error" ||
+    !title.trim() ||
     !description.trim() ||
     (requiresClientFields && (!clientName.trim() || !product));
 
@@ -185,6 +172,7 @@ export default function NewTicketPage() {
     setSelectedPriority("P2");
     setDetectionDate(getLocalDateValue());
     setDetectionTime(getLocalTimeValue());
+    setTitle("");
     setDescription("");
     setClientName("");
     setProduct("");
@@ -208,6 +196,11 @@ export default function NewTicketPage() {
 
     if (!selectedCategoryId || !user) return;
 
+    if (!title.trim()) {
+      toast.error("Le titre est requis.");
+      return;
+    }
+
     if (!description.trim()) {
       toast.error("La description est requise.");
       return;
@@ -228,24 +221,19 @@ export default function NewTicketPage() {
     setIsSubmitting(true);
 
     try {
+      const category = categories.find((item) => item.id === selectedCategoryId);
+      if (!category) {
+        toast.error("La catégorie sélectionnée est invalide.");
+        return;
+      }
+
       const payload: CreateTicketPayload = {
-        type: ticketType,
+        title: title.trim(),
+        description: description.trim(),
         priority: priorityMap[selectedPriority],
         categoryId: selectedCategoryId,
-        description: description.trim(),
-        assignedService: getTextValue(userRecord.service) || undefined,
-        detectedAt,
+        incidentTypeId: category.incidentTypeId,
       };
-
-      if (selectedIncidentType === "CLIENT") {
-        if (clientName.trim()) {
-          payload.clientName = clientName.trim();
-        }
-
-        if (product) {
-          payload.product = product;
-        }
-      }
 
       await createTicket(payload);
 
@@ -330,6 +318,19 @@ export default function NewTicketPage() {
               </label>
 
           </div>
+
+            <label>
+              <span className={labelClass}>
+                Titre du ticket <span className="text-[#d92d20]">*</span>
+              </span>
+              <input
+                type="text"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Sujet du ticket"
+                className={inputClass}
+              />
+            </label>
 
             <div>
               <p className={labelClass}>

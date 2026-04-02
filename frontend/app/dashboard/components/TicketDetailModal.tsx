@@ -20,16 +20,16 @@ interface TicketDetailModalProps {
 
 export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
   const timelineEntries = useMemo(
-    () => [...ticket.timeline].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    () => [...(ticket.timeline ?? [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [ticket.timeline],
   );
 
   const slaProgress = getSlaProgress(ticket);
   const slaTone = getSlaTone(slaProgress);
-  const priorityInfo = priorityLabels[ticket.priority];
-  const statusInfo = statusLabels[ticket.status];
+  const priorityInfo = priorityLabels[ticket.priority] ?? priorityLabels.LOW;
+  const statusInfo = statusLabels[ticket.status] ?? statusLabels.RECU;
   const typeLabel = typeLabels[ticket.type];
-  const emitterName = `${ticket.emitter.prenom} ${ticket.emitter.nom}`;
+  const emitterName = ticket.emitter ? `${ticket.emitter.prenom} ${ticket.emitter.nom}` : "—";
   const receivedByName = ticket.receivedBy
     ? `${ticket.receivedBy.prenom} ${ticket.receivedBy.nom}`
     : "—";

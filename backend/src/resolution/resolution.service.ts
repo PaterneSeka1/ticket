@@ -18,7 +18,10 @@ export class ResolutionResponsibleService {
     });
   }
 
-  async create(dto: CreateResolutionResponsibleDto, actor: AuthenticatedUserDto) {
+  async create(
+    dto: CreateResolutionResponsibleDto,
+    actor: AuthenticatedUserDto,
+  ) {
     const created = await this.prisma.client.resolutionResponsible.create({
       data: {
         firstName: dto.firstName.trim(),

@@ -5,23 +5,15 @@ import type {
   TicketPriority,
   TicketStatus,
   TicketTimeline,
-  TicketType,
   TimelineEventType,
 } from "./types";
 
 export interface CreateTicketPayload {
-  type: TicketType;
-  priority: TicketPriority;
-  categoryId: string;
+  title: string;
   description: string;
-  assignedService?: string;
-  clientName?: string;
-  product?: string;
-  attachmentName?: string;
-  detectedAt?: string;
-  resolvedAt?: string;
-  slaMaxMinutes?: number;
-  waitMinutes?: number;
+  incidentTypeId: string;
+  categoryId: string;
+  priority?: TicketPriority;
 }
 
 export type UpdateTicketPayload = Partial<CreateTicketPayload>;
