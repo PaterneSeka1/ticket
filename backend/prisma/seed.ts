@@ -4,6 +4,7 @@ import { PrismaClient } from '../generated/prisma/client.js';
 import {
   UserRole,
   IncidentScope,
+  TicketPriority,
 } from '../generated/prisma/index.js';
 
 const prisma = new PrismaClient();
@@ -212,6 +213,32 @@ async function ensureResolutionResponsible(details: {
   });
 }
 
+async function ensureSlaPolicy(details: {
+  priority: TicketPriority;
+  responseMinutes: number;
+  resolutionMinutes: number;
+  isActive?: boolean;
+}) {
+  const now = new Date();
+  return prisma.slaPolicy.upsert({
+    where: { priority: details.priority },
+    update: {
+      responseMinutes: details.responseMinutes,
+      resolutionMinutes: details.resolutionMinutes,
+      isActive: details.isActive ?? true,
+      updatedAt: now,
+    },
+    create: {
+      priority: details.priority,
+      responseMinutes: details.responseMinutes,
+      resolutionMinutes: details.resolutionMinutes,
+      isActive: details.isActive ?? true,
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+}
+
 async function main() {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL must be set before running the seed.');
@@ -220,16 +247,51 @@ async function main() {
   await prisma.$connect();
   log('seed : connexion établie');
 
-  const direction = await ensureDepartment({
-    name: 'Direction des Opérations',
-    description: 'Pilotage des incidents et des processus critiques',
-  });
+  const departments = await Promise.all([
+    ensureDepartment({
+      name: 'Direction des Affaires Financières',
+      description: 'Pilotage des budgets et des arbitrages financiers.',
+    }),
+    ensureDepartment({
+      name: 'Direction du Service Informatique',
+      description: 'Gouvernance des plateformes et de la sécurité technique.',
+    }),
+    ensureDepartment({
+      name: 'Direction des Opérations',
+      description: 'Pilotage des incidents et des processus critiques.',
+    }),
+  ]);
 
-  const operationalService = await ensureService({
-    name: 'Support IT',
-    description: 'Service en charge du traitement technique des incidents',
-    departmentId: direction.id,
-  });
+  const operations = departments.find(
+    (department) => department.name === 'Direction des Opérations',
+  );
+  const informatique = departments.find(
+    (department) => department.name === 'Direction du Service Informatique',
+  );
+
+  if (!operations || !informatique) {
+    throw new Error(
+      'Impossible de retrouver les départements requis pour le seed.',
+    );
+  }
+
+  await Promise.all([
+    ensureService({
+      name: 'Service Qualité',
+      description: 'Assure le suivi qualité des interventions.',
+      departmentId: operations.id,
+    }),
+    ensureService({
+      name: 'Service Réputation',
+      description: 'Gère la communication sur les incidents sensibles.',
+      departmentId: operations.id,
+    }),
+    ensureService({
+      name: 'Service Information',
+      description: 'Collectionne les flux de renseignement opérationnels.',
+      departmentId: operations.id,
+    }),
+  ]);
 
   const hashedPassword = await hash(BASE_PASSWORD, 10);
 
@@ -239,75 +301,71 @@ async function main() {
     email: 'superadmin@example.com',
     matricule: 'SUPER-0001',
     role: UserRole.SUPER_ADMIN,
+    departmentId: informatique.id,
     hashedPassword,
   });
 
-  const superAdmin = await prisma.user.findUnique({
-    where: { email: 'superadmin@example.com' },
-  });
+  const slaPolicies = [
+    {
+      label: 'P1',
+      priority: TicketPriority.CRITICAL,
+      responseMinutes: 5,
+      resolutionMinutes: 30,
+    },
+    {
+      label: 'P2',
+      priority: TicketPriority.HIGH,
+      responseMinutes: 15,
+      resolutionMinutes: 120,
+    },
+    {
+      label: 'P3',
+      priority: TicketPriority.MEDIUM,
+      responseMinutes: 30,
+      resolutionMinutes: 360,
+    },
+  ];
 
-  if (!superAdmin) {
-    throw new Error('Impossible de retrouver le SUPER_ADMIN après création.');
-  }
-
-  await ensureUser({
-    nom: 'Base',
-    prenom: 'Admin',
-    email: 'admin@example.com',
-    matricule: 'ADMIN-0001',
-    role: UserRole.ADMIN,
-    departmentId: direction.id,
-    serviceId: operationalService.id,
-    createdById: superAdmin.id,
-    hashedPassword,
-  });
-
-  await ensureUser({
-    nom: 'Lecteur',
-    prenom: 'Rapport',
-    email: 'reader@example.com',
-    matricule: 'READER-0001',
-    role: UserRole.READER,
-    departmentId: direction.id,
-    createdById: superAdmin.id,
-    hashedPassword,
-  });
-
-  await ensureUser({
-    nom: 'Employé',
-    prenom: 'Utilisateur',
-    email: 'employee@example.com',
-    matricule: 'EMPL-0001',
-    role: UserRole.EMPLOYE,
-    departmentId: direction.id,
-    serviceId: operationalService.id,
-    createdById: superAdmin.id,
-    hashedPassword,
-  });
+  await Promise.all(
+    slaPolicies.map(
+      async ({ label, priority, responseMinutes, resolutionMinutes }) => {
+        await ensureSlaPolicy({
+          priority,
+          responseMinutes,
+          resolutionMinutes,
+        });
+        log(`seed : SLA ${label} (${priority}) configuré`);
+      },
+    ),
+  );
 
   const [interne, externe] = await Promise.all([
     ensureIncidentType({
       name: 'Incident Interne',
       scope: IncidentScope.INTERNE,
-      description: 'Dysfonctionnement ou panne affectant uniquement les équipes internes',
+      description:
+        'Dysfonctionnement ou panne affectant uniquement les équipes internes',
     }),
     ensureIncidentType({
       name: 'Incident Externe',
       scope: IncidentScope.EXTERNE,
-      description: 'Incident impliquant des entités extérieures (clients, fournisseurs)',
+      description:
+        'Incident impliquant des entités extérieures (clients, fournisseurs)',
     }),
   ]);
 
   await ensureCategory({
     name: 'Panne réseau',
     incidentTypeId: interne.id,
-    description: 'Interruption ou perte de connectivité sur les infrastructures internes',
+    description:
+      'Interruption ou perte de connectivité sur les infrastructures internes',
   });
 
   await ensureCategory({
     name: 'Incident client critique',
     incidentTypeId: externe.id,
-    description: 'Incident signalé par un client majeur impactant un service payant',
+    description:
+      'Incident signalé par un client majeur impactant un service payant',
   });
 
   await ensureResolutionResponsible({

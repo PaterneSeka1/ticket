@@ -8,20 +8,22 @@ type Props = {
   open: boolean;
   policy: SlaPolicy | null;
   values: {
+    responseMinutes: number;
     resolutionMinutes: number;
   };
   saving: boolean;
   error: string | null;
-  onChange: (value: number) => void;
+  onResponseChange: (value: number) => void;
+  onResolutionChange: (value: number) => void;
   onSave: () => void;
   onClose: () => void;
 };
 
 const labelMap: Record<TicketPriority, string> = {
-  CRITIQUE: "P1",
-  HAUT: "P2",
-  MOYEN: "P3",
-  BAS: "P4",
+  CRITICAL: "P1",
+  HIGH: "P2",
+  MEDIUM: "P3",
+  LOW: "P4",
 };
 
 export function SlaPolicyModal({
@@ -30,7 +32,8 @@ export function SlaPolicyModal({
   values,
   saving,
   error,
-  onChange,
+  onResponseChange,
+  onResolutionChange,
   onSave,
   onClose,
 }: Props) {
@@ -40,7 +43,12 @@ export function SlaPolicyModal({
 
   const handleResolutionChange = (event: ChangeEvent<HTMLInputElement>) => {
     const parsed = event.target.valueAsNumber;
-    onChange(Number.isNaN(parsed) ? 0 : parsed);
+    onResolutionChange(Number.isNaN(parsed) ? 0 : parsed);
+  };
+
+  const handleResponseChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const parsed = event.target.valueAsNumber;
+    onResponseChange(Number.isNaN(parsed) ? 0 : parsed);
   };
 
   const badgeTone = priorityLabels[policy.priority];
@@ -48,14 +56,16 @@ export function SlaPolicyModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-[24px] bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-        <div className="flex items-center justify-between">
+  <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">Modifier le SLA</p>
             <div className="flex items-center gap-2">
               <span className={`inline-flex h-8 w-16 items-center justify-center rounded-full text-[0.7rem] font-bold uppercase ${badgeTone.tone}`}>
                 {labelMap[policy.priority]}
               </span>
-              <span className="text-sm font-semibold text-[#2b1d10]">{formatDuration(values.resolutionMinutes)}</span>
+              <span className="text-sm font-semibold text-[#2b1d10]">
+                {formatDuration(values.responseMinutes)} / {formatDuration(values.resolutionMinutes)}
+              </span>
             </div>
           </div>
           <button type="button" onClick={onClose} className="text-sm font-semibold uppercase tracking-[0.3em] text-[#6f6b64]">
@@ -64,11 +74,19 @@ export function SlaPolicyModal({
         </div>
 
         <div className="mt-6 space-y-4 rounded-[20px] border border-[#ebe6df] bg-[#f3f3f2] p-4">
-          <label className="text-[0.65rem] font-semibold uppercase tracking-[0.4em] text-[#9a928a]">Prise en charge</label>
-          <p className="text-sm font-semibold text-[#2b1d10]">
-            {formatDuration(policy.responseMinutes)}
-          </p>
-          <label className="text-[0.65rem] font-semibold uppercase tracking-[0.4em] text-[#9a928a]">Résolution</label>
+          <label className="text-[0.65rem] font-semibold uppercase tracking-[0.4em] text-[#9a928a]">
+            Prise en charge
+          </label>
+          <input
+            type="number"
+            min={0}
+            value={values.responseMinutes}
+            onChange={handleResponseChange}
+            className="w-full rounded-[12px] border border-[#e2dcd2] bg-white px-3 py-2 text-sm font-semibold text-[#2b1d10]"
+          />
+          <label className="text-[0.65rem] font-semibold uppercase tracking-[0.4em] text-[#9a928a]">
+            Résolution
+          </label>
           <input
             type="number"
             min={0}

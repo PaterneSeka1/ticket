@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '../../generated/prisma/client.js';
+import type { ActivityLog, Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { UserRole } from '../prisma/enums.js';
 
 interface LogOptions {
   action: string;
   details?: string | null;
   actorId?: string | null;
   actorName?: string | null;
-  role?: string | null;
+  role?: UserRole | null;
   ticketId?: string | null;
 }
 
@@ -36,7 +37,7 @@ export class ActivityLogService {
     });
   }
 
-  fetchLogs(options: FetchOptions = {}): Promise<Prisma.ActivityLog[]> {
+  fetchLogs(options: FetchOptions = {}): Promise<ActivityLog[]> {
     const sanitizedLimit = Math.max(1, Math.min(options.limit ?? 100, 200));
     const where: Prisma.ActivityLogWhereInput = {};
     if (options.actions?.length) {

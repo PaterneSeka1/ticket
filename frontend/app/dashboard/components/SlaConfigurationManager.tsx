@@ -35,7 +35,7 @@ export function SlaConfigurationManager() {
         if (mounted) {
           setPolicies(data);
         }
-      } catch (err) {
+      } catch {
         if (mounted) {
           setError("Impossible de charger les engagements SLA.");
         }
@@ -63,6 +63,10 @@ export function SlaConfigurationManager() {
     setModalError(null);
   };
 
+  const updateDraftValue = (field: keyof SlaDraft, value: number) => {
+    setDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
   const savePolicy = async () => {
     if (!editingPolicy || !draft) return;
     setSaving(true);
@@ -70,6 +74,7 @@ export function SlaConfigurationManager() {
     try {
       const updated = await updateSlaPolicy(editingPolicy.priority, {
         resolutionMinutes: draft.resolutionMinutes,
+        responseMinutes: draft.responseMinutes,
       });
       setPolicies((prev) =>
         prev.map((policy) => (policy.priority === updated.priority ? updated : policy)),
@@ -97,9 +102,8 @@ export function SlaConfigurationManager() {
         values={draft ?? { responseMinutes: 0, resolutionMinutes: 0 }}
         saving={saving}
         error={modalError}
-        onChange={(value) =>
-          setDraft((prev) => (prev ? { ...prev, resolutionMinutes: value } : prev))
-        }
+        onResponseChange={(value) => updateDraftValue("responseMinutes", value)}
+        onResolutionChange={(value) => updateDraftValue("resolutionMinutes", value)}
         onSave={savePolicy}
         onClose={closeModal}
       />

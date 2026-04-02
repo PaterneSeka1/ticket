@@ -247,6 +247,7 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
     [],
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: filteredTickets,
     columns: ticketColumns,

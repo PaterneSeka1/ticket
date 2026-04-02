@@ -19,7 +19,7 @@ import {
 } from "@tanstack/react-table";
 import toast from "react-hot-toast";
 import { activateUser, deactivateUser, listUsers } from "@/api/users";
-import type { AuthenticatedUser, DsiTicketRole, UserRole } from "@/api/types";
+import type { AuthenticatedUser, UserRole } from "@/api/types";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { UserForm } from "./UserForm";
 
@@ -27,11 +27,6 @@ const roleLabels: Record<UserRole, string> = {
   SUPER_ADMIN: "Admin",
   ADMIN: "Admin",
   USER: "User",
-};
-
-const dsiRoleLabels: Record<DsiTicketRole, string> = {
-  RESPONSABLE: "Reader",
-  CO_RESPONSABLE: "Reader",
 };
 
 function Badge({

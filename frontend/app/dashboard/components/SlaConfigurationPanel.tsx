@@ -10,7 +10,7 @@ type Props = {
   onEdit: (policy: SlaPolicy) => void;
 };
 
-const SLA_PRIORITIES: TicketPriority[] = ["CRITIQUE", "HAUT", "MOYEN"];
+const SLA_PRIORITIES: TicketPriority[] = ["CRITICAL", "HIGH", "MEDIUM"];
 
 export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Props) {
   const displayPolicies: SlaPolicy[] = SLA_PRIORITIES.map((priority) => {

@@ -20,7 +20,7 @@ export type TicketStatus =
   | "OUVERT"
   | "PRIS";
 
-export type TicketPriority = "BAS" | "MOYEN" | "HAUT" | "CRITIQUE";
+export type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export type TimelineEventType = "CREATE" | "RECEIVE" | "STATUS_CHANGE" | "ACTION";
 

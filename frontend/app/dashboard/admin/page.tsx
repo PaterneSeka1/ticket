@@ -47,24 +47,24 @@ const STATUS_CHART_COLORS: Record<TicketStatus, string> = {
 };
 
 const PRIORITY_CHART_COLORS: Record<TicketPriority, string> = {
-  CRITIQUE: "#e53935",
-  HAUT: "#f4a300",
-  MOYEN: "#2ba84a",
-  BAS: "#1f6bb7",
+  CRITICAL: "#e53935",
+  HIGH: "#f4a300",
+  MEDIUM: "#2ba84a",
+  LOW: "#1f6bb7",
 };
 
 const PRIORITY_DISPLAY_NAMES: Record<TicketPriority, string> = {
-  CRITIQUE: "Critique",
-  HAUT: "Haut",
-  MOYEN: "Moyen",
-  BAS: "Bas",
+  CRITICAL: "Critique",
+  HIGH: "Haut",
+  MEDIUM: "Moyen",
+  LOW: "Bas",
 };
 
 const OPEN_STATUSES = new Set<TicketStatus>(["RECU", "EN_COURS", "OUVERT", "PRIS"]);
 const RESOLVED_STATUSES = new Set<TicketStatus>(["RESOLU", "FERME", "ABANDONNE"]);
 
 const STATUS_LIST = Object.keys(statusLabels) as TicketStatus[];
-const PRIORITY_LIST: TicketPriority[] = ["CRITIQUE", "HAUT", "MOYEN", "BAS"];
+const PRIORITY_LIST: TicketPriority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 
 type Metric = {
   label: string;
@@ -214,7 +214,7 @@ export function AdminDashboardContent() {
       statusTotals[ticket.status] += 1;
       priorityTotals[ticket.priority] += 1;
 
-      if (ticket.priority === "CRITIQUE" && !RESOLVED_STATUSES.has(ticket.status)) {
+      if (ticket.priority === "CRITICAL" && !RESOLVED_STATUSES.has(ticket.status)) {
         unresolvedCritical += 1;
       }
 
@@ -226,7 +226,7 @@ export function AdminDashboardContent() {
         resolvedCount += 1;
       }
 
-      if (ticket.priority === "HAUT" && ticket.waitMinutes != null) {
+      if (ticket.priority === "HIGH" && ticket.waitMinutes != null) {
         highWaits.push(ticket.waitMinutes);
       }
     }
@@ -260,7 +260,7 @@ export function AdminDashboardContent() {
         },
         {
           label: "P1 CRITIQUES",
-          value: `${priorityTotals.CRITIQUE}`,
+          value: `${priorityTotals.CRITICAL}`,
           detail: `${unresolvedCritical} non résolus`,
           valueColor: "text-[#d73b2f]",
           accent: "bg-[#fde7e4]",
@@ -268,7 +268,7 @@ export function AdminDashboardContent() {
         {
           label: "EN COURS",
           value: `${openCount}`,
-          detail: `SLA moyen HAUT : ${formatDuration(averageHighWait)}`,
+          detail: `SLA moyen ${PRIORITY_DISPLAY_NAMES["HIGH"]} : ${formatDuration(averageHighWait)}`,
           valueColor: "text-[#f0a11d]",
           accent: "bg-[#fff1d7]",
         },

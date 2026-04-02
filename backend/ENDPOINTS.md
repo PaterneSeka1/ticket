@@ -116,7 +116,7 @@ d# Documentation des endpoints
 - Retourne les tickets créés par l'utilisateur authentifié (`CurrentUser`).
 
 ### GET `/tickets/dsi/received`
-- Retourne les tickets reçus par la DSI, en fonction du rôle `dsiTicketRole` du user.
+- Retourne les tickets reçus par la DSI (la DSI est incarnée par le `SUPER_ADMIN`).
 
 ### PATCH `/tickets/:id`
 - Met à jour un ticket. Body identique à `CreateTicketDto` mais tous les champs sont optionnels (`UpdateTicketDto`).
@@ -125,7 +125,7 @@ d# Documentation des endpoints
 - Change le statut d'un ticket. Body :
   - `status` *(TicketStatus, requis)*.
   - `actorName` *(string, optionnel)*.
-  - `receivedById` *(MongoId, optionnel)* : utilisé pour enregistrer l'utilisateur DSI qui prend en charge le ticket.
+- `receivedById` *(MongoId, optionnel)* : utilisé pour enregistrer le `SUPER_ADMIN` (DSI) qui prend en charge le ticket.
   - `eventType` *(TimelineEventType, optionnel)* : associe une entrée de timeline à ce changement.
 - Le user connecté est injecté pour tracer la modification.
 

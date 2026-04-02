@@ -116,6 +116,7 @@ model Service {
 
   @@index([departmentId])
   @@index([isActive])
+  @@unique([name])
 }
 
 model ResolutionResponsible {

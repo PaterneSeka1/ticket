@@ -8,6 +8,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ActivityLogService } from '../activity/activity-log.service.js';
 import { AuthenticatedUserDto } from '../auth/dto/authenticated-user.dto.js';
+import { NotificationService } from '../notifications/notification.service.js';
 import { CreateTicketDto } from './dto/create-ticket.dto.js';
 import { CreateTicketCategoryDto } from './dto/create-ticket-category.dto.js';
 import { CreateTicketCommentDto } from './dto/create-ticket-comment.dto.js';
@@ -16,8 +17,31 @@ import { TicketFiltersDto } from './dto/ticket-filters.dto.js';
 import { UpdateTicketCategoryDto } from './dto/update-ticket-category.dto.js';
 import { UpdateTicketDto } from './dto/update-ticket.dto.js';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto.js';
-import { TicketPriority, TicketStatus } from '../prisma/enums.js';
+import {
+  NotificationChannel,
+  NotificationType,
+  TicketPriority,
+  TicketStatus,
+  UserRole,
+} from '../prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+
+const ticketInclude: Prisma.TicketInclude = {
+  attachments: true,
+  category: { include: { incidentType: true } },
+  incidentType: true,
+  assignedResponsible: true,
+  createdBy: true,
+  statusHistory: { orderBy: { createdAt: 'asc' as const } },
+  comments: {
+    orderBy: { createdAt: 'asc' as const },
+    include: { author: true },
+  },
+} as const;
+
+type TicketWithRelations = Prisma.TicketGetPayload<{
+  include: typeof ticketInclude;
+}>;
 
 const STATUS_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   [TicketStatus.PENDING_ASSIGNMENT]: [
@@ -37,22 +61,15 @@ export class TicketsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: ActivityLogService,
+    private readonly notification: NotificationService,
   ) {}
 
-  private ticketInclude = {
-    attachments: true,
-    category: { include: { incidentType: true } },
-    incidentType: true,
-    assignedResponsible: true,
-    createdBy: true,
-    statusHistory: { orderBy: { createdAt: 'asc' as const } },
-    comments: {
-      orderBy: { createdAt: 'asc' as const },
-      include: { author: true },
-    },
-  } as const;
+  private readonly ticketInclude = ticketInclude;
 
-  async create(dto: CreateTicketDto, emitter: AuthenticatedUserDto) {
+  async create(
+    dto: CreateTicketDto,
+    emitter: AuthenticatedUserDto,
+  ): Promise<TicketWithRelations> {
     await this.ensureCategory(dto.categoryId, dto.incidentTypeId);
     const ticketNumber = await this.generateTicketNumber();
     const attachments = dto.attachments?.map((attachment) => ({
@@ -93,6 +110,15 @@ export class TicketsService {
       emitter,
       ticket.id,
     );
+    await this.createStatusLog(
+      ticket.id,
+      TicketStatus.PENDING_ASSIGNMENT,
+      TicketStatus.PENDING_ASSIGNMENT,
+      emitter.id,
+      'Ticket reçu et en attente d’un responsable',
+    );
+    const adminIds = await this.fetchAdminIds();
+    await this.notifyAdminsOfNewTicket(ticket, adminIds);
 
     return ticket;
   }
@@ -142,8 +168,8 @@ export class TicketsService {
   }
 
   async findReceivedByDsi(user: AuthenticatedUserDto) {
-    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Accès réservé aux administrateurs.');
+    if (user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Accès réservé au super administrateur.');
     }
     return this.prisma.client.ticket.findMany({
       where: { assignedResponsibleId: user.id },
@@ -152,7 +178,7 @@ export class TicketsService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<TicketWithRelations> {
     const ticket = await this.prisma.client.ticket.findUnique({
       where: { id },
       include: this.ticketInclude,
@@ -199,11 +225,13 @@ export class TicketsService {
       throw new BadRequestException('Aucune donnée à mettre à jour.');
     }
 
-    const updated = await this.prisma.client.ticket.update({
-      where: { id },
-      data,
-      include: this.ticketInclude,
-    });
+    const updated: TicketWithRelations = await this.prisma.client.ticket.update(
+      {
+        where: { id },
+        data,
+        include: this.ticketInclude,
+      },
+    );
     await this.logActivity(
       'ticket.updated',
       `${updated.ticketNumber} mis à jour`,
@@ -227,8 +255,15 @@ export class TicketsService {
     const data: Prisma.TicketUncheckedUpdateInput = {
       status: dto.status,
     };
+    const isAdmin =
+      actor.role === UserRole.ADMIN || actor.role === UserRole.SUPER_ADMIN;
     if (dto.status === TicketStatus.RESOLVED && !dto.resolutionComment) {
       throw new BadRequestException('Le commentaire de résolution est requis.');
+    }
+    if (dto.status === TicketStatus.RESOLVED && !isAdmin) {
+      throw new ForbiddenException(
+        'Seuls les administrateurs peuvent marquer un ticket comme résolu.',
+      );
     }
     if (dto.status === TicketStatus.RESOLVED) {
       data.resolutionComment = dto.resolutionComment;
@@ -238,6 +273,20 @@ export class TicketsService {
       data.closedAt = now;
     }
     if (dto.status === TicketStatus.ASSIGNED) {
+      if (!isAdmin) {
+        throw new ForbiddenException(
+          'Accès réservé aux administrateurs pour assigner un ticket.',
+        );
+      }
+      if (!dto.assignedResponsibleId) {
+        throw new BadRequestException(
+          'Un responsable doit être indiqué pour passer le ticket en ASSIGNED.',
+        );
+      }
+      const responsible = await this.ensureActiveResponsible(
+        dto.assignedResponsibleId,
+      );
+      data.assignedResponsibleId = responsible.id;
       data.assignedAt = now;
     }
     if (dto.status === TicketStatus.REOPENED) {
@@ -265,6 +314,7 @@ export class TicketsService {
       actor,
       ticket.id,
     );
+    await this.handleStatusNotifications(updated, dto.status, actor);
     return updated;
   }
 
@@ -437,7 +487,7 @@ export class TicketsService {
 
   private async createStatusLog(
     ticketId: string,
-    fromStatus: TicketStatus | null,
+    fromStatus: TicketStatus | null | undefined,
     toStatus: TicketStatus | undefined,
     changedById: string,
     comment: string,
@@ -456,6 +506,77 @@ export class TicketsService {
     });
   }
 
+  private async ensureActiveResponsible(id: string) {
+    const responsible = await this.prisma.client.user.findUnique({
+      where: { id },
+    });
+    if (!responsible || !responsible.isActive) {
+      throw new NotFoundException('Responsable introuvable ou désactivé.');
+    }
+    return responsible;
+  }
+
+  private async handleStatusNotifications(
+    ticket: TicketWithRelations,
+    status: TicketStatus,
+    actor: AuthenticatedUserDto,
+  ) {
+    if (
+      status === TicketStatus.ASSIGNED ||
+      status === TicketStatus.IN_PROGRESS
+    ) {
+      await this.notifyAssignedUser(
+        ticket,
+        'Ticket assigné',
+        `Le ticket ${ticket.ticketNumber} vous a été attribué.`,
+      );
+    }
+    if (status === TicketStatus.RESOLVED) {
+      await this.notifyCreatorOnResolution(ticket, actor);
+    }
+  }
+
+  private async notifyAssignedUser(
+    ticket: TicketWithRelations,
+    title: string,
+    message: string,
+  ) {
+    if (!ticket.assignedResponsibleId) {
+      return;
+    }
+    await this.notification.notifyUsers([ticket.assignedResponsibleId], {
+      ticketId: ticket.id,
+      type: NotificationType.STATUS_IN_PROGRESS,
+      title,
+      message,
+      channel: NotificationChannel.IN_APP,
+    });
+  }
+
+  private async notifyCreatorOnResolution(
+    ticket: TicketWithRelations,
+    actor: AuthenticatedUserDto,
+  ) {
+    const recipients = new Set<string>();
+    if (ticket.createdById) {
+      recipients.add(ticket.createdById);
+    }
+    if (ticket.assignedResponsibleId) {
+      recipients.add(ticket.assignedResponsibleId);
+    }
+    if (!recipients.size) {
+      return;
+    }
+    const actorName = `${actor.prenom} ${actor.nom}`.trim();
+    await this.notification.notifyUsers(Array.from(recipients), {
+      ticketId: ticket.id,
+      type: NotificationType.STATUS_RESOLVED,
+      title: `Ticket ${ticket.ticketNumber} résolu`,
+      message: `${actorName} a marqué le ticket ${ticket.ticketNumber} comme résolu.`,
+      channel: NotificationChannel.IN_APP,
+    });
+  }
+
   private async logActivity(
     action: string,
     details: string,
@@ -469,6 +590,33 @@ export class TicketsService {
       actorName: actor ? `${actor.nom} ${actor.prenom}`.trim() : null,
       role: actor?.role ?? null,
       ticketId: ticketId ?? null,
+    });
+  }
+
+  private async fetchAdminIds() {
+    const admins = await this.prisma.client.user.findMany({
+      where: {
+        role: { in: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },
+        isActive: true,
+      },
+      select: { id: true },
+    });
+    return admins.map((admin) => admin.id);
+  }
+
+  private async notifyAdminsOfNewTicket(
+    ticket: TicketWithRelations,
+    adminIds: string[],
+  ) {
+    if (!adminIds.length) {
+      return;
+    }
+    await this.notification.notifyUsers(adminIds, {
+      ticketId: ticket.id,
+      type: NotificationType.TICKET_CREATED,
+      title: `Nouveau ticket ${ticket.ticketNumber}`,
+      message: `${ticket.title} attend d’être assigné.`,
+      channel: NotificationChannel.IN_APP,
     });
   }
 

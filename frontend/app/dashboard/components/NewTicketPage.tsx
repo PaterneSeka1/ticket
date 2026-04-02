@@ -50,9 +50,9 @@ const incidentTypeMap: Record<IncidentSelection, TicketType> = {
 };
 
 const priorityMap: Record<string, TicketPriority> = {
-  P1: "CRITIQUE",
-  P2: "HAUT",
-  P3: "MOYEN",
+  P1: "CRITICAL",
+  P2: "HIGH",
+  P3: "MEDIUM",
 };
 
 const cn = (...classes: Array<string | false | null | undefined>) =>

@@ -28,11 +28,6 @@ export class AuthService {
     }
 
     const now = new Date();
-    const updatedUser = await this.prisma.client.user.update({
-      where: { id: user.id },
-      data: { lastLogin: now },
-    });
-
     const accessToken = await this.jwtService.signAsync({ sub: user.id });
 
     await this.activity.log({
@@ -44,7 +39,7 @@ export class AuthService {
     });
 
     return {
-      user: toUserDto(updatedUser),
+      user: toUserDto(user),
       authenticatedAt: now,
       accessToken,
     };

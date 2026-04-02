@@ -26,11 +26,6 @@ const formatDateTime = (value: string) => {
   }).format(parsed);
 };
 
-const authActionLabels: Record<string, string> = {
-  "auth.login": "Connexion",
-  "auth.logout": "Déconnexion",
-};
-
 type JournalEntry = TicketTimeline & {
   ticketId: string;
   ticketCode: string;

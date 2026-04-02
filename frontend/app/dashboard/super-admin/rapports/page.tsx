@@ -36,10 +36,10 @@ const statusPalette: Record<TicketStatus, { label: string; color: string }> = {
 };
 
 const priorityPalette: Record<TicketPriority, { label: string; color: string }> = {
-  CRITIQUE: { label: "P1", color: "#d63b35" },
-  HAUT: { label: "P2", color: "#f4a300" },
-  MOYEN: { label: "P3", color: "#20b16a" },
-  BAS: { label: "P4", color: "#6f8ecb" },
+  CRITICAL: { label: "P1", color: "#d63b35" },
+  HIGH: { label: "P2", color: "#f4a300" },
+  MEDIUM: { label: "P3", color: "#20b16a" },
+  LOW: { label: "P4", color: "#6f8ecb" },
 };
 
 const filters = {
@@ -78,9 +78,9 @@ export default function SuperAdminRapportsPage() {
   }, [tickets, selectedService, selectedPriority]);
 
   const totalTickets = filteredTickets.length;
-  const criticalCount = filteredTickets.filter((ticket) => ticket.priority === "CRITIQUE").length;
-  const majorCount = filteredTickets.filter((ticket) => ticket.priority === "HAUT").length;
-  const minorCount = filteredTickets.filter((ticket) => ticket.priority === "MOYEN").length;
+  const criticalCount = filteredTickets.filter((ticket) => ticket.priority === "CRITICAL").length;
+  const majorCount = filteredTickets.filter((ticket) => ticket.priority === "HIGH").length;
+  const minorCount = filteredTickets.filter((ticket) => ticket.priority === "MEDIUM").length;
   const resolvedCount = filteredTickets.filter((ticket) => ticket.status === "RESOLU").length;
   const resolutionRate = totalTickets ? Math.round((resolvedCount / totalTickets) * 100) : 0;
 
@@ -92,7 +92,7 @@ export default function SuperAdminRapportsPage() {
   }, [filteredTickets]);
 
   const priorityData = useMemo(() => {
-    return (["CRITIQUE", "HAUT", "MOYEN"] as TicketPriority[]).map((priority) => ({
+    return (["CRITICAL", "HIGH", "MEDIUM"] as TicketPriority[]).map((priority) => ({
       label: priorityPalette[priority].label,
       value: filteredTickets.filter((ticket) => ticket.priority === priority).length,
       fill: priorityPalette[priority].color,
@@ -195,6 +195,7 @@ export default function SuperAdminRapportsPage() {
     [],
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: filteredTickets,
     columns,
