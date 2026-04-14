@@ -1,18 +1,17 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/app/dashboard/components/DashboardShell";
 import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { TicketTablePanel } from "@/app/dashboard/components/TicketTablePanel";
-import { useTickets } from "@/app/dashboard/hooks/useTickets";
-import type { Ticket } from "@/api/types";
+import { useMyTickets } from "@/app/dashboard/hooks/useMyTickets";
 
 export default function EmployeMesTicketsPage() {
   const router = useRouter();
   const { user, status } = useCurrentUser();
-  const { tickets, loading } = useTickets(status === "ready");
+  const { tickets, loading } = useMyTickets(status === "ready");
 
   useEffect(() => {
     if (status !== "ready" || !user) return;
@@ -20,11 +19,6 @@ export default function EmployeMesTicketsPage() {
       router.replace(getRedirectRouteForRole(user.role));
     }
   }, [status, user, router]);
-
-  const ticketFilter = useMemo(
-    () => (ticket: Ticket) => ticket.emitter.id === user?.id,
-    [user],
-  );
 
   if (status !== "ready" || !user) {
     return (
@@ -51,12 +45,12 @@ export default function EmployeMesTicketsPage() {
               <p className="text-sm text-[#7b6655]">Liste complète des tickets dont vous êtes l’émetteur</p>
             </div>
             <span className="text-[13px] font-semibold text-[#2b1d10]">
-              {tickets.filter(ticketFilter).length} résultat(s)
+              {tickets.length} résultat(s)
             </span>
           </div>
         </div>
         <div className="overflow-hidden rounded-[26px] border border-[#f1e5d7] bg-[#fffaf5] p-5 shadow-[0_18px_40px_rgba(43,29,16,0.05)]">
-          <TicketTablePanel tickets={tickets} loading={loading} ticketFilter={ticketFilter} />
+          <TicketTablePanel tickets={tickets} loading={loading} />
         </div>
       </div>
     </DashboardShell>

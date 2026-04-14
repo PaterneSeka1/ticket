@@ -84,7 +84,10 @@ export default function EmployeDashboardPage() {
     };
   }, []);
 
-  const personalTickets = useMemo(() => tickets.filter((ticket) => ticket.emitter.id === user?.id), [tickets, user]);
+  const personalTickets = useMemo(() => {
+    if (!user?.id) return [];
+    return tickets.filter((ticket) => ticket.emitter?.id === user.id);
+  }, [tickets, user?.id]);
   const metrics = useMemo(() => buildMetrics(personalTickets), [personalTickets]);
   const statusChartData = useMemo(() => {
     const buckets = statusDefinitions.map((definition) => ({ ...definition, count: 0 }));

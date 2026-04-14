@@ -8,6 +8,7 @@ import { createTicket, fetchCategories } from "@/api/tickets";
 import type { CreateTicketPayload } from "@/api/tickets";
 import type { TicketCategory, TicketPriority, TicketType } from "@/api/types";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { usePathname, useRouter } from "next/navigation";
 
 type IncidentSelection = "INTERNE" | "CLIENT";
 
@@ -73,6 +74,9 @@ const getLocalTimeValue = (date = new Date()) => {
 
 export default function NewTicketPage() {
   const { user, status } = useCurrentUser();
+  const router = useRouter();
+  const pathname = usePathname();
+  const myTicketsRoute = pathname?.replace(/\/nouveau-ticket$/, "/mes-tickets") ?? "/dashboard/employe/mes-tickets";
 
   const [selectedIncidentType, setSelectedIncidentType] = useState<IncidentSelection>("INTERNE");
   const [selectedPriority, setSelectedPriority] = useState("P2");
@@ -239,6 +243,7 @@ export default function NewTicketPage() {
 
       toast.success("Ticket créé avec succès.");
       handleReset();
+      router.push(myTicketsRoute);
     } catch (error) {
       const message =
         error instanceof ApiError ? error.message : "Impossible de créer le ticket.";
