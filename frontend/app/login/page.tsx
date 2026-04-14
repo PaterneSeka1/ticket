@@ -3,7 +3,7 @@
 import { FormEvent, MouseEvent, Suspense, useState } from "react";
 import Image from "next/image";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
-import { Toaster, toast } from "react-hot-toast";
+import { toast } from "react-hot-toast";
 import { login, type LoginPayload } from "@/api/auth";
 import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
 
@@ -72,11 +72,7 @@ function LoginContent() {
 
 
   return (
-    <>
-      <Toaster />
-      <div
-        className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-10 text-[#2b1d10]"
-      >
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-10 text-[#2b1d10]">
         <div className="lg:w-[60%] md:w-[60%] w-full max-w-[800px] rounded-[24px] bg-white shadow-[0_40px_120px_rgba(0,0,0,0.25)] overflow-hidden">
           <div className="flex flex-col lg:flex-row">
             <div className="hidden lg:flex lg:w-[340px] bg-[#d5d2ce] text-[#2b1d10] p-10 flex-col gap-6 border-r border-[#cfc7bf]">
@@ -172,9 +168,8 @@ function LoginContent() {
                 </div>
               </form>
             </div>
-          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -74,13 +74,17 @@ type Metric = {
   accent: string;
 };
 
+const DEFAULT_STATUS_INFO = statusLabels.RECU;
+
+function getStatusInfo(status?: TicketStatus | string) {
+  if (!status) return DEFAULT_STATUS_INFO;
+  return statusLabels[status as TicketStatus] ?? DEFAULT_STATUS_INFO;
+}
+
 function priorityBadge(priority: TicketPriority) {
   return `inline-flex rounded-full px-2 py-[3px] text-[10px] font-semibold uppercase ${priorityLabels[priority].tone}`;
 }
 
-function statusBadge(status: TicketStatus) {
-  return statusLabels[status].color;
-}
 
 function getAssigneeLabel(ticket: Ticket) {
   if (ticket.receivedBy) {
@@ -153,6 +157,7 @@ export default function AdminDashboardPage() {
 }
 
 function MobileTicketCard({ ticket }: { ticket: Ticket }) {
+  const statusInfo = getStatusInfo(ticket.status);
   return (
     <article className="space-y-2 rounded-[12px] border border-[#ebe6df] bg-white px-4 py-3 shadow-sm">
       <div className="flex items-center justify-between">
@@ -169,8 +174,8 @@ function MobileTicketCard({ ticket }: { ticket: Ticket }) {
         <span className="inline-flex items-center gap-1 rounded-full bg-[#f3f5f7] px-2 py-1 uppercase tracking-[0.2em] text-[#5c5c5c]">
           {getAssigneeLabel(ticket)}
         </span>
-        <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-medium ${statusBadge(ticket.status)}`}>
-          {statusLabels[ticket.status].label}
+        <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-medium ${statusInfo.color}`}>
+          {statusInfo.label}
         </span>
       </div>
       <SlaBar ticket={ticket} />
@@ -237,11 +242,14 @@ export function AdminDashboardContent() {
         : undefined;
     const resolvedPercent = tickets.length ? Math.round((resolvedCount / tickets.length) * 100) : 0;
 
-    const normalizedStatusData = STATUS_LIST.map((status) => ({
-      name: statusLabels[status].label,
-      value: statusTotals[status],
-      color: STATUS_CHART_COLORS[status],
-    })).filter((entry) => entry.value > 0);
+    const normalizedStatusData = STATUS_LIST.map((status) => {
+      const statusInfo = getStatusInfo(status);
+      return {
+        name: statusInfo.label,
+        value: statusTotals[status],
+        color: STATUS_CHART_COLORS[status],
+      };
+    }).filter((entry) => entry.value > 0);
 
     const normalizedPriorityData = PRIORITY_LIST.map((priority) => ({
       name: `${priorityLabels[priority].label} ${PRIORITY_DISPLAY_NAMES[priority]}`,
@@ -329,15 +337,16 @@ export function AdminDashboardContent() {
       {
         accessorKey: "status",
         header: "STATUT",
-        cell: ({ row }) => (
-          <span
-            className={`inline-flex rounded-full px-2 py-[3px] text-[10px] font-medium ${statusBadge(
-              row.original.status
-            )}`}
-          >
-            {statusLabels[row.original.status].label}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const statusInfo = getStatusInfo(row.original.status);
+          return (
+            <span
+              className={`inline-flex rounded-full px-2 py-[3px] text-[10px] font-medium ${statusInfo.color}`}
+            >
+              {statusInfo.label}
+            </span>
+          );
+        },
       },
       {
         id: "assigne",

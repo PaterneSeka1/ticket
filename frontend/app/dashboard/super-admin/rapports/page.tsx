@@ -42,6 +42,19 @@ const priorityPalette: Record<TicketPriority, { label: string; color: string }> 
   LOW: { label: "P4", color: "#6f8ecb" },
 };
 
+const DEFAULT_STATUS_META = statusPalette.RECU;
+const DEFAULT_PRIORITY_META = priorityPalette.CRITICAL;
+
+function resolveStatusMeta(status?: TicketStatus | string) {
+  if (!status) return DEFAULT_STATUS_META;
+  return statusPalette[status as TicketStatus] ?? DEFAULT_STATUS_META;
+}
+
+function resolvePriorityMeta(priority?: TicketPriority | string) {
+  if (!priority) return DEFAULT_PRIORITY_META;
+  return priorityPalette[priority as TicketPriority] ?? DEFAULT_PRIORITY_META;
+}
+
 const filters = {
   period: ["Ce mois", "Ce trimestre", "Cet année"],
   services: ["Tous services", "DSI", "Relation Clientèle", "Boldcode", "Opérations"],
@@ -72,7 +85,8 @@ export default function SuperAdminRapportsPage() {
     return tickets.filter((ticket) => {
       const serviceMatch = selectedService === filters.services[0] || ticket.assignedService === selectedService;
       const priorityMatch =
-        selectedPriority === filters.priorities[0] || priorityPalette[ticket.priority].label === selectedPriority;
+        selectedPriority === filters.priorities[0] ||
+        resolvePriorityMeta(ticket.priority).label === selectedPriority;
       return serviceMatch && priorityMatch;
     });
   }, [tickets, selectedService, selectedPriority]);
@@ -85,11 +99,11 @@ export default function SuperAdminRapportsPage() {
   const resolutionRate = totalTickets ? Math.round((resolvedCount / totalTickets) * 100) : 0;
 
   const statusData = useMemo(() => {
-    return Object.entries(statusPalette).map(([key, meta]) => {
-      const count = filteredTickets.filter((ticket) => ticket.status === key).length;
-      return { name: meta.label, value: count, color: meta.color };
-    });
-  }, [filteredTickets]);
+      return Object.entries(statusPalette).map(([key, meta]) => {
+        const count = filteredTickets.filter((ticket) => ticket.status === key).length;
+        return { name: meta.label, value: count, color: meta.color };
+      });
+    }, [filteredTickets]);
 
   const priorityData = useMemo(() => {
     return (["CRITICAL", "HIGH", "MEDIUM"] as TicketPriority[]).map((priority) => ({
@@ -155,23 +169,23 @@ export default function SuperAdminRapportsPage() {
         accessorKey: "priority",
         header: "Priorité",
         cell: ({ getValue }) => (
-          <span
-            className="rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em]"
-            style={{ backgroundColor: `${priorityPalette[getValue<TicketPriority>()].color}22` }}
-          >
-            {priorityPalette[getValue<TicketPriority>()].label}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "status",
-        header: "Statut",
-        cell: ({ getValue }) => (
-          <span className="rounded-full bg-[#f3f3f3] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#4c4945]">
-            {statusPalette[getValue<TicketStatus>()].label}
-          </span>
-        ),
-      },
+        <span
+          className="rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em]"
+          style={{ backgroundColor: `${resolvePriorityMeta(getValue<TicketPriority>()).color}22` }}
+        >
+          {resolvePriorityMeta(getValue<TicketPriority>()).label}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Statut",
+      cell: ({ getValue }) => (
+        <span className="rounded-full bg-[#f3f3f3] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#4c4945]">
+          {resolveStatusMeta(getValue<TicketStatus>()).label}
+        </span>
+      ),
+    },
       {
         accessorKey: "assignedService",
         header: "Service",

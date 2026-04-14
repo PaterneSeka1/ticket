@@ -40,6 +40,74 @@ body {
   box-shadow: 0 15px 30px rgba(217, 115, 29, 0.35);
 }
 
+.welcome-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.welcome-card {
+  background: #fff;
+  padding: clamp(2rem, 3vw, 3.5rem);
+  border-radius: 32px;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  max-width: 600px;
+}
+
+.welcome-overline {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.4em;
+  font-size: 0.75rem;
+  color: #f2c94c;
+  margin-bottom: 1rem;
+}
+
+.welcome-card h1 {
+  font-size: clamp(2rem, 2vw, 1.5rem);
+  margin: 0 0 0.5rem;
+  color: #2b1d10;
+}
+
+.welcome-card p {
+  color: #6a5b4f;
+  margin: 0 0 2rem;
+}
+
+.welcome-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9rem 1.5rem;
+  border-radius: 16px;
+  background: #f4b90a;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  font-size: 0.75rem;
+  text-decoration: none;
+  box-shadow: 0 15px 30px rgba(217, 176, 14, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.welcome-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 35px rgba(217, 201, 29, 0.45);
+}
+
+@media (max-width: 640px) {
+  .welcome-page {
+    padding: 1.5rem;
+  }
+
+  .welcome-card {
+    padding: 1.5rem;
+  }
+}
+
 .login-page {
   min-height: 100vh;
   background: radial-gradient(circle at 20% 20%, #ffe4c8 0%, #fef1df 45%, #fff 100%);

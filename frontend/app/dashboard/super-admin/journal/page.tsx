@@ -71,7 +71,7 @@ export default function SuperAdminJournalPage() {
   const timelineEvents = useMemo(() => {
     const entries: JournalEntry[] = [];
     tickets.forEach((ticket) => {
-      ticket.timeline.forEach((event) => {
+      (ticket.timeline ?? []).forEach((event) => {
         entries.push({
           ...event,
           ticketId: ticket.id,
