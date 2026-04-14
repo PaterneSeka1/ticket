@@ -31,8 +31,37 @@ const cn = (...classes: Array<string | false | null | undefined>) =>
   classes.filter(Boolean).join(" ");
 
 const statusOrder = Object.keys(statusLabels) as TicketStatus[];
-const defaultStatusInfo = statusLabels.RECU;
-const resolveStatusInfo = (status?: TicketStatus) => statusLabels[status ?? "RECU"] ?? defaultStatusInfo;
+const defaultStatusInfo = statusLabels.RECU ?? {
+  label: "Statut inconnu",
+  color: "bg-[#f0f0f0] text-[#6b6b6b]",
+};
+const resolveStatusInfo = (status?: TicketStatus) =>
+  (status ? statusLabels[status] : undefined) ?? defaultStatusInfo;
+
+const resolveTicketNumber = (ticket: Ticket) => ticket.ticketNumber ?? ticket.code ?? ticket.id;
+const resolveTicketCategory = (ticket: Ticket) => ticket.category?.name ?? ticket.category?.libelle ?? "—";
+const resolveTicketTitle = (ticket: Ticket) => ticket.title ?? resolveTicketCategory(ticket);
+const resolveTicketType = (ticket: Ticket) => {
+  if (ticket.type) return ticket.type;
+  const scope = ticket.category?.incidentType?.scope;
+  if (scope === "EXTERNE") return "DEMANDE";
+  if (scope === "INTERNE") return "INCIDENT";
+  return undefined;
+};
+const resolveEmitterName = (ticket: Ticket) => {
+  const source = ticket.emitter ?? ticket.createdBy ?? undefined;
+  if (!source) return "—";
+  return `${source.prenom ?? ""} ${source.nom ?? ""}`.trim() || "—";
+};
+const resolveAssigneeLabel = (ticket: Ticket) => {
+  if (ticket.assignedResponsible) {
+    return `${ticket.assignedResponsible.firstName} ${ticket.assignedResponsible.lastName}`.trim();
+  }
+  if (ticket.receivedBy) {
+    return `${ticket.receivedBy.prenom ?? ""} ${ticket.receivedBy.nom ?? ""}`.trim() || "—";
+  }
+  return ticket.assignedService ?? "—";
+};
 
 interface TicketTablePanelProps {
   tickets: Ticket[];
@@ -41,10 +70,16 @@ interface TicketTablePanelProps {
 }
 
 export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTablePanelProps) {
+  const [ticketData, setTicketData] = useState<Ticket[]>(tickets);
+
+  useEffect(() => {
+    setTicketData(tickets);
+  }, [tickets]);
+
   const filteredSource = useMemo(() => {
-    if (!ticketFilter) return tickets;
-    return tickets.filter(ticketFilter);
-  }, [ticketFilter, tickets]);
+    if (!ticketFilter) return ticketData;
+    return ticketData.filter(ticketFilter);
+  }, [ticketFilter, ticketData]);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Tous");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("Tous");
@@ -53,10 +88,18 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 6 });
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const closeTicketModal = useCallback(() => setSelectedTicket(null), []);
+  const handleTicketUpdated = useCallback((updated: Ticket) => {
+    setTicketData((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    setSelectedTicket(updated);
+  }, []);
 
   const serviceOptions = useMemo(() => {
     return Array.from(
-      new Set(filteredSource.map((ticket) => ticket.assignedService ?? "").filter(Boolean)),
+      new Set(
+        filteredSource
+          .map((ticket) => resolveAssigneeLabel(ticket))
+          .filter((value) => value && value !== "—"),
+      ),
     );
   }, [filteredSource]);
 
@@ -65,7 +108,7 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
       const matchesStatus = statusFilter === "Tous" || ticket.status === statusFilter;
       const matchesPriority = priorityFilter === "Tous" || ticket.priority === priorityFilter;
       const matchesService =
-        serviceFilter === "Tous services" || ticket.assignedService === serviceFilter;
+        serviceFilter === "Tous services" || resolveAssigneeLabel(ticket) === serviceFilter;
 
       return matchesStatus && matchesPriority && matchesService;
     });
@@ -78,16 +121,15 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
     const ticket = row.original;
 
     const haystack = [
-      ticket.code,
-      ticket.category.libelle,
-      ticket.category.type,
-      ticket.description,
-      ticket.emitter.nom,
-      ticket.emitter.prenom,
-      ticket.assignedService ?? "",
+      resolveTicketNumber(ticket),
+      resolveTicketTitle(ticket),
+      resolveTicketCategory(ticket),
+      resolveTicketType(ticket) ?? "",
+      ticket.description ?? "",
+      resolveEmitterName(ticket),
+      resolveAssigneeLabel(ticket),
       ticket.priority,
       ticket.status,
-      ticket.type,
     ]
       .join(" ")
       .toLowerCase();
@@ -98,25 +140,25 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
   const ticketColumns = useMemo<ColumnDef<Ticket>[]>(() => [
       {
         id: "code",
-        accessorFn: (ticket) => ticket.code,
-        header: "ID",
+        accessorFn: (ticket) => resolveTicketNumber(ticket),
+        header: "Réf",
         cell: ({ row }) => (
           <span className="inline-flex rounded-[8px] bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-semibold text-[#4b5563]">
-            {row.original.code}
+            {resolveTicketNumber(row.original)}
           </span>
         ),
         size: 110,
       },
       {
         id: "categoryTitle",
-        header: "Catégorie / Titre",
+        header: "Titre / Catégorie",
         cell: ({ row }) => {
           const ticket = row.original;
 
           return (
             <div className="min-w-0">
               <p className="truncate text-[13px] font-semibold text-[#23160c]">
-                {ticket.category.libelle}
+                {resolveTicketTitle(ticket)}
               </p>
               <p className="truncate text-[12px] text-[#7b6655]">{ticket.description}</p>
             </div>
@@ -126,13 +168,16 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
       },
       {
         id: "type",
-        accessorFn: (ticket) => ticket.type,
+        accessorFn: (ticket) => resolveTicketType(ticket) ?? "",
         header: "Type",
-        cell: ({ row }) => (
-          <span className="text-[11px] uppercase tracking-[0.16em] text-[#6b5446]">
-            {typeLabels[row.original.type]}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const type = resolveTicketType(row.original);
+          return (
+            <span className="text-[11px] uppercase tracking-[0.16em] text-[#6b5446]">
+              {type ? typeLabels[type] : "—"}
+            </span>
+          );
+        },
         size: 90,
       },
       {
@@ -200,22 +245,20 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
       },
       {
         id: "assignedService",
-        accessorFn: (ticket) => ticket.assignedService ?? "",
-        header: "Service assigné",
+        accessorFn: (ticket) => resolveAssigneeLabel(ticket),
+        header: "Assigné à",
         cell: ({ row }) => (
-          <span className="text-[12px] text-[#2b1d10]">
-            {row.original.assignedService ?? "—"}
-          </span>
+          <span className="text-[12px] text-[#2b1d10]">{resolveAssigneeLabel(row.original)}</span>
         ),
         size: 140,
       },
       {
         id: "emitter",
-        accessorFn: (ticket) => `${ticket.emitter.prenom} ${ticket.emitter.nom}`,
+        accessorFn: (ticket) => resolveEmitterName(ticket),
         header: "Émetteur",
         cell: ({ row }) => (
           <span className="text-[12px] text-[#2b1d10]">
-            {row.original.emitter ? `${row.original.emitter.prenom} ${row.original.emitter.nom}` : "—"}
+            {resolveEmitterName(row.original)}
           </span>
         ),
         size: 130,
@@ -324,7 +367,7 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
             <option value="Tous">Tous statuts</option>
             {statusOrder.map((statusKey) => (
               <option key={statusKey} value={statusKey}>
-                {statusLabels[statusKey].label}
+                {statusLabels[statusKey]?.label ?? statusKey}
               </option>
             ))}
           </select>
@@ -371,9 +414,9 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
                 >
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-semibold text-[#2b1d10]">{ticket.category.libelle}</span>
+                      <span className="text-[13px] font-semibold text-[#2b1d10]">{resolveTicketTitle(ticket)}</span>
                       <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6655]">
-                        {ticket.code}
+                        {resolveTicketNumber(ticket)}
                       </span>
                     </div>
                     <p className="text-[12px] text-[#5f4d3f]">{ticket.description}</p>
@@ -382,9 +425,9 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
                       <span className={cn("rounded-full px-3 py-1", statusInfo.color)}>{statusInfo.label}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-[12px] text-[#7b6655]">
-                      <span>Service: {ticket.assignedService ?? "—"}</span>
+                      <span>Assigné à: {resolveAssigneeLabel(ticket)}</span>
                       <span>
-                        Émetteur: {ticket.emitter ? `${ticket.emitter.prenom} ${ticket.emitter.nom}` : "—"}
+                        Émetteur: {resolveEmitterName(ticket)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -495,7 +538,11 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
         </div>
       </div>
       {selectedTicket && (
-        <TicketDetailModal ticket={selectedTicket} onClose={closeTicketModal} />
+        <TicketDetailModal
+          ticket={selectedTicket}
+          onClose={closeTicketModal}
+          onTicketUpdated={handleTicketUpdated}
+        />
       )}
     </>
   );

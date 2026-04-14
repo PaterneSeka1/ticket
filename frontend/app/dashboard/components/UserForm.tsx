@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
-import { Eye, EyeOff, Lock, UserPlus } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Eye, EyeOff, Lock } from "lucide-react";
 import toast from "react-hot-toast";
 import { createUser, updateUser } from "@/api/users";
 import { fetchDepartments } from "@/api/departments";
@@ -28,16 +28,8 @@ const responsibilityOptions: Array<{ value: UserResponsibility; label: string }>
   { value: "RESPONSABLE", label: "Responsable" },
 ];
 
-const fieldLabelClasses = "text-xs font-semibold uppercase tracking-[0.25em] text-[#6b5446]";
-
-function FieldGroup({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className={`space-y-2 ${fieldLabelClasses} w-full min-w-0`}>
-      <span>{label}</span>
-      {children}
-    </div>
-  );
-}
+const cn = (...classes: Array<string | false | null | undefined>) =>
+  classes.filter(Boolean).join(" ");
 
 interface FormState {
   prenom: string;
@@ -95,6 +87,13 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
   const [services, setServices] = useState<Service[]>([]);
 
   const isEditMode = Boolean(initialUser);
+
+  const labelClass =
+    "mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]";
+  const inputClass =
+    "h-11 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition placeholder:text-[#a89b8e] focus:border-[#d5a15c]";
+  const selectClass =
+    "h-11 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]";
 
   useEffect(() => {
     if (initialUser) {
@@ -172,6 +171,13 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
     }));
   };
 
+  const handleReset = () => {
+    if (isEditMode) return;
+    setFormState(initialFormState);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!formState.nom.trim() || !formState.prenom.trim() || !formState.email.trim()) {
@@ -229,220 +235,315 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
   };
 
   const title = isEditMode ? "Mettre à jour un utilisateur" : "Créer un utilisateur";
+
+  const isSubmitDisabled = isSubmitting || (!isEditMode && !formState.password);
   return (
-    <form
-      className="flex flex-col gap-5 rounded-[32px] border border-[#f0d7c6] bg-white p-6 shadow-[0_30px_80px_rgba(0,0,0,0.08)]"
-      onSubmit={handleSubmit}
-    >
-      <div className="flex items-center gap-2 text-sm font-semibold text-[#6b5446]">
-        <UserPlus className="h-4 w-4 text-[#d9731d]" />
-        <span>{title}</span>
+    <section className="overflow-hidden rounded-[14px] border border-[#e8e1d8] bg-white shadow-[0_12px_30px_rgba(24,24,24,0.05)]">
+      <div className="border-b border-[#e9ecef] bg-[#f3f5f8] px-5 py-4">
+        <p className="text-[12px] font-semibold text-[#2f2f33]">{title}</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <FieldGroup label="Matricule">
+      <form className="space-y-5 px-5 py-5" onSubmit={handleSubmit}>
+        <div className="grid gap-4 md:grid-cols-3">
+          <label>
+            <span className={labelClass}>
+              Matricule <span className="text-[#d92d20]">*</span>
+            </span>
+            <input
+              value={formState.matricule}
+              onChange={(event) => setFormState({ ...formState, matricule: event.target.value })}
+              placeholder="MAT-XXXX"
+              className={inputClass}
+            />
+          </label>
+
+          <label>
+            <span className={labelClass}>
+              Prénom <span className="text-[#d92d20]">*</span>
+            </span>
+            <input
+              value={formState.prenom}
+              onChange={(event) => setFormState({ ...formState, prenom: event.target.value })}
+              className={inputClass}
+            />
+          </label>
+
+          <label>
+            <span className={labelClass}>
+              Nom <span className="text-[#d92d20]">*</span>
+            </span>
+            <input
+              value={formState.nom}
+              onChange={(event) => setFormState({ ...formState, nom: event.target.value })}
+              className={inputClass}
+            />
+          </label>
+        </div>
+
+        <label>
+          <span className={labelClass}>
+            Email professionnel <span className="text-[#d92d20]">*</span>
+          </span>
           <input
-            value={formState.matricule}
-            onChange={(event) => setFormState({ ...formState, matricule: event.target.value })}
-            placeholder="MAT-XXXX"
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
+            type="email"
+            value={formState.email}
+            onChange={(event) => setFormState({ ...formState, email: event.target.value })}
+            placeholder="prenom.nom@cie.ci"
+            className={inputClass}
           />
-        </FieldGroup>
-        <FieldGroup label="Prénom">
-          <input
-            value={formState.prenom}
-            onChange={(event) => setFormState({ ...formState, prenom: event.target.value })}
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-          />
-        </FieldGroup>
-        <FieldGroup label="Nom">
-          <input
-            value={formState.nom}
-            onChange={(event) => setFormState({ ...formState, nom: event.target.value })}
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-          />
-        </FieldGroup>
-      </div>
-      <FieldGroup label="Email professionnel">
-        <input
-          type="email"
-          value={formState.email}
-          onChange={(event) => setFormState({ ...formState, email: event.target.value })}
-          placeholder="prenom.nom@cie.ci"
-          className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-        />
-      </FieldGroup>
-      <div className="grid gap-4 md:grid-cols-2">
-        <FieldGroup label="Direction">
-          <select
-            value={formState.departmentId}
-            onChange={(event) => handleDepartmentChange(event.target.value)}
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-            disabled={!departments.length}
-          >
-            <option value="">
-              {departments.length ? "-- Sélectionner --" : "Chargement..."}
-            </option>
-            {departments.map((department) => (
-              <option key={department.id} value={department.id}>
-                {department.name}
-              </option>
-            ))}
-          </select>
-        </FieldGroup>
-        <FieldGroup label="Service">
-          <select
-            value={formState.serviceId}
-            onChange={(event) => setFormState({ ...formState, serviceId: event.target.value })}
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-            disabled={!servicesForSelectedDepartment.length}
-          >
-            <option value="">
-              {servicesForSelectedDepartment.length ? "-- Sélectionner --" : "Aucun service"}
-            </option>
-            {servicesForSelectedDepartment.map((service) => (
-              <option key={service.id} value={service.id}>
-                {service.name}
-              </option>
-            ))}
-          </select>
-        </FieldGroup>
-      </div>
-      <div className="grid gap-4 md:grid-cols-4">
-        <FieldGroup label="Rôle">
-          <select
-            value={formState.role}
-            onChange={(event) => setFormState({ ...formState, role: event.target.value as UserRole })}
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-          >
-            {roleOptions.map((role) => (
-              <option key={role} value={role}>
-                {roleLabels[role]}
-              </option>
-            ))}
-          </select>
-        </FieldGroup>
-        <FieldGroup label="Type de compte">
-          <select
-            value={formState.accountResponsibility}
-            onChange={(event) =>
-              setFormState({
-                ...formState,
-                accountResponsibility: event.target.value as UserResponsibility,
-              })
-            }
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-          >
-            {responsibilityOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </FieldGroup>
-        <FieldGroup label="Profil DSI">
-          <select
-            value={formState.dsiTicketRole}
-            onChange={(event) => setFormState({ ...formState, dsiTicketRole: event.target.value as DsiOption })}
-            className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-          >
-            {dsiRoleOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </FieldGroup>
-        <label className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-[#6b5446]">
-          <input
-            type="checkbox"
-            checked={formState.isActive}
-            onChange={(event) => setFormState({ ...formState, isActive: event.target.checked })}
-            className="h-4 w-4 rounded border-[#c6b6a9]"
-          />
-          Compte actif
         </label>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <FieldGroup label={`Mot de passe ${isEditMode ? "(laisser vide pour conserver l'existant)" : "*"}`}>
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              value={formState.password}
-              onChange={(event) => setFormState({ ...formState, password: event.target.value })}
-              placeholder="Min. 8 car. — maj, min, chiffre, symbole"
-              className="w-full rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#b5a99a]"
-              aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <label>
+            <span className={labelClass}>Direction</span>
+            <select
+              value={formState.departmentId}
+              onChange={(event) => handleDepartmentChange(event.target.value)}
+              className={selectClass}
+              disabled={!departments.length}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-        </FieldGroup>
-        <FieldGroup label={`Confirmer le mot de passe ${isEditMode ? "(laisser vide pour conserver l'existant)" : "*"}`}>
-          <div className="relative">
-            <input
-              type={showConfirmPassword ? "text" : "password"}
-              value={formState.confirmPassword}
-              onChange={(event) => setFormState({ ...formState, confirmPassword: event.target.value })}
-              placeholder="Répéter le mot de passe"
-              className="w-full rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword((prev) => !prev)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#b5a99a]"
-              aria-label={
-                showConfirmPassword
-                  ? "Masquer la confirmation du mot de passe"
-                  : "Afficher la confirmation du mot de passe"
+              <option value="">
+                {departments.length ? "-- Sélectionner --" : "Chargement..."}
+              </option>
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span className={labelClass}>Service</span>
+            <select
+              value={formState.serviceId}
+              onChange={(event) =>
+                setFormState({ ...formState, serviceId: event.target.value })
               }
+              className={selectClass}
+              disabled={!servicesForSelectedDepartment.length}
             >
-              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-            </button>
-          </div>
-        </FieldGroup>
-      </div>
-      <label className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-[#6b5446]">
-        <input
-          type="checkbox"
-          checked={formState.accessReport}
-          onChange={(event) => setFormState({ ...formState, accessReport: event.target.checked })}
-          className="h-4 w-4 rounded border-[#c6b6a9]"
-        />
-        Accès aux rapports
-      </label>
-      <label className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-[#6b5446]">
-        <input
-          type="checkbox"
-          checked={formState.exportReport}
-          onChange={(event) => setFormState({ ...formState, exportReport: event.target.checked })}
-          className="h-4 w-4 rounded border-[#c6b6a9]"
-        />
-        Export CSV / PDF
-      </label>
-      <div className="flex items-center justify-between gap-3">
-        {isEditMode && onCancel && (
+              <option value="">
+                {servicesForSelectedDepartment.length
+                  ? "-- Sélectionner --"
+                  : "Aucun service"}
+              </option>
+              {servicesForSelectedDepartment.map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-4">
+          <label>
+            <span className={labelClass}>Rôle</span>
+            <select
+              value={formState.role}
+              onChange={(event) =>
+                setFormState({
+                  ...formState,
+                  role: event.target.value as UserRole,
+                })
+              }
+              className={selectClass}
+            >
+              {roleOptions.map((role) => (
+                <option key={role} value={role}>
+                  {roleLabels[role]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span className={labelClass}>Type de compte</span>
+            <select
+              value={formState.accountResponsibility}
+              onChange={(event) =>
+                setFormState({
+                  ...formState,
+                  accountResponsibility: event.target.value as UserResponsibility,
+                })
+              }
+              className={selectClass}
+            >
+              {responsibilityOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span className={labelClass}>Profil DSI</span>
+            <select
+              value={formState.dsiTicketRole}
+              onChange={(event) =>
+                setFormState({
+                  ...formState,
+                  dsiTicketRole: event.target.value as DsiOption,
+                })
+              }
+              className={selectClass}
+            >
+              {dsiRoleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-3 pt-6 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10]">
+            <input
+              type="checkbox"
+              checked={formState.isActive}
+              onChange={(event) =>
+                setFormState({ ...formState, isActive: event.target.checked })
+              }
+              className="h-4 w-4 rounded border-[#c6b6a9]"
+            />
+            Compte actif
+          </label>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <label>
+            <span className={labelClass}>
+              Mot de passe{" "}
+              <span className="text-[#d92d20]">{isEditMode ? "" : "*"}</span>
+              {isEditMode ? (
+                <span className="ml-2 text-[10px] font-medium tracking-normal text-[#8a8176] normal-case">
+                  (laisser vide pour conserver)
+                </span>
+              ) : null}
+            </span>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={formState.password}
+                onChange={(event) =>
+                  setFormState({ ...formState, password: event.target.value })
+                }
+                placeholder="Min. 8 car. — maj, min, chiffre, symbole"
+                className={cn(inputClass, "pr-12")}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9aa1ac]"
+                aria-label={
+                  showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"
+                }
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </label>
+
+          <label>
+            <span className={labelClass}>
+              Confirmer le mot de passe{" "}
+              <span className="text-[#d92d20]">{isEditMode ? "" : "*"}</span>
+              {isEditMode ? (
+                <span className="ml-2 text-[10px] font-medium tracking-normal text-[#8a8176] normal-case">
+                  (laisser vide pour conserver)
+                </span>
+              ) : null}
+            </span>
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={formState.confirmPassword}
+                onChange={(event) =>
+                  setFormState({
+                    ...formState,
+                    confirmPassword: event.target.value,
+                  })
+                }
+                placeholder="Répéter le mot de passe"
+                className={cn(inputClass, "pr-12")}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9aa1ac]"
+                aria-label={
+                  showConfirmPassword
+                    ? "Masquer la confirmation du mot de passe"
+                    : "Afficher la confirmation du mot de passe"
+                }
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Lock className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </label>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10]">
+            <input
+              type="checkbox"
+              checked={formState.accessReport}
+              onChange={(event) =>
+                setFormState({ ...formState, accessReport: event.target.checked })
+              }
+              className="h-4 w-4 rounded border-[#c6b6a9]"
+            />
+            Accès aux rapports
+          </label>
+          <label className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10]">
+            <input
+              type="checkbox"
+              checked={formState.exportReport}
+              onChange={(event) =>
+                setFormState({ ...formState, exportReport: event.target.checked })
+              }
+              className="h-4 w-4 rounded border-[#c6b6a9]"
+            />
+            Export CSV / PDF
+          </label>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-3 border-t border-[#eef0f2] pt-4">
           <button
             type="button"
-            onClick={onCancel}
-            className="rounded-full border border-[#c6b6a9] px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#2b1d10]"
+            onClick={isEditMode ? onCancel : handleReset}
+            className="inline-flex h-10 items-center rounded-[8px] border border-[#d8dce2] bg-white px-4 text-[11px] font-semibold text-[#2b1d10] transition hover:bg-[#fafafa]"
           >
             Annuler
           </button>
-        )}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#d9731d] to-[#bb5b0f] px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white shadow-[0_15px_40px_rgba(217,115,29,0.35)]"
-        >
-          <span>{isEditMode ? "Mettre à jour" : "+ Créer l'utilisateur"}</span>
-        </button>
-      </div>
-    </form>
+
+          <button
+            type="submit"
+            disabled={isSubmitDisabled}
+            className={cn(
+              "inline-flex h-10 items-center rounded-[8px] px-4 text-[11px] font-semibold text-[#2b1d10] transition",
+              isSubmitDisabled
+                ? "cursor-not-allowed bg-[#ffe6a6] opacity-60"
+                : "bg-[#fdbf12] hover:bg-[#f4b400]",
+            )}
+          >
+            {isSubmitting
+              ? "Enregistrement..."
+              : isEditMode
+                ? "Mettre à jour"
+                : "Créer l'utilisateur"}
+          </button>
+        </div>
+      </form>
+    </section>
   );
 }

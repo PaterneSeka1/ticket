@@ -27,7 +27,14 @@ export type TicketStatus =
   | "ABANDONNE"
   | "FERME"
   | "OUVERT"
-  | "PRIS";
+  | "PRIS"
+  | "PENDING_ASSIGNMENT"
+  | "ASSIGNED"
+  | "IN_PROGRESS"
+  | "RESOLVED"
+  | "CLOSED"
+  | "REOPENED"
+  | "CANCELLED";
 
 export type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -86,6 +93,16 @@ export interface TicketActor {
   id: string;
   nom: string;
   prenom: string;
+  email?: string;
+  matricule?: string;
+  role?: UserRole;
+}
+
+export interface TicketCategoryRef extends TicketCategorySummary {
+  name?: string;
+  incidentTypeId?: string;
+  isActive?: boolean;
+  incidentType?: TicketCategory["incidentType"];
 }
 
 export interface TicketTimeline {
@@ -105,29 +122,66 @@ export interface TicketComment {
   author: TicketActor;
 }
 
+export interface TicketAttachment {
+  id: string;
+  ticketId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  uploadedById?: string | null;
+  uploadedAt: string;
+}
+
+export interface TicketStatusLog {
+  id: string;
+  ticketId: string;
+  fromStatus?: TicketStatus | null;
+  toStatus: TicketStatus;
+  changedById?: string | null;
+  changedBy?: TicketActor | null;
+  comment?: string | null;
+  createdAt: string;
+}
+
 export interface Ticket {
   id: string;
-  code: string;
-  type: TicketType;
+  code?: string;
+  ticketNumber?: string;
+  type?: TicketType;
   priority: TicketPriority;
   status: TicketStatus;
+  title?: string;
   description: string;
   assignedService?: OperationService | null;
-  category: TicketCategorySummary;
-  emitter: TicketActor;
+  category: TicketCategoryRef;
+  emitter?: TicketActor;
+  createdBy?: TicketActor | null;
   receivedBy: TicketActor | null;
   receivedAt?: string | null;
+  assignedResponsible?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email?: string | null;
+    isActive: boolean;
+  } | null;
+  assignedAt?: string | null;
   clientName?: string | null;
   product?: string | null;
   attachmentName?: string | null;
   detectedAt?: string | null;
   resolvedAt?: string | null;
+  closedAt?: string | null;
+  resolutionComment?: string | null;
   slaMaxMinutes?: number | null;
   waitMinutes?: number | null;
   createdAt: string;
   updatedAt: string;
-  comments: TicketComment[];
-  timeline: TicketTimeline[];
+  attachments?: TicketAttachment[];
+  statusHistory?: TicketStatusLog[];
+  comments?: TicketComment[];
+  timeline?: TicketTimeline[];
 }
 
 export interface ActivityLogEntry {

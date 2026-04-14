@@ -14,5 +14,5 @@ export const getDashboardRouteForRole = (role: string | undefined): DashboardRou
     return roleToDashboardRouteMap[role as UserRole];
   }
 
-  return roleToDashboardRouteMap.USER;
+  return roleToDashboardRouteMap.EMPLOYE;
 };

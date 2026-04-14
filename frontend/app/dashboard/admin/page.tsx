@@ -35,7 +35,7 @@ import {
   statusLabels,
 } from "@/app/dashboard/lib/ticket-formatters";
 
-const STATUS_CHART_COLORS: Record<TicketStatus, string> = {
+const STATUS_CHART_COLORS: Partial<Record<TicketStatus, string>> = {
   RECU: "#d9d9d9",
   EN_COURS: "#6d35d9",
   AJOURNE: "#b4a5f0",
@@ -44,6 +44,13 @@ const STATUS_CHART_COLORS: Record<TicketStatus, string> = {
   FERME: "#727885",
   OUVERT: "#f4b000",
   PRIS: "#2dad5b",
+  PENDING_ASSIGNMENT: "#f4b000",
+  ASSIGNED: "#2dad5b",
+  IN_PROGRESS: "#6d35d9",
+  RESOLVED: "#1f6c97",
+  CLOSED: "#727885",
+  REOPENED: "#b4a5f0",
+  CANCELLED: "#d63b35",
 };
 
 const PRIORITY_CHART_COLORS: Record<TicketPriority, string> = {
@@ -60,8 +67,24 @@ const PRIORITY_DISPLAY_NAMES: Record<TicketPriority, string> = {
   LOW: "Bas",
 };
 
-const OPEN_STATUSES = new Set<TicketStatus>(["RECU", "EN_COURS", "OUVERT", "PRIS"]);
-const RESOLVED_STATUSES = new Set<TicketStatus>(["RESOLU", "FERME", "ABANDONNE"]);
+const OPEN_STATUSES = new Set<TicketStatus>([
+  "RECU",
+  "EN_COURS",
+  "OUVERT",
+  "PRIS",
+  "PENDING_ASSIGNMENT",
+  "ASSIGNED",
+  "IN_PROGRESS",
+  "REOPENED",
+]);
+const RESOLVED_STATUSES = new Set<TicketStatus>([
+  "RESOLU",
+  "FERME",
+  "ABANDONNE",
+  "RESOLVED",
+  "CLOSED",
+  "CANCELLED",
+]);
 
 const STATUS_LIST = Object.keys(statusLabels) as TicketStatus[];
 const PRIORITY_LIST: TicketPriority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
@@ -74,7 +97,8 @@ type Metric = {
   accent: string;
 };
 
-const DEFAULT_STATUS_INFO = statusLabels.RECU;
+const DEFAULT_STATUS_INFO =
+  statusLabels.RECU ?? { label: "Statut", color: "bg-[#f0f0f0] text-[#6b6b6b]" };
 
 function getStatusInfo(status?: TicketStatus | string) {
   if (!status) return DEFAULT_STATUS_INFO;
@@ -87,11 +111,17 @@ function priorityBadge(priority: TicketPriority) {
 
 
 function getAssigneeLabel(ticket: Ticket) {
+  if (ticket.assignedResponsible) {
+    return `${ticket.assignedResponsible.firstName} ${ticket.assignedResponsible.lastName}`.trim();
+  }
   if (ticket.receivedBy) {
     return `${ticket.receivedBy.prenom} ${ticket.receivedBy.nom}`;
   }
   return ticket.assignedService ?? "—";
 }
+
+const resolveTicketNumber = (ticket: Ticket) => ticket.ticketNumber ?? ticket.code ?? ticket.id;
+const resolveTicketCategory = (ticket: Ticket) => ticket.category?.name ?? ticket.category?.libelle ?? "—";
 
 function SlaBar({ ticket }: { ticket: Ticket }) {
   const progress = getSlaProgress(ticket);
@@ -162,13 +192,13 @@ function MobileTicketCard({ ticket }: { ticket: Ticket }) {
     <article className="space-y-2 rounded-[12px] border border-[#ebe6df] bg-white px-4 py-3 shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8a8176]">
-          {ticket.code}
+          {resolveTicketNumber(ticket)}
         </span>
         <span className={priorityBadge(ticket.priority)}>
           {priorityLabels[ticket.priority].label}
         </span>
       </div>
-      <p className="text-sm font-semibold text-[#2b1d10]">{ticket.category.libelle}</p>
+      <p className="text-sm font-semibold text-[#2b1d10]">{resolveTicketCategory(ticket)}</p>
       <p className="text-[12px] text-[#7d7267]">{ticket.description}</p>
       <div className="flex flex-wrap items-center gap-2 text-[10px] text-[#7d7267]">
         <span className="inline-flex items-center gap-1 rounded-full bg-[#f3f5f7] px-2 py-1 uppercase tracking-[0.2em] text-[#5c5c5c]">
@@ -300,11 +330,11 @@ export function AdminDashboardContent() {
   const columns = useMemo<ColumnDef<Ticket>[]>(
     () => [
       {
-        accessorKey: "code",
+        id: "code",
         header: "ID",
         cell: ({ row }) => (
           <span className="inline-flex rounded-md bg-[#f3f5f7] px-2 py-[3px] text-[10px] font-semibold text-[#6e7681]">
-            {row.original.code}
+            {resolveTicketNumber(row.original)}
           </span>
         ),
       },
@@ -314,7 +344,7 @@ export function AdminDashboardContent() {
         cell: ({ row }) => (
           <div className="max-w-[320px]">
             <p className="truncate text-[12px] font-semibold text-[#241d16]">
-              {row.original.category.libelle}
+              {resolveTicketCategory(row.original)}
             </p>
             <p className="truncate text-[11px] text-[#7d7267]">{row.original.description}</p>
           </div>

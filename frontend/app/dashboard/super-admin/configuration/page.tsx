@@ -7,40 +7,12 @@ import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { useRouter } from "next/navigation";
 import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
 
-// const alertRows = [
-//   {
-//     key: "autoRule",
-//     label: "Règle automatique",
-//     description: "Toutes les 10mn → alerte dashboard. Après 2h → Email + WhatsApp aux responsables.",
-//     enabled: true,
-//     highlighted: true,
-//   },
-//   { key: "notif", label: "Notif. toutes les 10mn (non ouvert)", enabled: true },
-//   { key: "email", label: "Email escalade après 2h", enabled: true },
-//   { key: "whatsapp", label: "WhatsApp escalade après 2h", enabled: true },
-//   { key: "weeklyReport", label: "Rapport hebdo auto (lundi 08h)", enabled: false },
-// ];
-
-// const services = ["DSI", "Boldcode", "Direction Opérations", "Relation Clientèle", "Autres"];
-
-// const workflowStatuses = [
-//   { status: "recu", label: "Reçu" },
-//   { status: "ouvert", label: "Ouvert" },
-//   { status: "nonouvert", label: "Non ouvert" },
-//   { status: "pris", label: "Pris en charge" },
-//   { status: "encours", label: "En cours de résolution" },
-//   { status: "resolu", label: "Résolu" },
-//   { status: "ajourne", label: "Ajourné" },
-//   { status: "ferme", label: "Fermé" },
-//   { status: "abandonne", label: "Abandonné" },
-// ];
+const cn = (...classes: Array<string | false | null | undefined>) =>
+  classes.filter(Boolean).join(" ");
 
 export default function SuperAdminConfigurationPage() {
   const router = useRouter();
   const { user, status } = useCurrentUser();
-  // const [alerts, setAlerts] = useState(() =>
-  //   Object.fromEntries(alertRows.map((row) => [row.key, row.enabled])),
-  // );
 
   useEffect(() => {
     if (status !== "ready" || !user) return;
@@ -61,10 +33,75 @@ export default function SuperAdminConfigurationPage() {
 
   return (
     <DashboardShell user={user} title="Configuration" subtitle="SLA, alertes, services et workflow">
-      <div className="space-y-6">
-        <div className="grid gap-5 lg:grid-cols-1 2xl:grid-cols-1">
+      <div className="grid gap-6 xl:grid-cols-[260px_1fr] xl:items-start">
+        <aside className="space-y-4 xl:sticky xl:top-6">
+          <div className="rounded-[18px] border border-[#f1e5d7] bg-[#fffaf5] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#b87731]">
+              Sections
+            </p>
+            <div className="mt-3 grid gap-2">
+              <a
+                href="#sla"
+                className="rounded-[12px] border border-[#eee3d6] bg-white px-3 py-2 text-[12px] font-semibold text-[#2b1d10] transition hover:bg-[#fcfaf7]"
+              >
+                SLA par priorité
+              </a>
+              <a
+                href="#assignataires"
+                className="rounded-[12px] border border-[#eee3d6] bg-white px-3 py-2 text-[12px] font-semibold text-[#2b1d10] transition hover:bg-[#fcfaf7]"
+              >
+                Services assignataires
+              </a>
+            </div>
+          </div>
+
+          <div className="rounded-[18px] border border-[#eee3d6] bg-white p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7b6655]">
+              Conseils
+            </p>
+            <ul className="mt-3 space-y-2 text-[12px] text-[#5f4d3f]">
+              <li>Gardez P1/P2 stricts pour réduire les escalades.</li>
+              <li>Ajoutez au moins un responsable actif avant d’assigner des tickets.</li>
+              <li>Après modification SLA, vérifiez l’impact sur les tickets en cours.</li>
+            </ul>
+          </div>
+        </aside>
+
+        <main className={cn("space-y-6")}>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-[18px] border border-[#eee3d6] bg-white p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8b7765]">
+                SLA
+              </p>
+              <p className="mt-1 text-sm font-semibold text-[#2b1d10]">
+                Prise en charge & résolution
+              </p>
+              <p className="mt-1 text-[12px] text-[#7b6655]">
+                Ajustez les délais par priorité.
+              </p>
+            </div>
+            <div className="rounded-[18px] border border-[#eee3d6] bg-white p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8b7765]">
+                Assignation
+              </p>
+              <p className="mt-1 text-sm font-semibold text-[#2b1d10]">Responsables</p>
+              <p className="mt-1 text-[12px] text-[#7b6655]">
+                Déclarez qui peut recevoir des tickets.
+              </p>
+            </div>
+            <div className="rounded-[18px] border border-[#f1e5d7] bg-[#fffaf5] p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#b87731]">
+                Workflow
+              </p>
+              <p className="mt-1 text-sm font-semibold text-[#2b1d10]">Statuts & suivi</p>
+              <p className="mt-1 text-[12px] text-[#7b6655]">
+                Les transitions sont gérées côté serveur.
+              </p>
+            </div>
+          </div>
+
           <SlaConfigurationManager />
-        </div>
+        </main>
       </div>
     </DashboardShell>
   );

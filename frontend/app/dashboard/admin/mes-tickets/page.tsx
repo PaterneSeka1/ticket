@@ -23,7 +23,7 @@ export default function AdminMesTicketsPage() {
 
   const ticketFilter = useMemo(
     () => (ticket: Ticket) => {
-      if (ticket.emitter.id === user?.id) {
+      if ((ticket.emitter?.id ?? ticket.createdBy?.id) === user?.id) {
         return true;
       }
       if (user?.service?.name) {

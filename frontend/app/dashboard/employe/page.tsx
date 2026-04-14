@@ -86,8 +86,8 @@ export default function EmployeDashboardPage() {
 
   const personalTickets = useMemo(() => {
     if (!user?.id) return [];
-    return tickets.filter((ticket) => ticket.emitter?.id === user.id);
-  }, [tickets, user?.id]);
+    return tickets.filter((ticket) => (ticket.emitter?.id ?? ticket.createdBy?.id) === user.id);
+  }, [tickets, user]);
   const metrics = useMemo(() => buildMetrics(personalTickets), [personalTickets]);
   const statusChartData = useMemo(() => {
     const buckets = statusDefinitions.map((definition) => ({ ...definition, count: 0 }));

@@ -32,16 +32,35 @@ import type {
   Prisma,
 } from '../../generated/prisma/client.js';
 
+const userSelect = {
+  id: true,
+  nom: true,
+  prenom: true,
+  email: true,
+  matricule: true,
+  role: true,
+  departmentId: true,
+  serviceId: true,
+  isActive: true,
+  receiveEmails: true,
+  createdAt: true,
+  updatedAt: true,
+  createdById: true,
+} as const;
+
 const ticketInclude: Prisma.TicketInclude = {
   attachments: true,
   category: { include: { incidentType: true } },
   incidentType: true,
   assignedResponsible: true,
-  createdBy: true,
-  statusHistory: { orderBy: { createdAt: 'asc' as const } },
+  createdBy: { select: userSelect },
+  statusHistory: {
+    orderBy: { createdAt: 'asc' as const },
+    include: { changedBy: { select: userSelect } },
+  },
   comments: {
     orderBy: { createdAt: 'asc' as const },
-    include: { author: true },
+    include: { author: { select: userSelect } },
   },
 } as const;
 

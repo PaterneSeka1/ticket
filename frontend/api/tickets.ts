@@ -20,9 +20,8 @@ export type UpdateTicketPayload = Partial<CreateTicketPayload>;
 
 export interface ChangeTicketStatusPayload {
   status: TicketStatus;
-  actorName?: string;
-  receivedById?: string;
-  eventType?: TimelineEventType;
+  resolutionComment?: string;
+  assignedResponsibleId?: string | null;
 }
 
 export interface CreateTicketCommentPayload {

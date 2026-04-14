@@ -62,12 +62,6 @@ export default function SuperAdminCategoryCreatePage() {
     }
   }, [findIncidentTypeId, selectedIncidentTypeId, type]);
 
-  const typeCardClasses = (cardType: TicketType) =>
-    cn(
-      "rounded-[14px] border px-3 py-3 shadow-[0_6px_18px_rgba(0,0,0,0.06)] transition",
-      type === cardType ? "border-[#f3b342] bg-[#fff7df]" : "border-[#ede9e0] bg-white",
-    );
-
   const isSubmitDisabled =
     isSubmitting ||
     !name.trim() ||
@@ -106,90 +100,113 @@ export default function SuperAdminCategoryCreatePage() {
     );
   }
 
+  const labelClass =
+    "mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]";
+  const inputClass =
+    "h-11 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition placeholder:text-[#a89b8e] focus:border-[#d5a15c]";
+  const textareaClass =
+    "w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#2b1d10] outline-none transition placeholder:text-[#a89b8e] focus:border-[#d5a15c]";
+
   return (
     <DashboardShell
       user={user}
       title="Créer une catégorie"
-      subtitle="Même style que la création d’un ticket, mais pour la gestion des catégories."
+      subtitle="Ajoutez un libellé qui sera disponible lors de la création d’un ticket."
     >
-      <div className="space-y-5">
-        <section className="rounded-[16px] border border-[#e0dbd4] bg-white p-4 shadow-[0_0_20px_rgba(0,0,0,0.05)]">
-          <header className="mb-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">Type de catégorie</p>
-            <p className="text-sm text-[#2b1d10]">Choisissez l’orientation des tickets associés.</p>
-          </header>
-        <div className="grid gap-3 md:grid-cols-2">
-          {ticketTypes.map((option) => (
-            <button
-                type="button"
-                key={option.id}
-                className={typeCardClasses(option.id)}
-                onClick={() => {
-                  setType(option.id);
-                  setSelectedIncidentTypeId(findIncidentTypeId(option.id));
-                }}
-              >
-                <p className="text-lg font-semibold text-[#2b1d10]">{option.label}</p>
-                <p className="mt-2 text-sm text-[#5c554b]">{option.description}</p>
-              </button>
-            ))}
-          </div>
-          {incidentTypesError && (
-            <p className="mt-3 text-xs text-[#c42d1f]">{incidentTypesError}</p>
-          )}
-        </section>
+      <section className="overflow-hidden rounded-[14px] border border-[#e8e1d8] bg-white shadow-[0_12px_30px_rgba(24,24,24,0.05)]">
+        <div className="border-b border-[#e9ecef] bg-[#f3f5f8] px-5 py-4">
+          <p className="text-[12px] font-semibold text-[#2f2f33]">Création de catégorie</p>
+        </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-[16px] border border-[#e0dbd4] bg-white p-4 shadow-[0_0_20px_rgba(0,0,0,0.05)] space-y-4"
-        >
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7a6f5f]">Libellé</label>
+        <form className="space-y-5 px-5 py-5" onSubmit={handleSubmit}>
+          <div>
+            <p className={labelClass}>
+              Type de catégorie <span className="text-[#d92d20]">*</span>
+            </p>
+            <p className="text-[12px] text-[#7b6655]">
+              {ticketTypes.find((item) => item.id === type)?.description ?? "Choisissez l’orientation des tickets associés."}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {ticketTypes.map((option) => {
+                const selected = type === option.id;
+                return (
+                  <button
+                    type="button"
+                    key={option.id}
+                    onClick={() => {
+                      setType(option.id);
+                      setSelectedIncidentTypeId(findIncidentTypeId(option.id));
+                    }}
+                    className={cn(
+                      "inline-flex h-9 items-center rounded-[8px] border px-4 text-[11px] font-semibold uppercase tracking-[0.04em] transition",
+                      selected
+                        ? "border-[#d8dce2] bg-[#e9edf3] text-[#364152]"
+                        : "border-[#e3e5e8] bg-white text-[#4f4f55] hover:bg-[#fafafa]",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {incidentTypesError && (
+              <p className="mt-2 text-xs text-[#c42d1f]">{incidentTypesError}</p>
+            )}
+          </div>
+
+          <label>
+            <span className={labelClass}>
+              Libellé <span className="text-[#d92d20]">*</span>
+            </span>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-[12px] border border-[#d6d2c8] bg-[#fdfdfd] px-3 py-2 text-sm text-[#2b1d10] outline-none transition focus:border-[#f0a31c]"
+              className={inputClass}
               placeholder="Nom de la catégorie (ex. Application mobile)"
               required
             />
-          </div>
+          </label>
 
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7a6f5f]">Description</label>
+          <label>
+            <span className={labelClass}>Description</span>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               rows={3}
-              className="w-full rounded-[12px] border border-[#d6d2c8] bg-[#fdfdfd] px-3 py-2 text-sm text-[#2b1d10] outline-none transition focus:border-[#f0a31c]"
+              className={textareaClass}
               placeholder="Expliquez à quoi sert cette catégorie."
             />
-          </div>
+          </label>
 
-          <div className="flex items-center justify-between rounded-[18px] border border-[#ede9e0] bg-[#f9f7f2] px-5 py-3">
+          <div className="flex items-center justify-between rounded-[12px] border border-[#e7ddd2] bg-[#fffaf5] px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-[#2b1d10]">Activer la catégorie</p>
-              <p className="text-xs uppercase tracking-[0.3em] text-[#8a8373]">Les tickets peuvent être associés immédiatement.</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10]">
+                Catégorie active
+              </p>
+              <p className="text-[12px] text-[#7b6655]">
+                Les tickets peuvent être associés immédiatement.
+              </p>
             </div>
             <button
               type="button"
               onClick={() => setIsActive((prev) => !prev)}
-              className={`h-6 w-12 rounded-full border transition ${isActive ? "border-[#f0b429] bg-[#f8de6f]" : "border-[#c6c0b6] bg-white"}`}
+              className={cn(
+                "h-6 w-12 rounded-full border transition",
+                isActive ? "border-[#f0b429] bg-[#f8de6f]" : "border-[#c6c0b6] bg-white",
+              )}
               aria-pressed={isActive}
             >
               <span
-                className={`block h-full w-5 rounded-full bg-white transition ${isActive ? "translate-x-[1.5rem]" : "translate-x-[0.25rem]"}`}
+                className={cn(
+                  "block h-full w-5 rounded-full bg-white transition",
+                  isActive ? "translate-x-[1.5rem]" : "translate-x-[0.25rem]",
+                )}
               />
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="submit"
-              disabled={isSubmitDisabled}
-              className="flex-1 rounded-[12px] border border-transparent bg-[#f0c34c] px-5 py-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#2b1d10] transition disabled:opacity-50"
-            >
-              {isSubmitting ? "Création…" : "Créer la catégorie"}
-            </button>
+          <div className="flex flex-wrap justify-end gap-3 border-t border-[#eef0f2] pt-4">
             <button
               type="button"
               disabled={isSubmitting}
@@ -198,14 +215,28 @@ export default function SuperAdminCategoryCreatePage() {
                 setDescription("");
                 setType("INCIDENT");
                 setIsActive(true);
+                setSelectedIncidentTypeId(findIncidentTypeId("INCIDENT"));
               }}
-              className="flex-1 rounded-[12px] border border-[#d6d2c8] bg-white px-5 py-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#4b3e32] transition disabled:opacity-50"
+              className="inline-flex h-10 items-center rounded-[8px] border border-[#d8dce2] bg-white px-4 text-[11px] font-semibold text-[#2b1d10] transition hover:bg-[#fafafa] disabled:opacity-50"
             >
-              Réinitialiser
+              Annuler
+            </button>
+
+            <button
+              type="submit"
+              disabled={isSubmitDisabled}
+              className={cn(
+                "inline-flex h-10 items-center rounded-[8px] px-4 text-[11px] font-semibold text-[#2b1d10] transition",
+                isSubmitDisabled
+                  ? "cursor-not-allowed bg-[#ffe6a6] opacity-60"
+                  : "bg-[#fdbf12] hover:bg-[#f4b400]",
+              )}
+            >
+              {isSubmitting ? "Création…" : "Créer la catégorie"}
             </button>
           </div>
         </form>
-      </div>
+      </section>
     </DashboardShell>
   );
 }

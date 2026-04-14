@@ -24,9 +24,10 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { UserForm } from "./UserForm";
 
 const roleLabels: Record<UserRole, string> = {
-  SUPER_ADMIN: "Admin",
+  SUPER_ADMIN: "Super admin",
   ADMIN: "Admin",
-  USER: "User",
+  READER: "Lecteur",
+  EMPLOYE: "Employé",
 };
 
 function Badge({

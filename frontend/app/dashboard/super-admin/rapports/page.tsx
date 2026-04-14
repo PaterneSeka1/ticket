@@ -24,7 +24,7 @@ import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { useTickets } from "@/app/dashboard/hooks/useTickets";
 import type { Ticket, TicketPriority, TicketStatus } from "@/api/types";
 
-const statusPalette: Record<TicketStatus, { label: string; color: string }> = {
+const statusPalette: Partial<Record<TicketStatus, { label: string; color: string }>> = {
   RECU: { label: "Reçu", color: "#d9d9d9" },
   OUVERT: { label: "Ouvert", color: "#f7b500" },
   PRIS: { label: "Pris en charge", color: "#23b47e" },
@@ -33,6 +33,13 @@ const statusPalette: Record<TicketStatus, { label: string; color: string }> = {
   FERME: { label: "Fermé", color: "#1f6c97" },
   AJOURNE: { label: "Ajourné", color: "#b266f5" },
   ABANDONNE: { label: "Abandonné", color: "#d63b35" },
+  PENDING_ASSIGNMENT: { label: "En attente d’assignation", color: "#f7b500" },
+  ASSIGNED: { label: "Assigné", color: "#23b47e" },
+  IN_PROGRESS: { label: "En cours", color: "#7552d4" },
+  RESOLVED: { label: "Résolu", color: "#727885" },
+  CLOSED: { label: "Clôturé", color: "#1f6c97" },
+  REOPENED: { label: "Réouvert", color: "#b266f5" },
+  CANCELLED: { label: "Annulé", color: "#d63b35" },
 };
 
 const priorityPalette: Record<TicketPriority, { label: string; color: string }> = {
@@ -42,7 +49,7 @@ const priorityPalette: Record<TicketPriority, { label: string; color: string }> 
   LOW: { label: "P4", color: "#6f8ecb" },
 };
 
-const DEFAULT_STATUS_META = statusPalette.RECU;
+const DEFAULT_STATUS_META = statusPalette.RECU ?? { label: "Statut", color: "#d9d9d9" };
 const DEFAULT_PRIORITY_META = priorityPalette.CRITICAL;
 
 function resolveStatusMeta(status?: TicketStatus | string) {
@@ -95,14 +102,18 @@ export default function SuperAdminRapportsPage() {
   const criticalCount = filteredTickets.filter((ticket) => ticket.priority === "CRITICAL").length;
   const majorCount = filteredTickets.filter((ticket) => ticket.priority === "HIGH").length;
   const minorCount = filteredTickets.filter((ticket) => ticket.priority === "MEDIUM").length;
-  const resolvedCount = filteredTickets.filter((ticket) => ticket.status === "RESOLU").length;
+  const resolvedCount = filteredTickets.filter((ticket) =>
+    ticket.status === "RESOLU" || ticket.status === "RESOLVED" || ticket.status === "FERME" || ticket.status === "CLOSED",
+  ).length;
   const resolutionRate = totalTickets ? Math.round((resolvedCount / totalTickets) * 100) : 0;
 
   const statusData = useMemo(() => {
-      return Object.entries(statusPalette).map(([key, meta]) => {
-        const count = filteredTickets.filter((ticket) => ticket.status === key).length;
-        return { name: meta.label, value: count, color: meta.color };
-      });
+      return Object.entries(statusPalette)
+        .filter(([, meta]) => Boolean(meta))
+        .map(([key, meta]) => {
+          const count = filteredTickets.filter((ticket) => ticket.status === key).length;
+          return { name: meta!.label, value: count, color: meta!.color };
+        });
     }, [filteredTickets]);
 
   const priorityData = useMemo(() => {

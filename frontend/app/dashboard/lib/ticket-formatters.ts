@@ -1,6 +1,6 @@
 import type { Ticket, TicketPriority, TicketStatus } from "@/api/types";
 
-export const statusLabels: Record<TicketStatus, { label: string; color: string }> = {
+export const statusLabels: Partial<Record<TicketStatus, { label: string; color: string }>> = {
   RECU: { label: "Reçu", color: "bg-[#ffe9d6] text-[#c4620c]" },
   EN_COURS: { label: "En cours de résolution", color: "bg-[#fff6e0] text-[#c4620c]" },
   AJOURNE: { label: "Ajourné", color: "bg-[#f0ecff] text-[#5a3db7]" },
@@ -9,6 +9,16 @@ export const statusLabels: Record<TicketStatus, { label: string; color: string }
   FERME: { label: "Fermé", color: "bg-[#f0f0f0] text-[#6b6b6b]" },
   OUVERT: { label: "Ouvert", color: "bg-[#fff7ea] text-[#a36807]" },
   PRIS: { label: "Pris en charge", color: "bg-[#eef5ff] text-[#1f4bbf]" },
+  PENDING_ASSIGNMENT: {
+    label: "En attente d’assignation",
+    color: "bg-[#fff7ea] text-[#a36807]",
+  },
+  ASSIGNED: { label: "Assigné", color: "bg-[#eef5ff] text-[#1f4bbf]" },
+  IN_PROGRESS: { label: "En cours", color: "bg-[#fff6e0] text-[#c4620c]" },
+  RESOLVED: { label: "Résolu", color: "bg-[#e8f6eb] text-[#1f6f3a]" },
+  CLOSED: { label: "Clôturé", color: "bg-[#f0f0f0] text-[#6b6b6b]" },
+  REOPENED: { label: "Réouvert", color: "bg-[#f0ecff] text-[#5a3db7]" },
+  CANCELLED: { label: "Annulé", color: "bg-[#fde8e7] text-[#c42d1f]" },
 };
 
 export const priorityLabels: Record<TicketPriority, { label: string; tone: string }> = {
@@ -18,7 +28,7 @@ export const priorityLabels: Record<TicketPriority, { label: string; tone: strin
   LOW: { label: "P4", tone: "bg-[#eef5ff] text-[#1f4bbf]" },
 };
 
-export const typeLabels: Record<Ticket["type"], string> = {
+export const typeLabels: Record<NonNullable<Ticket["type"]>, string> = {
   INCIDENT: "Interne",
   DEMANDE: "Client",
 };

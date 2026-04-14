@@ -116,22 +116,28 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
     new Date(date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   return (
-    <section className="rounded-[24px] border border-[#e5e1dc] bg-white p-4 shadow-[0_20px_60px_rgba(0,0,0,0.08)] sm:p-6">
-      <div className="flex flex-col gap-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">
-          SLA par priorité
-        </p>
-        <p className="text-sm text-[#2b1d10]">Ajustez les engagements de prise en charge et de résolution.</p>
-      </div>
-      <div className="mt-6 overflow-hidden rounded-[20px] border border-[#ebe6df] bg-[#f3f3f2]">
-        <div className="grid grid-cols-1 gap-2 border-b border-[#ece7df] px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#9a928a] sm:grid-cols-[1.5fr_1fr_1fr] sm:gap-4 sm:px-6">
-          <span>Priorité</span>
-          <span className="sm:text-center">Prise en charge</span>
-          <span className="sm:text-center">Résolution</span>
+    <div className="space-y-6">
+      <section
+        id="sla"
+        className="overflow-hidden rounded-[14px] border border-[#e8e1d8] bg-white shadow-[0_12px_30px_rgba(24,24,24,0.05)]"
+      >
+        <div className="border-b border-[#e9ecef] bg-[#f3f5f8] px-5 py-4">
+          <p className="text-[12px] font-semibold text-[#2f2f33]">SLA par priorité</p>
+          <p className="mt-1 text-[12px] text-[#7b6655]">
+            Ajustez les délais de prise en charge et de résolution.
+          </p>
         </div>
-        <div className="space-y-4 px-6 py-4">
+
+        <div className="space-y-4 px-5 py-5">
+          <div className="hidden grid-cols-[1.4fr_1fr_1fr_120px] gap-4 rounded-[12px] border border-[#eee3d6] bg-[#fffaf5] px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8b7765] md:grid">
+            <span>Priorité</span>
+            <span className="text-center">Prise en charge</span>
+            <span className="text-center">Résolution</span>
+            <span className="text-right">Action</span>
+          </div>
+
           {loading ? (
-            <div className="rounded-[14px] border border-[#e5e1dc] bg-white px-4 py-6 text-center text-sm text-[#6e6559] shadow-[0_6px_20px_rgba(15,20,10,0.08)]">
+            <div className="rounded-[12px] border border-[#eee3d6] bg-white px-4 py-6 text-center text-sm text-[#6e6559]">
               Chargement des engagements...
             </div>
           ) : (
@@ -140,142 +146,170 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
               return (
                 <div
                   key={policy.priority}
-                  className="flex flex-col gap-3 rounded-[14px] bg-white px-4 py-4 text-sm text-[#2b1d10] shadow-[0_6px_20px_rgba(15,20,10,0.08)] sm:flex-row sm:items-center sm:py-3"
+                  className="rounded-[14px] border border-[#eee3d6] bg-white px-4 py-4 shadow-[0_10px_30px_rgba(17,17,17,0.06)] md:px-4 md:py-3"
                 >
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
+                  <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr_120px] md:items-center">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span
                         className={`inline-flex h-8 w-16 items-center justify-center rounded-full text-[0.7rem] font-bold uppercase ${badge.tone}`}
                       >
                         {badge.label}
                       </span>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.3em] ${
-                          policy.isActive ? "bg-[#e6f5ec] text-[#1f6f3a]" : "bg-[#fde8e5] text-[#a42c1d]"
+                        className={`rounded-full px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.3em] ${
+                          policy.isActive
+                            ? "bg-[#e6f5ec] text-[#1f6f3a]"
+                            : "bg-[#fde8e5] text-[#a42c1d]"
                         }`}
                       >
                         {policy.isActive ? "Actif" : "Désactivé"}
                       </span>
                     </div>
-                  </div>
-                  <div className="grid flex-1 grid-cols-2 gap-4 text-sm font-semibold sm:grid-cols-2 sm:text-center">
-                    <div className="flex flex-col gap-1 text-[#f73b35]">
-                      <span className="text-[0.6rem] font-semibold uppercase tracking-[0.25em] text-[#9a928a]">
+
+                    <div className="flex items-center justify-between md:justify-center">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8b7765] md:hidden">
                         Prise en charge
                       </span>
-                      <span>{formatDuration(policy.responseMinutes)}</span>
+                      <span className="text-sm font-semibold text-[#2b1d10]">
+                        {formatDuration(policy.responseMinutes)}
+                      </span>
                     </div>
-                    <div className="flex flex-col gap-1 text-[#434343]">
-                      <span className="text-[0.6rem] font-semibold uppercase tracking-[0.25em] text-[#9a928a]">
+
+                    <div className="flex items-center justify-between md:justify-center">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8b7765] md:hidden">
                         Résolution
                       </span>
-                      <span>{formatDuration(policy.resolutionMinutes)}</span>
+                      <span className="text-sm font-semibold text-[#2b1d10]">
+                        {formatDuration(policy.resolutionMinutes)}
+                      </span>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-end sm:justify-start">
-                    <button
-                      type="button"
-                      onClick={() => onEdit(policy)}
-                      className="rounded-full border border-[#dcd5ce] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#4b3e32] transition hover:border-[#f0a31c] hover:text-[#f0a31c]"
-                    >
-                      Modifier
-                    </button>
+
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => onEdit(policy)}
+                        className="inline-flex h-9 items-center rounded-[10px] border border-[#d8cabc] bg-white px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#faf6f1]"
+                      >
+                        Modifier
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
             })
           )}
-        </div>
-        {error && (
-          <p className="px-6 pb-4 text-xs font-semibold uppercase tracking-[0.3em] text-[#c42d1f]">{error}</p>
-        )}
-      </div>
 
-      <div className="mt-8 space-y-4">
-        <div className="flex flex-col gap-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">Services assignataires</p>
-          <p className="text-sm text-[#2b1d10]">
-            Déclarez ici les services ou responsables qui pourront prendre en charge un ticket après soumission par un super-admin ou un admin.
-            Ces assignations ne sont pas liées aux engagements SLA, mais au type de ticket et à la disponibilité des équipes.
+          {error && (
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#c42d1f]">
+              {error}
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section
+        id="assignataires"
+        className="overflow-hidden rounded-[14px] border border-[#e8e1d8] bg-white shadow-[0_12px_30px_rgba(24,24,24,0.05)]"
+      >
+        <div className="border-b border-[#e9ecef] bg-[#f3f5f8] px-5 py-4">
+          <p className="text-[12px] font-semibold text-[#2f2f33]">Services assignataires</p>
+          <p className="mt-1 text-[12px] text-[#7b6655]">
+            Déclarez qui pourra être choisi lors de l’assignation d’un ticket.
           </p>
         </div>
-        <div className="grid gap-6 lg:grid-cols-2 items-stretch">
-          <article className="flex h-full flex-col justify-between space-y-4 rounded-[20px] border border-[#ebe6df] bg-white p-6 shadow-[0_12px_40px_rgba(0,0,0,0.04)]">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">Déclarer un service assignataire</p>
-              <p className="text-sm text-[#2b1d10]">
-                Enregistrez un service ou responsable capable de récupérer les tickets que vous envoyez. Les admins choisissent ensuite le service qui doit agir, indépendamment des priorités SLA.
-              </p>
-            </div>
-            <form className="flex-1 space-y-6" onSubmit={handleResponsibleCreate}>
+
+        <div className="grid gap-6 px-5 py-5 lg:grid-cols-2 lg:items-start">
+          <article className="rounded-[14px] border border-[#eee3d6] bg-white p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7b6655]">
+              Ajouter un responsable
+            </p>
+            <p className="mt-1 text-[12px] text-[#5f4d3f]">
+              Les admins pourront ensuite l’assigner depuis le détail d’un ticket.
+            </p>
+
+            <form className="mt-4 space-y-4" onSubmit={handleResponsibleCreate}>
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7c6f60]">
-                  Prénom *
+                <label className="space-y-2">
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]">
+                    Prénom <span className="text-[#d92d20]">*</span>
+                  </span>
                   <input
                     type="text"
                     value={firstName}
                     onChange={(event) => setFirstName(event.target.value)}
                     placeholder="Ex : Delphine"
-                    className="rounded-lg border border-[#e4e1d8] bg-white px-3 py-2 text-sm text-[#2b1d10] outline-none transition focus:border-[#f0a31c]"
+                    className="h-11 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]"
                   />
                 </label>
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7c6f60]">
-                  Nom *
+                <label className="space-y-2">
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]">
+                    Nom <span className="text-[#d92d20]">*</span>
+                  </span>
                   <input
                     type="text"
                     value={lastName}
                     onChange={(event) => setLastName(event.target.value)}
                     placeholder="Ex : Bernard"
-                    className="rounded-lg border border-[#e4e1d8] bg-white px-3 py-2 text-sm text-[#2b1d10] outline-none transition focus:border-[#f0a31c]"
+                    className="h-11 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]"
                   />
                 </label>
               </div>
+
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7c6f60]">
-                  Email
+                <label className="space-y-2">
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]">
+                    Email
+                  </span>
                   <input
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="contact@vedem.com"
-                    className="rounded-lg border border-[#e4e1d8] bg-white px-3 py-2 text-sm text-[#2b1d10] outline-none transition focus:border-[#f0a31c]"
+                    className="h-11 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]"
                   />
                 </label>
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7c6f60]">
-                  Téléphone
+                <label className="space-y-2">
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]">
+                    Téléphone
+                  </span>
                   <input
                     type="text"
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
                     placeholder="+33 6 12 34 56 78"
-                    className="rounded-lg border border-[#e4e1d8] bg-white px-3 py-2 text-sm text-[#2b1d10] outline-none transition focus:border-[#f0a31c]"
+                    className="h-11 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]"
                   />
                 </label>
               </div>
-              <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7c6f60]">
-                Rôle ou responsabilité
+
+              <label className="space-y-2">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]">
+                  Rôle / responsabilité
+                </span>
                 <input
                   type="text"
                   value={role}
                   onChange={(event) => setRole(event.target.value)}
                   placeholder="Ex : Responsable opérations"
-                  className="rounded-lg border border-[#e4e1d8] bg-white px-3 py-2 text-sm text-[#2b1d10] outline-none transition focus:border-[#f0a31c]"
+                  className="h-11 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]"
                 />
               </label>
-              <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7c6f60]">
+
+              <label className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10]">
                 <input
                   type="checkbox"
                   checked={isExternal}
                   onChange={(event) => setIsExternal(event.target.checked)}
-                  className="h-4 w-4 rounded border border-[#dcd5ce] accent-[#f0c34c]"
+                  className="h-4 w-4 rounded border border-[#c6b6a9] accent-[#fdbf12]"
                 />
                 Externe au groupe
               </label>
-              <div className="flex flex-col gap-2">
+
+              <div className="flex flex-col gap-2 border-t border-[#eef0f2] pt-4">
                 <button
                   type="submit"
                   disabled={creatingResponsible}
-                  className="inline-flex items-center justify-center rounded-full bg-[#f0c34c] px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#2b1d10] transition hover:bg-[#e0b242] disabled:opacity-60"
+                  className="inline-flex h-10 items-center justify-center rounded-[8px] bg-[#fdbf12] px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#f4b400] disabled:opacity-60"
                 >
                   {creatingResponsible ? "Création..." : "Créer le responsable"}
                 </button>
@@ -287,22 +321,22 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
                 )}
               </div>
             </form>
-            <p className="text-[0.6rem] uppercase tracking-[0.3em] text-[#9a928a]">
-              Les services déclarés restent visibles ici tant qu’ils sont actifs. Ils peuvent être choisis librement lors de l’affectation d’un ticket.
-            </p>
           </article>
 
-          <article className="flex h-full flex-col rounded-[20px] border border-[#ebe6df] bg-white p-6 shadow-[0_12px_40px_rgba(0,0,0,0.04)]">
-            <div className="flex items-center justify-between gap-3">
+          <article className="rounded-[14px] border border-[#eee3d6] bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7c6f60]">Services déclarés</p>
-                <p className="text-sm text-[#2b1d10]">{responsibleSummary}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7b6655]">
+                  Responsables déclarés
+                </p>
+                <p className="mt-1 text-[12px] text-[#5f4d3f]">{responsibleSummary}</p>
               </div>
-              <span className="rounded-full border border-[#d6cfc5] px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.25em] text-[#2b1d10]">
+              <span className="rounded-full border border-[#d6cfc5] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-[#2b1d10]">
                 {responsibles.length || 0}
               </span>
             </div>
-            <div className="mt-6 space-y-3 flex-1">
+
+            <div className="mt-4 space-y-3">
               {loadingResponsibles ? (
                 <p className="text-sm text-[#6e6559]">Chargement des responsables...</p>
               ) : responsiblesError ? (
@@ -313,38 +347,37 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
                 responsibles.map((responsible) => (
                   <article
                     key={responsible.id}
-                    className="rounded-[16px] border border-[#ebe6df] bg-[#fbfaf8] px-4 py-3 text-sm text-[#2b1d10]"
+                    className="rounded-[12px] border border-[#eee3d6] bg-[#fffaf5] px-4 py-3 text-sm text-[#2b1d10]"
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-base font-semibold text-[#2b1d10]">
+                        <h3 className="text-sm font-semibold text-[#2b1d10]">
                           {responsible.firstName} {responsible.lastName}
                         </h3>
-                        {responsible.role && (
-                          <p className="text-xs uppercase tracking-[0.2em] text-[#7c6f60]">{responsible.role}</p>
-                        )}
+                        {responsible.role ? (
+                          <p className="mt-1 text-[11px] text-[#7b6655]">{responsible.role}</p>
+                        ) : null}
                       </div>
-                      <span className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[#7c6f60]">
+                      <span className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7b6655]">
                         {responsible.isExternal ? "Externe" : "Interne"}
                       </span>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-3 text-[0.75rem] text-[#4b3e32]">
-                      {responsible.email && <span>Email: {responsible.email}</span>}
-                      {responsible.phone && <span>Téléphone: {responsible.phone}</span>}
+
+                    <div className="mt-2 flex flex-wrap gap-3 text-[12px] text-[#5f4d3f]">
+                      {responsible.email ? <span>Email: {responsible.email}</span> : null}
+                      {responsible.phone ? <span>Téléphone: {responsible.phone}</span> : null}
                     </div>
-                    <p className="mt-2 text-[0.65rem] uppercase tracking-[0.2em] text-[#9a928a]">
+
+                    <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8b7765]">
                       Ajouté le {formatResponsibleTimeline(responsible.createdAt)}
                     </p>
                   </article>
                 ))
               )}
             </div>
-            <p className="mt-4 text-[0.65rem] uppercase tracking-[0.2em] text-[#9a928a]">
-              Ces services sont indépendants des priorités. Un administrateur choisit celui qui doit régler un incident selon son type ou sa criticité.
-            </p>
           </article>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

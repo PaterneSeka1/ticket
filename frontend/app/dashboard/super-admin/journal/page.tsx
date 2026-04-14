@@ -75,8 +75,8 @@ export default function SuperAdminJournalPage() {
         entries.push({
           ...event,
           ticketId: ticket.id,
-          ticketCode: ticket.code,
-          ticketCategory: ticket.category.libelle,
+          ticketCode: ticket.ticketNumber ?? ticket.code ?? ticket.id,
+          ticketCategory: ticket.category?.name ?? ticket.category?.libelle ?? "—",
         });
       });
     });
