@@ -76,7 +76,6 @@ const buildNavSections = (
       { label: "Tableau de bord", href: routes.root, icon: <Activity className="h-4 w-4" /> },
       { label: "Nouveau ticket", href: routes.newTicket, icon: <PlusCircle className="h-4 w-4" /> },
       { label: "Mes tickets", href: routes.myTickets, icon: <List className="h-4 w-4" /> },
-      routes.journal ? { label: "Journal d'activité", href: routes.journal, icon: <List className="h-4 w-4" /> } : null,
       includeAllTicketsLink
         ? { label: "Tous les tickets", href: routes.tickets, icon: <Layers className="h-4 w-4" /> }
         : null,
@@ -103,6 +102,7 @@ const buildNavSections = (
       { label: "Utilisateurs", href: "/dashboard/super-admin/users", icon: <Users className="h-4 w-4" /> },
       { label: "Créer un utilisateur", href: "/dashboard/super-admin/users/create", icon: <UserPlus className="h-4 w-4" /> },
       { label: "Configuration", href: "/dashboard/super-admin/configuration", icon: <Settings className="h-4 w-4" /> },
+      routes.journal ? { label: "Journal d'activité", href: routes.journal, icon: <List className="h-4 w-4" /> } : null,
     ],
   };
 
