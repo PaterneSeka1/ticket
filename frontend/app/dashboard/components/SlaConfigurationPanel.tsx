@@ -1,9 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import type { SlaPolicy, TicketPriority } from "@/api/types";
 import type { ResolutionResponsible } from "@/api/resolution";
-import { createResolutionResponsible, fetchResolutionResponsibles } from "@/api/resolution";
+import {
+  createResolutionResponsible,
+  deleteResolutionResponsible,
+  fetchResolutionResponsibles,
+  updateResolutionResponsible,
+} from "@/api/resolution";
 import { ApiError } from "@/api/client";
 import { formatDuration, priorityLabels } from "@/app/dashboard/lib/ticket-formatters";
 
@@ -27,8 +33,18 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
   const [loadingResponsibles, setLoadingResponsibles] = useState(true);
   const [responsiblesError, setResponsiblesError] = useState<string | null>(null);
   const [creatingResponsible, setCreatingResponsible] = useState(false);
-  const [responsibleStatus, setResponsibleStatus] = useState<string | null>(null);
-  const [responsibleFormError, setResponsibleFormError] = useState<string | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
+  const [editingResponsibleId, setEditingResponsibleId] = useState<string | null>(null);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
+  const [editIsExternal, setEditIsExternal] = useState(false);
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingResponsibleId, setDeletingResponsibleId] = useState<string | null>(null);
 
   const loadResponsibles = async () => {
     setLoadingResponsibles(true);
@@ -38,6 +54,7 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
       setResponsibles(data);
     } catch {
       setResponsiblesError("Impossible de charger les responsables.");
+      toast.error("Impossible de charger les responsables.");
     } finally {
       setLoadingResponsibles(false);
     }
@@ -63,11 +80,9 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
 
   const handleResponsibleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setResponsibleStatus(null);
-    setResponsibleFormError(null);
 
     if (!firstName.trim() || !lastName.trim()) {
-      setResponsibleFormError("Nom et prénom du responsable sont requis.");
+      toast.error("Nom et prénom du responsable sont requis.");
       return;
     }
 
@@ -83,7 +98,7 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
       };
       const created = await createResolutionResponsible(payload);
       setResponsibles((prev) => [created, ...prev]);
-      setResponsibleStatus(`Responsable ${created.firstName} ${created.lastName} ajouté.`);
+      toast.success(`Responsable ${created.firstName} ${created.lastName} ajouté.`);
       setFirstName("");
       setLastName("");
       setEmail("");
@@ -95,7 +110,7 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
         error instanceof ApiError && error.message
           ? error.message
           : "Impossible de créer le responsable pour le moment.";
-      setResponsibleFormError(message);
+      toast.error(message);
     } finally {
       setCreatingResponsible(false);
     }
@@ -105,15 +120,118 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
     if (loadingResponsibles) {
       return "Chargement des responsables...";
     }
-    const count = responsibles.length;
-    if (count === 0) {
+    const activeCount = responsibles.filter((item) => item.isActive).length;
+    if (activeCount === 0) {
       return "Aucun responsable enregistré.";
     }
-    return `${count} responsable${count > 1 ? "s" : ""} prêt${count > 1 ? "s" : ""} à recevoir les tickets.`;
-  }, [loadingResponsibles, responsibles.length]);
+    return `${activeCount} responsable${activeCount > 1 ? "s" : ""} actif${activeCount > 1 ? "s" : ""} prêt${activeCount > 1 ? "s" : ""} à recevoir les tickets.`;
+  }, [loadingResponsibles, responsibles]);
 
   const formatResponsibleTimeline = (date: string) =>
     new Date(date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const visibleResponsibles = useMemo(() => {
+    if (showInactive) return responsibles;
+    return responsibles.filter((item) => item.isActive);
+  }, [responsibles, showInactive]);
+
+  const startEdit = (responsible: ResolutionResponsible) => {
+    setEditingResponsibleId(responsible.id);
+    setEditFirstName(responsible.firstName ?? "");
+    setEditLastName(responsible.lastName ?? "");
+    setEditEmail(responsible.email ?? "");
+    setEditPhone(responsible.phone ?? "");
+    setEditRole(responsible.role ?? "");
+    setEditDepartment(responsible.department ?? "");
+    setEditIsExternal(!!responsible.isExternal);
+    setEditIsActive(!!responsible.isActive);
+  };
+
+  const cancelEdit = () => {
+    setEditingResponsibleId(null);
+    setEditFirstName("");
+    setEditLastName("");
+    setEditEmail("");
+    setEditPhone("");
+    setEditRole("");
+    setEditDepartment("");
+    setEditIsExternal(false);
+    setEditIsActive(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editingResponsibleId) return;
+    if (!editFirstName.trim() || !editLastName.trim()) {
+      toast.error("Nom et prénom du responsable sont requis.");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const updated = await updateResolutionResponsible(editingResponsibleId, {
+        firstName: editFirstName.trim(),
+        lastName: editLastName.trim(),
+        email: editEmail.trim() || undefined,
+        phone: editPhone.trim() || undefined,
+        role: editRole.trim() || undefined,
+        department: editDepartment.trim() || undefined,
+        isExternal: editIsExternal,
+        isActive: editIsActive,
+      });
+      setResponsibles((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      toast.success(`Responsable ${updated.firstName} ${updated.lastName} mis à jour.`);
+      cancelEdit();
+    } catch (error) {
+      const message =
+        error instanceof ApiError && error.message
+          ? error.message
+          : error instanceof ApiError && error.status === 404
+            ? "Modification indisponible côté API (redémarrez le backend)."
+          : "Impossible de modifier le responsable pour le moment.";
+      toast.error(message);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const removeResponsible = async (responsible: ResolutionResponsible) => {
+    setDeletingResponsibleId(responsible.id);
+    try {
+      const nextActive = !responsible.isActive ? true : false;
+      if (nextActive) {
+        await updateResolutionResponsible(responsible.id, { isActive: true });
+      } else {
+        try {
+          await deleteResolutionResponsible(responsible.id);
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 404) {
+            await updateResolutionResponsible(responsible.id, { isActive: false });
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      setResponsibles((prev) =>
+        prev.map((item) => (item.id === responsible.id ? { ...item, isActive: nextActive } : item)),
+      );
+      toast.success(
+        `Responsable ${responsible.firstName} ${responsible.lastName} ${nextActive ? "activé" : "désactivé"}.`,
+      );
+      if (editingResponsibleId === responsible.id) {
+        cancelEdit();
+      }
+    } catch (error) {
+      const message =
+        error instanceof ApiError && error.message
+          ? error.message
+          : error instanceof ApiError && error.status === 404
+            ? "Suppression indisponible côté API (redémarrez le backend)."
+          : "Impossible de mettre à jour le responsable pour le moment.";
+      toast.error(message);
+    } finally {
+      setDeletingResponsibleId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -295,7 +413,7 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
                 />
               </label>
 
-              <label className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10]">
+              <label className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] pt-3">
                 <input
                   type="checkbox"
                   checked={isExternal}
@@ -313,12 +431,6 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
                 >
                   {creatingResponsible ? "Création..." : "Créer le responsable"}
                 </button>
-                {responsibleFormError && (
-                  <p className="text-sm text-[#c42d1f]">{responsibleFormError}</p>
-                )}
-                {responsibleStatus && (
-                  <p className="text-sm text-[#2b1d10]">{responsibleStatus}</p>
-                )}
               </div>
             </form>
           </article>
@@ -332,7 +444,7 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
                 <p className="mt-1 text-[12px] text-[#5f4d3f]">{responsibleSummary}</p>
               </div>
               <span className="rounded-full border border-[#d6cfc5] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-[#2b1d10]">
-                {responsibles.length || 0}
+                {visibleResponsibles.length || 0}
               </span>
             </div>
 
@@ -341,38 +453,196 @@ export function SlaConfigurationPanel({ policies, loading, error, onEdit }: Prop
                 <p className="text-sm text-[#6e6559]">Chargement des responsables...</p>
               ) : responsiblesError ? (
                 <p className="text-sm text-[#c42d1f]">{responsiblesError}</p>
-              ) : responsibles.length === 0 ? (
+              ) : visibleResponsibles.length === 0 ? (
                 <p className="text-sm text-[#6e6559]">Ajoutez un responsable pour qu’il apparaisse ici.</p>
               ) : (
-                responsibles.map((responsible) => (
+                <>
+                  <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6655]">
+                    <input
+                      type="checkbox"
+                      checked={showInactive}
+                      onChange={(event) => setShowInactive(event.target.checked)}
+                      className="h-4 w-4 rounded border border-[#c6b6a9] accent-[#fdbf12]"
+                    />
+                    Afficher inactifs
+                  </label>
+
+                  {visibleResponsibles.map((responsible) => (
                   <article
                     key={responsible.id}
                     className="rounded-[12px] border border-[#eee3d6] bg-[#fffaf5] px-4 py-3 text-sm text-[#2b1d10]"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-sm font-semibold text-[#2b1d10]">
-                          {responsible.firstName} {responsible.lastName}
-                        </h3>
-                        {responsible.role ? (
-                          <p className="mt-1 text-[11px] text-[#7b6655]">{responsible.role}</p>
-                        ) : null}
+                    {editingResponsibleId === responsible.id ? (
+                      <div className="space-y-3">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]">
+                              Prénom <span className="text-[#d92d20]">*</span>
+                            </span>
+                            <input
+                              value={editFirstName}
+                              onChange={(event) => setEditFirstName(event.target.value)}
+                              className="h-10 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]">
+                              Nom <span className="text-[#d92d20]">*</span>
+                            </span>
+                            <input
+                              value={editLastName}
+                              onChange={(event) => setEditLastName(event.target.value)}
+                              className="h-10 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]"
+                            />
+                          </label>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]">
+                              Email
+                            </span>
+                            <input
+                              value={editEmail}
+                              onChange={(event) => setEditEmail(event.target.value)}
+                              className="h-10 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]">
+                              Téléphone
+                            </span>
+                            <input
+                              value={editPhone}
+                              onChange={(event) => setEditPhone(event.target.value)}
+                              className="h-10 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]"
+                            />
+                          </label>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]">
+                              Rôle
+                            </span>
+                            <input
+                              value={editRole}
+                              onChange={(event) => setEditRole(event.target.value)}
+                              className="h-10 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]">
+                              Département
+                            </span>
+                            <input
+                              value={editDepartment}
+                              onChange={(event) => setEditDepartment(event.target.value)}
+                              className="h-10 w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-sm text-[#2b1d10] outline-none transition focus:border-[#d5a15c]"
+                            />
+                          </label>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4">
+                          <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6655]">
+                            <input
+                              type="checkbox"
+                              checked={editIsExternal}
+                              onChange={(event) => setEditIsExternal(event.target.checked)}
+                              className="h-4 w-4 rounded border border-[#c6b6a9] accent-[#fdbf12]"
+                            />
+                            Externe
+                          </label>
+                          <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6655]">
+                            <input
+                              type="checkbox"
+                              checked={editIsActive}
+                              onChange={(event) => setEditIsActive(event.target.checked)}
+                              className="h-4 w-4 rounded border border-[#c6b6a9] accent-[#fdbf12]"
+                            />
+                            Actif
+                          </label>
+                        </div>
+
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={saveEdit}
+                            disabled={savingEdit}
+                            className="inline-flex h-10 flex-1 items-center justify-center rounded-[8px] bg-[#fdbf12] px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#f4b400] disabled:opacity-60"
+                          >
+                            {savingEdit ? "Enregistrement..." : "Enregistrer"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            disabled={savingEdit}
+                            className="inline-flex h-10 flex-1 items-center justify-center rounded-[8px] border border-[#d8cabc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#faf6f1] disabled:opacity-60"
+                          >
+                            Annuler
+                          </button>
+                        </div>
                       </div>
-                      <span className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7b6655]">
-                        {responsible.isExternal ? "Externe" : "Interne"}
-                      </span>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="text-sm font-semibold text-[#2b1d10]">
+                              {responsible.firstName} {responsible.lastName}
+                            </h3>
+                            {responsible.role ? (
+                              <p className="mt-1 text-[11px] text-[#7b6655]">{responsible.role}</p>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${
+                                responsible.isActive ? "bg-[#e6f5ec] text-[#1f6f3a]" : "bg-[#fde8e5] text-[#a42c1d]"
+                              }`}
+                            >
+                              {responsible.isActive ? "Actif" : "Inactif"}
+                            </span>
+                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7b6655]">
+                              {responsible.isExternal ? "Externe" : "Interne"}
+                            </span>
+                          </div>
+                        </div>
 
-                    <div className="mt-2 flex flex-wrap gap-3 text-[12px] text-[#5f4d3f]">
-                      {responsible.email ? <span>Email: {responsible.email}</span> : null}
-                      {responsible.phone ? <span>Téléphone: {responsible.phone}</span> : null}
-                    </div>
+                        <div className="mt-2 flex flex-wrap gap-3 text-[12px] text-[#5f4d3f]">
+                          {responsible.email ? <span>Email: {responsible.email}</span> : null}
+                          {responsible.phone ? <span>Téléphone: {responsible.phone}</span> : null}
+                        </div>
 
-                    <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8b7765]">
-                      Ajouté le {formatResponsibleTimeline(responsible.createdAt)}
-                    </p>
+                        <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8b7765]">
+                          Ajouté le {formatResponsibleTimeline(responsible.createdAt)}
+                        </p>
+
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(responsible)}
+                            className="inline-flex h-9 flex-1 items-center justify-center rounded-[10px] border border-[#d8cabc] bg-white px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#faf6f1]"
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeResponsible(responsible)}
+                            disabled={deletingResponsibleId === responsible.id}
+                            className="inline-flex h-9 flex-1 items-center justify-center rounded-[10px] border border-[#f0c2bb] bg-white px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#b42318] transition hover:bg-[#fff3f2] disabled:opacity-60"
+                          >
+                            {deletingResponsibleId === responsible.id
+                              ? responsible.isActive
+                                ? "Désactivation..."
+                                : "Activation..."
+                              : responsible.isActive
+                                ? "Désactiver"
+                                : "Activer"}
+                          </button>
+                        </div>
+                      </>
+                    )}
+
                   </article>
-                ))
+                  ))}
+                </>
               )}
             </div>
           </article>

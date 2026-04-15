@@ -24,6 +24,10 @@ export interface CreateResolutionResponsiblePayload {
   isExternal?: boolean;
 }
 
+export type UpdateResolutionResponsiblePayload = Partial<CreateResolutionResponsiblePayload> & {
+  isActive?: boolean;
+};
+
 export function fetchResolutionResponsibles() {
   return apiRequest<ResolutionResponsible[]>('/resolution-responsibles');
 }
@@ -32,5 +36,18 @@ export function createResolutionResponsible(payload: CreateResolutionResponsible
   return apiRequest<ResolutionResponsible>('/resolution-responsibles', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export function updateResolutionResponsible(id: string, payload: UpdateResolutionResponsiblePayload) {
+  return apiRequest<ResolutionResponsible>(`/resolution-responsibles/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteResolutionResponsible(id: string) {
+  return apiRequest<void>(`/resolution-responsibles/${id}`, {
+    method: 'DELETE',
   });
 }

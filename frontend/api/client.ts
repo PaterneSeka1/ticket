@@ -31,6 +31,11 @@ function getToken(): string | null {
   return sessionStorage.getItem("vdm_access_token");
 }
 
+function clearToken() {
+  if (typeof sessionStorage === "undefined") return;
+  sessionStorage.removeItem("vdm_access_token");
+}
+
 export async function apiRequest<T = unknown>(
   path: string,
   options: ApiRequestOptions = {},
@@ -60,6 +65,12 @@ export async function apiRequest<T = unknown>(
   const data = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearToken();
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
     throw new ApiError(response.status, data);
   }
 

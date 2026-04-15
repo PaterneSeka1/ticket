@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -14,6 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 import { UserRole } from '../prisma/enums.js';
 import type { AuthenticatedUserDto } from '../auth/dto/authenticated-user.dto.js';
 import { CreateResolutionResponsibleDto } from './dto/create-resolution-responsible.dto.js';
+import { UpdateResolutionResponsibleDto } from './dto/update-resolution-responsible.dto.js';
 import { ResolutionResponsibleService } from './resolution.service.js';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,5 +40,20 @@ export class ResolutionResponsibleController {
     @CurrentUser() user: AuthenticatedUserDto,
   ) {
     return this.resolutionService.create(dto, user);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateResolutionResponsibleDto,
+    @CurrentUser() user: AuthenticatedUserDto,
+  ) {
+    return this.resolutionService.update(id, dto, user);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUserDto) {
+    return this.resolutionService.remove(id, user);
   }
 }

@@ -103,7 +103,7 @@ const buildNavSections = (
       { label: "Créer un utilisateur", href: "/dashboard/super-admin/users/create", icon: <UserPlus className="h-4 w-4" /> },
       { label: "Configuration", href: "/dashboard/super-admin/configuration", icon: <Settings className="h-4 w-4" /> },
       routes.journal ? { label: "Journal d'activité", href: routes.journal, icon: <List className="h-4 w-4" /> } : null,
-    ],
+    ].filter(Boolean) as NavSection["items"],
   };
 
   const analyseSectionAdmin: NavSection = {
