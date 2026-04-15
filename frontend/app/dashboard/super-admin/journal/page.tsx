@@ -26,6 +26,8 @@ export default function SuperAdminJournalPage() {
   const [selectedType, setSelectedType] = useState<(typeof filterOptions)[number]>("TOUS");
   const [timelineSearch, setTimelineSearch] = useState("");
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue());
+  const [activityPage, setActivityPage] = useState(0);
+  const [activityPageSize, setActivityPageSize] = useState(12);
   const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState<string | null>(null);
@@ -68,6 +70,25 @@ export default function SuperAdminJournalPage() {
       date: selectedDate,
     });
   }, [journalEntries, selectedType, timelineSearch, selectedDate]);
+
+  const activityPageCount = useMemo(
+    () => Math.max(1, Math.ceil(filteredEvents.length / activityPageSize)),
+    [activityPageSize, filteredEvents.length],
+  );
+
+  const safeActivityPage = useMemo(
+    () => Math.min(activityPage, activityPageCount - 1),
+    [activityPage, activityPageCount],
+  );
+
+  const pagedActivityEvents = useMemo(() => {
+    const start = safeActivityPage * activityPageSize;
+    return filteredEvents.slice(start, start + activityPageSize);
+  }, [activityPageSize, filteredEvents, safeActivityPage]);
+
+  useEffect(() => {
+    setActivityPage(0);
+  }, [selectedType, timelineSearch, selectedDate, activityPageSize]);
 
   const summary = useMemo(() => {
     const ticketIds = new Set(journalEntries.map((entry) => entry.ticketId));
@@ -223,8 +244,49 @@ export default function SuperAdminJournalPage() {
               Chargement du journal…
             </div>
           ) : filteredEvents.length ? (
-            <div className="space-y-4">
-              {filteredEvents.map((entry) => (
+            <div className="space-y-3">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <p className="text-xs text-[#7b6c5c]">
+                  Page {safeActivityPage + 1} / {activityPageCount} • {filteredEvents.length} événement(s)
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-2 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-[#7b6c5c]">
+                    Par page
+                    <select
+                      value={activityPageSize}
+                      onChange={(event) => {
+                        setActivityPageSize(Number(event.target.value));
+                        setActivityPage(0);
+                      }}
+                      className="rounded-[10px] border border-[#dcccbc] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition"
+                    >
+                      {[6, 12, 24, 48].map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setActivityPage((current) => Math.max(0, current - 1))}
+                    disabled={safeActivityPage === 0}
+                    className="rounded-[10px] border border-[#dcccbc] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40"
+                  >
+                    Précédent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivityPage((current) => Math.min(activityPageCount - 1, current + 1))}
+                    disabled={safeActivityPage >= activityPageCount - 1}
+                    className="rounded-[10px] border border-[#dcccbc] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              </div>
+
+              {pagedActivityEvents.map((entry) => (
                 <article
                   key={`${entry.ticketId}-${entry.id}`}
                   className="rounded-[18px] border border-[#f1ede8] bg-[#fffdfa] px-4 py-4 shadow-[0_8px_20px_rgba(0,0,0,0.04)]"

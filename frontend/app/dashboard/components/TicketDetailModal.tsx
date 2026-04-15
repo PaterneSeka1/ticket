@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import Link from "next/link";
 import type { Ticket } from "@/api/types";
 import { ApiError } from "@/api/client";
-import { changeTicketStatus } from "@/api/tickets";
+import { changeTicketStatus, updateTicket } from "@/api/tickets";
 import type { ResolutionResponsible } from "@/api/resolution";
 import { fetchResolutionResponsibles } from "@/api/resolution";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
@@ -73,6 +73,7 @@ export function TicketDetailModal({
     !!user && ["ADMIN", "SUPER_ADMIN"].includes(user.role) && ["ASSIGNED", "IN_PROGRESS"].includes(ticket.status);
   const canMarkUnresolved =
     !!user && ["ADMIN", "SUPER_ADMIN"].includes(user.role) && ticket.status === "RESOLVED";
+  const canChangePriority = !!user && ["ADMIN", "SUPER_ADMIN"].includes(user.role);
 
   const configurationRoute =
     user?.role === "SUPER_ADMIN"
@@ -83,9 +84,14 @@ export function TicketDetailModal({
   const [responsiblesLoading, setResponsiblesLoading] = useState(false);
   const [selectedResponsibleId, setSelectedResponsibleId] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
-  const [resolutionComment, setResolutionComment] = useState("");
+  const [statusComment, setStatusComment] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [unresolvedComment, setUnresolvedComment] = useState("");
+  const [selectedPriority, setSelectedPriority] = useState(ticket.priority);
+  const [isUpdatingPriority, setIsUpdatingPriority] = useState(false);
+
+  useEffect(() => {
+    setSelectedPriority(ticket.priority);
+  }, [ticket.priority]);
 
   useEffect(() => {
     if (!canAssign) return;
@@ -215,8 +221,8 @@ export function TicketDetailModal({
   };
 
   const handleResolve = async () => {
-    if (!resolutionComment.trim()) {
-      toast.error("Le commentaire de résolution est requis.");
+    if (!statusComment.trim()) {
+      toast.error("Le commentaire est requis.");
       return;
     }
 
@@ -224,9 +230,10 @@ export function TicketDetailModal({
     try {
       const updated = await changeTicketStatus(ticket.id, {
         status: "RESOLVED",
-        resolutionComment: resolutionComment.trim(),
+        resolutionComment: statusComment.trim(),
       });
       onTicketUpdated?.(updated);
+      setStatusComment("");
       toast.success("Ticket marqué comme résolu.");
     } catch (error) {
       const message =
@@ -238,14 +245,18 @@ export function TicketDetailModal({
   };
 
   const handleMarkUnresolved = async () => {
+    if (!statusComment.trim()) {
+      toast.error("Le commentaire est requis.");
+      return;
+    }
     setIsUpdatingStatus(true);
     try {
       const updated = await changeTicketStatus(ticket.id, {
-        status: "REOPENED",
-        resolutionComment: unresolvedComment.trim() || undefined,
+        status: "UNRESOLVED",
+        resolutionComment: statusComment.trim(),
       });
       onTicketUpdated?.(updated);
-      setUnresolvedComment("");
+      setStatusComment("");
       toast.success("Ticket marqué comme non résolu.");
     } catch (error) {
       const message =
@@ -253,6 +264,23 @@ export function TicketDetailModal({
       toast.error(message);
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleUpdatePriority = async () => {
+    if (selectedPriority === ticket.priority) return;
+    setIsUpdatingPriority(true);
+    try {
+      const updated = await updateTicket(ticket.id, { priority: selectedPriority });
+      onTicketUpdated?.(updated);
+      toast.success("Priorité mise à jour.");
+    } catch (error) {
+      const message =
+        error instanceof ApiError ? error.message : "Impossible de modifier la priorité.";
+      toast.error(message);
+      setSelectedPriority(ticket.priority);
+    } finally {
+      setIsUpdatingPriority(false);
     }
   };
 
@@ -291,6 +319,39 @@ export function TicketDetailModal({
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="space-y-4">
+            {canChangePriority && (
+              <div className="rounded-2xl border border-[#eee3d6] bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#9c958a]">
+                  Priorité
+                </p>
+                <p className="mt-2 text-[12px] text-[#7b6655]">
+                  Ajustez la priorité si nécessaire.
+                </p>
+                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <select
+                    value={selectedPriority}
+                    onChange={(event) => setSelectedPriority(event.target.value as Ticket["priority"])}
+                    disabled={isUpdatingPriority}
+                    className="h-10 w-full rounded-[12px] border border-[#e7ddd2] bg-white px-3 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none sm:flex-1"
+                  >
+                    {(["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).map((priority) => (
+                      <option key={priority} value={priority}>
+                        {priorityLabels[priority].label} • {priority}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleUpdatePriority}
+                    disabled={isUpdatingPriority || selectedPriority === ticket.priority}
+                    className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition disabled:opacity-40"
+                  >
+                    {isUpdatingPriority ? "Mise à jour…" : "Enregistrer"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-2xl border border-[#f1e5d7] bg-[#fffdfb] p-4">
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#9c958a]">Description</p>
               <p className="mt-2 text-sm text-[#2b1d10] leading-relaxed">{ticket.description}</p>
@@ -367,23 +428,33 @@ export function TicketDetailModal({
 
                 <div className="mt-4 space-y-2">
                   <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8b7765]">
-                    Commentaire de résolution <span className="text-[#d92d20]">*</span>
+                    Commentaire <span className="text-[#d92d20]">*</span>
                   </span>
                   <textarea
-                    value={resolutionComment}
-                    onChange={(event) => setResolutionComment(event.target.value)}
-                    placeholder="Décrivez la résolution…"
+                    value={statusComment}
+                    onChange={(event) => setStatusComment(event.target.value)}
+                    placeholder="Expliquez la résolution ou pourquoi ce n’est pas résolu…"
                     rows={3}
                     className="w-full rounded-[12px] border border-[#e7ddd2] bg-white px-3 py-2 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={handleResolve}
-                    disabled={isUpdatingStatus || !resolutionComment.trim()}
-                    className="inline-flex h-10 items-center justify-center rounded-[12px] bg-[#f9b800] px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#352300] shadow-[0_10px_20px_rgba(249,184,0,0.18)] transition disabled:opacity-40"
-                  >
-                    {isUpdatingStatus ? "Mise à jour…" : "Marquer résolu"}
-                  </button>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <button
+                      type="button"
+                      onClick={handleResolve}
+                      disabled={isUpdatingStatus || !statusComment.trim()}
+                      className="inline-flex h-10 flex-1 items-center justify-center rounded-[12px] bg-[#f9b800] px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#352300] shadow-[0_10px_20px_rgba(249,184,0,0.18)] transition disabled:opacity-40"
+                    >
+                      {isUpdatingStatus ? "Mise à jour…" : "Marquer résolu"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleMarkUnresolved}
+                      disabled={isUpdatingStatus || !statusComment.trim()}
+                      className="inline-flex h-10 flex-1 items-center justify-center rounded-[12px] border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition disabled:opacity-40"
+                    >
+                      {isUpdatingStatus ? "Mise à jour…" : "Marquer non résolu"}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -394,16 +465,16 @@ export function TicketDetailModal({
                   Non résolu
                 </p>
                 <p className="mt-2 text-[12px] text-[#7b6655]">
-                  Si la résolution est incorrecte, vous pouvez réouvrir le ticket.
+                  Si la résolution est incorrecte, vous pouvez marquer le ticket comme non résolu.
                 </p>
 
                 <div className="mt-4 space-y-2">
                   <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8b7765]">
-                    Commentaire (optionnel)
+                    Commentaire <span className="text-[#d92d20]">*</span>
                   </span>
                   <textarea
-                    value={unresolvedComment}
-                    onChange={(event) => setUnresolvedComment(event.target.value)}
+                    value={statusComment}
+                    onChange={(event) => setStatusComment(event.target.value)}
                     placeholder="Expliquez pourquoi le ticket est non résolu…"
                     rows={3}
                     className="w-full rounded-[12px] border border-[#e7ddd2] bg-white px-3 py-2 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none"
@@ -411,7 +482,7 @@ export function TicketDetailModal({
                   <button
                     type="button"
                     onClick={handleMarkUnresolved}
-                    disabled={isUpdatingStatus}
+                    disabled={isUpdatingStatus || !statusComment.trim()}
                     className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition disabled:opacity-40"
                   >
                     {isUpdatingStatus ? "Mise à jour…" : "Marquer non résolu"}

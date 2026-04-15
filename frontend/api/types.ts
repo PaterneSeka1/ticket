@@ -32,6 +32,7 @@ export type TicketStatus =
   | "ASSIGNED"
   | "IN_PROGRESS"
   | "RESOLVED"
+  | "UNRESOLVED"
   | "CLOSED"
   | "REOPENED"
   | "CANCELLED";

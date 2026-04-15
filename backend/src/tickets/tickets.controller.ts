@@ -66,8 +66,12 @@ export class TicketsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTicketDto) {
-    return this.ticketsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTicketDto,
+    @CurrentUser() user: AuthenticatedUserDto,
+  ) {
+    return this.ticketsService.update(id, dto, user);
   }
 
   @Patch(':id/status')

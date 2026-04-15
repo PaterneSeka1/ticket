@@ -76,10 +76,16 @@ const STATUS_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   [TicketStatus.ASSIGNED]: [
     TicketStatus.IN_PROGRESS,
     TicketStatus.RESOLVED,
+    TicketStatus.UNRESOLVED,
     TicketStatus.CANCELLED,
   ],
-  [TicketStatus.IN_PROGRESS]: [TicketStatus.RESOLVED, TicketStatus.ASSIGNED],
+  [TicketStatus.IN_PROGRESS]: [
+    TicketStatus.RESOLVED,
+    TicketStatus.UNRESOLVED,
+    TicketStatus.ASSIGNED,
+  ],
   [TicketStatus.RESOLVED]: [TicketStatus.CLOSED, TicketStatus.REOPENED],
+  [TicketStatus.UNRESOLVED]: [TicketStatus.CLOSED, TicketStatus.REOPENED],
   [TicketStatus.CLOSED]: [TicketStatus.REOPENED],
   [TicketStatus.REOPENED]: [TicketStatus.ASSIGNED, TicketStatus.IN_PROGRESS],
   [TicketStatus.CANCELLED]: [],
@@ -134,9 +140,17 @@ export class TicketsService {
     const createdAt = ticket.createdAt;
     const assignedAt = ticket.assignedAt ?? null;
     const resolvedAt = ticket.resolvedAt ?? null;
+    const closedAt = ticket.closedAt ?? null;
+
+    const resolutionEnd =
+      ticket.status === TicketStatus.RESOLVED
+        ? resolvedAt
+        : ticket.status === TicketStatus.UNRESOLVED
+          ? closedAt
+          : null;
 
     const responseWaitMinutes = this.minutesBetween(createdAt, assignedAt ?? now);
-    const resolutionWaitMinutes = this.minutesBetween(createdAt, resolvedAt ?? now);
+    const resolutionWaitMinutes = this.minutesBetween(createdAt, resolutionEnd ?? now);
 
     const responseMaxMinutes = policy.responseMinutes ?? 0;
     const resolutionMaxMinutes = policy.resolutionMinutes ?? 0;
@@ -320,6 +334,24 @@ export class TicketsService {
   async update(id: string, dto: UpdateTicketDto, actor?: AuthenticatedUserDto) {
     const ticket = await this.findOne(id);
     const data: Prisma.TicketUncheckedUpdateInput = {};
+    const isAdmin =
+      actor?.role === UserRole.ADMIN || actor?.role === UserRole.SUPER_ADMIN;
+
+    if (dto.priority !== undefined && !isAdmin) {
+      throw new ForbiddenException(
+        'Seuls les administrateurs peuvent modifier la priorité.',
+      );
+    }
+    if (dto.assignedResponsibleId !== undefined) {
+      throw new BadRequestException(
+        "L'assignation doit passer par l'endpoint de statut.",
+      );
+    }
+    if (dto.resolutionComment !== undefined) {
+      throw new BadRequestException(
+        "Le commentaire de résolution doit passer par l'endpoint de statut.",
+      );
+    }
     if (dto.title) {
       data.title = dto.title.trim();
     }
@@ -341,13 +373,6 @@ export class TicketsService {
     if (dto.priority) {
       data.priority = dto.priority;
     }
-    if (dto.assignedResponsibleId !== undefined) {
-      data.assignedResponsibleId = dto.assignedResponsibleId ?? null;
-      data.assignedAt = dto.assignedResponsibleId ? new Date() : null;
-    }
-    if (dto.resolutionComment !== undefined) {
-      data.resolutionComment = dto.resolutionComment;
-    }
 
     if (!Object.keys(data).length) {
       throw new BadRequestException('Aucune donnée à mettre à jour.');
@@ -366,7 +391,18 @@ export class TicketsService {
       actor,
       updated.id,
     );
-    return updated;
+
+    if (dto.priority !== undefined && isAdmin) {
+      await this.logActivity(
+        'ticket.priority.changed',
+        `${updated.ticketNumber} priorité → ${dto.priority}`,
+        actor,
+        updated.id,
+      );
+    }
+
+    const policies = await this.getActiveSlaPoliciesByPriority();
+    return this.withSla(updated, new Date(), policies);
   }
 
   async updateStatus(
@@ -388,14 +424,29 @@ export class TicketsService {
     if (dto.status === TicketStatus.RESOLVED && !dto.resolutionComment) {
       throw new BadRequestException('Le commentaire de résolution est requis.');
     }
+    if (dto.status === TicketStatus.UNRESOLVED && !dto.resolutionComment) {
+      throw new BadRequestException(
+        'Le commentaire est requis pour marquer un ticket comme non résolu.',
+      );
+    }
     if (dto.status === TicketStatus.RESOLVED && !isAdmin) {
       throw new ForbiddenException(
         'Seuls les administrateurs peuvent marquer un ticket comme résolu.',
       );
     }
+    if (dto.status === TicketStatus.UNRESOLVED && !isAdmin) {
+      throw new ForbiddenException(
+        'Seuls les administrateurs peuvent marquer un ticket comme non résolu.',
+      );
+    }
     if (dto.status === TicketStatus.RESOLVED) {
       data.resolutionComment = dto.resolutionComment;
       data.resolvedAt = now;
+    }
+    if (dto.status === TicketStatus.UNRESOLVED) {
+      data.resolutionComment = dto.resolutionComment;
+      data.closedAt = now;
+      data.resolvedAt = null;
     }
     if (dto.status === TicketStatus.CLOSED) {
       data.closedAt = now;
@@ -456,8 +507,13 @@ export class TicketsService {
           });
         }
       }
-      if (dto.status === TicketStatus.RESOLVED && policy.resolutionMinutes > 0) {
-        const waited = this.minutesBetween(updated.createdAt, updated.resolvedAt ?? now);
+      if (
+        (dto.status === TicketStatus.RESOLVED ||
+          dto.status === TicketStatus.UNRESOLVED) &&
+        policy.resolutionMinutes > 0
+      ) {
+        const end = updated.resolvedAt ?? updated.closedAt ?? now;
+        const waited = this.minutesBetween(updated.createdAt, end);
         if (waited > policy.resolutionMinutes) {
           await this.logSlaBreach('resolution', updated, actor, {
             waited,
@@ -745,6 +801,9 @@ export class TicketsService {
     if (status === TicketStatus.RESOLVED) {
       await this.notifyCreatorOnResolution(ticket, actor);
     }
+    if (status === TicketStatus.UNRESOLVED) {
+      await this.notifyCreatorOnUnresolved(ticket, actor);
+    }
   }
 
   private async notifyAssignedUser(
@@ -784,6 +843,30 @@ export class TicketsService {
       type: NotificationType.STATUS_RESOLVED,
       title: `Ticket ${ticket.ticketNumber} résolu`,
       message: `${actorName} a marqué le ticket ${ticket.ticketNumber} comme résolu.`,
+      channel: NotificationChannel.IN_APP,
+    });
+  }
+
+  private async notifyCreatorOnUnresolved(
+    ticket: TicketWithRelations,
+    actor: AuthenticatedUserDto,
+  ) {
+    const recipients = new Set<string>();
+    if (ticket.createdById) {
+      recipients.add(ticket.createdById);
+    }
+    if (ticket.assignedResponsibleId) {
+      recipients.add(ticket.assignedResponsibleId);
+    }
+    if (!recipients.size) {
+      return;
+    }
+    const actorName = `${actor.prenom} ${actor.nom}`.trim();
+    await this.notification.notifyUsers(Array.from(recipients), {
+      ticketId: ticket.id,
+      type: NotificationType.STATUS_UNRESOLVED,
+      title: `Ticket ${ticket.ticketNumber} non résolu`,
+      message: `${actorName} a marqué le ticket ${ticket.ticketNumber} comme non résolu.`,
       channel: NotificationChannel.IN_APP,
     });
   }

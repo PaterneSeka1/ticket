@@ -16,6 +16,7 @@ export const statusLabels: Partial<Record<TicketStatus, { label: string; color: 
   ASSIGNED: { label: "Assigné", color: "bg-[#eef5ff] text-[#1f4bbf]" },
   IN_PROGRESS: { label: "En cours", color: "bg-[#fff6e0] text-[#c4620c]" },
   RESOLVED: { label: "Résolu", color: "bg-[#e8f6eb] text-[#1f6f3a]" },
+  UNRESOLVED: { label: "Non résolu", color: "bg-[#fde8e7] text-[#c42d1f]" },
   CLOSED: { label: "Clôturé", color: "bg-[#f0f0f0] text-[#6b6b6b]" },
   REOPENED: { label: "Réouvert", color: "bg-[#f0ecff] text-[#5a3db7]" },
   CANCELLED: { label: "Annulé", color: "bg-[#fde8e7] text-[#c42d1f]" },
