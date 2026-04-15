@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import toast from "react-hot-toast";
+import Link from "next/link";
 import type { Ticket } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { changeTicketStatus } from "@/api/tickets";
@@ -65,12 +66,26 @@ export function TicketDetailModal({
 }: TicketDetailModalProps) {
   const { user } = useCurrentUser();
   const canAssign =
-    !!user && ["ADMIN", "SUPER_ADMIN"].includes(user.role) && ticket.status === "PENDING_ASSIGNMENT";
+    !!user &&
+    ["ADMIN", "SUPER_ADMIN"].includes(user.role) &&
+    ticket.status === "PENDING_ASSIGNMENT";
+  const canChangeStatus =
+    !!user && ["ADMIN", "SUPER_ADMIN"].includes(user.role) && ["ASSIGNED", "IN_PROGRESS"].includes(ticket.status);
+  const canMarkUnresolved =
+    !!user && ["ADMIN", "SUPER_ADMIN"].includes(user.role) && ticket.status === "RESOLVED";
+
+  const configurationRoute =
+    user?.role === "SUPER_ADMIN"
+      ? "/dashboard/super-admin/configuration"
+      : "/dashboard/admin/configuration";
 
   const [responsibles, setResponsibles] = useState<ResolutionResponsible[]>([]);
   const [responsiblesLoading, setResponsiblesLoading] = useState(false);
   const [selectedResponsibleId, setSelectedResponsibleId] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
+  const [resolutionComment, setResolutionComment] = useState("");
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [unresolvedComment, setUnresolvedComment] = useState("");
 
   useEffect(() => {
     if (!canAssign) return;
@@ -182,6 +197,65 @@ export function TicketDetailModal({
     }
   };
 
+  const handleMarkInProgress = async () => {
+    setIsUpdatingStatus(true);
+    try {
+      const updated = await changeTicketStatus(ticket.id, {
+        status: "IN_PROGRESS",
+      });
+      onTicketUpdated?.(updated);
+      toast.success("Ticket passé en cours.");
+    } catch (error) {
+      const message =
+        error instanceof ApiError ? error.message : "Impossible de mettre le ticket en cours.";
+      toast.error(message);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleResolve = async () => {
+    if (!resolutionComment.trim()) {
+      toast.error("Le commentaire de résolution est requis.");
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+    try {
+      const updated = await changeTicketStatus(ticket.id, {
+        status: "RESOLVED",
+        resolutionComment: resolutionComment.trim(),
+      });
+      onTicketUpdated?.(updated);
+      toast.success("Ticket marqué comme résolu.");
+    } catch (error) {
+      const message =
+        error instanceof ApiError ? error.message : "Impossible de résoudre le ticket.";
+      toast.error(message);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleMarkUnresolved = async () => {
+    setIsUpdatingStatus(true);
+    try {
+      const updated = await changeTicketStatus(ticket.id, {
+        status: "REOPENED",
+        resolutionComment: unresolvedComment.trim() || undefined,
+      });
+      onTicketUpdated?.(updated);
+      setUnresolvedComment("");
+      toast.success("Ticket marqué comme non résolu.");
+    } catch (error) {
+      const message =
+        error instanceof ApiError ? error.message : "Impossible de marquer le ticket comme non résolu.";
+      toast.error(message);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-40 overflow-y-auto bg-black/40 p-4" onClick={onClose}>
       <div
@@ -230,6 +304,15 @@ export function TicketDetailModal({
                 <p className="mt-2 text-[12px] text-[#7b6655]">
                   Choisissez un responsable puis validez l’assignation.
                 </p>
+                {!responsiblesLoading && responsibles.length === 0 ? (
+                  <div className="mt-3 rounded-[14px] border border-dashed border-[#e7e3db] bg-[#fffdf9] px-4 py-3 text-[12px] text-[#6b5446]">
+                    Aucun responsable actif. Ajoutez-en dans{" "}
+                    <Link href={configurationRoute} className="font-semibold text-[#b87731] underline">
+                      Configuration → Services assignataires
+                    </Link>
+                    .
+                  </div>
+                ) : null}
                 <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <select
                     value={selectedResponsibleId}
@@ -257,6 +340,81 @@ export function TicketDetailModal({
                     className="inline-flex h-10 items-center justify-center rounded-[12px] bg-[#f9b800] px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#352300] shadow-[0_10px_20px_rgba(249,184,0,0.18)] transition disabled:opacity-40"
                   >
                     {isAssigning ? "Assignation…" : "Assigner"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {canChangeStatus && (
+              <div className="rounded-2xl border border-[#eee3d6] bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#9c958a]">
+                  Statut
+                </p>
+                <p className="mt-2 text-[12px] text-[#7b6655]">
+                  Une fois l’intervention terminée, vous pouvez marquer le ticket comme résolu.
+                </p>
+
+                {ticket.status === "ASSIGNED" && (
+                  <button
+                    type="button"
+                    onClick={handleMarkInProgress}
+                    disabled={isUpdatingStatus}
+                    className="mt-3 inline-flex h-10 items-center justify-center rounded-[12px] border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition disabled:opacity-40"
+                  >
+                    {isUpdatingStatus ? "Mise à jour…" : "Passer en cours"}
+                  </button>
+                )}
+
+                <div className="mt-4 space-y-2">
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8b7765]">
+                    Commentaire de résolution <span className="text-[#d92d20]">*</span>
+                  </span>
+                  <textarea
+                    value={resolutionComment}
+                    onChange={(event) => setResolutionComment(event.target.value)}
+                    placeholder="Décrivez la résolution…"
+                    rows={3}
+                    className="w-full rounded-[12px] border border-[#e7ddd2] bg-white px-3 py-2 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleResolve}
+                    disabled={isUpdatingStatus || !resolutionComment.trim()}
+                    className="inline-flex h-10 items-center justify-center rounded-[12px] bg-[#f9b800] px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#352300] shadow-[0_10px_20px_rgba(249,184,0,0.18)] transition disabled:opacity-40"
+                  >
+                    {isUpdatingStatus ? "Mise à jour…" : "Marquer résolu"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {canMarkUnresolved && (
+              <div className="rounded-2xl border border-[#eee3d6] bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#9c958a]">
+                  Non résolu
+                </p>
+                <p className="mt-2 text-[12px] text-[#7b6655]">
+                  Si la résolution est incorrecte, vous pouvez réouvrir le ticket.
+                </p>
+
+                <div className="mt-4 space-y-2">
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8b7765]">
+                    Commentaire (optionnel)
+                  </span>
+                  <textarea
+                    value={unresolvedComment}
+                    onChange={(event) => setUnresolvedComment(event.target.value)}
+                    placeholder="Expliquez pourquoi le ticket est non résolu…"
+                    rows={3}
+                    className="w-full rounded-[12px] border border-[#e7ddd2] bg-white px-3 py-2 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleMarkUnresolved}
+                    disabled={isUpdatingStatus}
+                    className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition disabled:opacity-40"
+                  >
+                    {isUpdatingStatus ? "Mise à jour…" : "Marquer non résolu"}
                   </button>
                 </div>
               </div>

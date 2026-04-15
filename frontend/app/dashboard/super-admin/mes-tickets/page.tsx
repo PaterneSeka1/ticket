@@ -1,13 +1,12 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/app/dashboard/components/DashboardShell";
 import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { TicketTablePanel } from "@/app/dashboard/components/TicketTablePanel";
 import { useMyTickets } from "@/app/dashboard/hooks/useMyTickets";
-import type { Ticket } from "@/api/types";
 
 export default function SuperAdminMesTicketsPage() {
   const router = useRouter();
@@ -21,11 +20,6 @@ export default function SuperAdminMesTicketsPage() {
     }
   }, [status, user, router]);
 
-  const ticketFilter = useMemo(
-    () => (ticket: Ticket) => ticket.emitter?.id === user?.id,
-    [user],
-  );
-
   if (status !== "ready" || !user) {
     return (
       <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
@@ -38,7 +32,7 @@ export default function SuperAdminMesTicketsPage() {
 
   return (
     <DashboardShell user={user} title="Mes tickets" subtitle="Les tickets qui vous concernent">
-      <TicketTablePanel tickets={tickets} loading={loading} ticketFilter={ticketFilter} />
+      <TicketTablePanel tickets={tickets} loading={loading} />
     </DashboardShell>
   );
 }

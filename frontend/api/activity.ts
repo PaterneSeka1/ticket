@@ -5,6 +5,7 @@ interface FetchActivityLogsOptions {
   limit?: number;
   action?: string;
   search?: string;
+  date?: string;
 }
 
 export async function fetchActivityLogs(options: FetchActivityLogsOptions = {}) {
@@ -17,6 +18,9 @@ export async function fetchActivityLogs(options: FetchActivityLogsOptions = {}) 
   }
   if (options.search) {
     params.set('search', options.search);
+  }
+  if (options.date) {
+    params.set('date', options.date);
   }
   const query = params.toString() ? `?${params.toString()}` : '';
   return apiRequest<ActivityLogEntry[]>(`/activity/logs${query}`);

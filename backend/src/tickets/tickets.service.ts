@@ -73,7 +73,11 @@ const STATUS_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
     TicketStatus.ASSIGNED,
     TicketStatus.CANCELLED,
   ],
-  [TicketStatus.ASSIGNED]: [TicketStatus.IN_PROGRESS, TicketStatus.CANCELLED],
+  [TicketStatus.ASSIGNED]: [
+    TicketStatus.IN_PROGRESS,
+    TicketStatus.RESOLVED,
+    TicketStatus.CANCELLED,
+  ],
   [TicketStatus.IN_PROGRESS]: [TicketStatus.RESOLVED, TicketStatus.ASSIGNED],
   [TicketStatus.RESOLVED]: [TicketStatus.CLOSED, TicketStatus.REOPENED],
   [TicketStatus.CLOSED]: [TicketStatus.REOPENED],
@@ -90,6 +94,95 @@ export class TicketsService {
   ) {}
 
   private readonly ticketInclude = ticketInclude;
+
+  private minutesBetween(from: Date, to: Date) {
+    const diffMs = to.getTime() - from.getTime();
+    if (!Number.isFinite(diffMs) || diffMs <= 0) return 0;
+    return Math.floor(diffMs / 60000);
+  }
+
+  private async getActiveSlaPoliciesByPriority() {
+    const policies = await this.prisma.client.slaPolicy.findMany({
+      where: {
+        isActive: true,
+        priority: { in: [TicketPriority.CRITICAL, TicketPriority.HIGH, TicketPriority.MEDIUM] },
+      },
+      select: {
+        priority: true,
+        responseMinutes: true,
+        resolutionMinutes: true,
+        isActive: true,
+      },
+    });
+
+    return new Map(policies.map((policy) => [policy.priority, policy]));
+  }
+
+  private withSla(
+    ticket: TicketWithRelations,
+    now: Date,
+    policies: Map<
+      TicketPriority,
+      { priority: TicketPriority; responseMinutes: number; resolutionMinutes: number; isActive: boolean }
+    >,
+  ) {
+    const policy = policies.get(ticket.priority);
+    if (!policy?.isActive) {
+      return ticket;
+    }
+
+    const createdAt = ticket.createdAt;
+    const assignedAt = ticket.assignedAt ?? null;
+    const resolvedAt = ticket.resolvedAt ?? null;
+
+    const responseWaitMinutes = this.minutesBetween(createdAt, assignedAt ?? now);
+    const resolutionWaitMinutes = this.minutesBetween(createdAt, resolvedAt ?? now);
+
+    const responseMaxMinutes = policy.responseMinutes ?? 0;
+    const resolutionMaxMinutes = policy.resolutionMinutes ?? 0;
+
+    return {
+      ...ticket,
+      // Backward-compatible fields consumed by the frontend SLA widgets.
+      slaMaxMinutes: resolutionMaxMinutes || undefined,
+      waitMinutes: resolutionWaitMinutes || 0,
+      // Extra SLA details (useful for future UI / exports).
+      slaResponseMinutes: responseMaxMinutes || undefined,
+      responseWaitMinutes,
+      slaResolutionMinutes: resolutionMaxMinutes || undefined,
+      resolutionWaitMinutes,
+      slaResponseBreached:
+        responseMaxMinutes > 0 ? responseWaitMinutes > responseMaxMinutes : undefined,
+      slaResolutionBreached:
+        resolutionMaxMinutes > 0 ? resolutionWaitMinutes > resolutionMaxMinutes : undefined,
+    };
+  }
+
+  private async logSlaBreach(
+    kind: 'response' | 'resolution',
+    ticket: TicketWithRelations,
+    actor: AuthenticatedUserDto,
+    payload: { waited: number; max: number },
+  ) {
+    await this.activity.log({
+      action: kind === 'response' ? 'sla.response.breached' : 'sla.resolution.breached',
+      details: `Ticket ${ticket.ticketNumber} SLA ${kind} dépassé (${payload.waited}m > ${payload.max}m)`,
+      actorId: actor.id,
+      actorName: `${actor.nom} ${actor.prenom}`.trim(),
+      role: actor.role,
+      ticketId: ticket.id,
+    });
+
+    const adminIds = await this.fetchAdminIds();
+    if (!adminIds.length) return;
+    await this.notification.notifyUsers(adminIds, {
+      ticketId: ticket.id,
+      type: NotificationType.STATUS_IN_PROGRESS,
+      title: `SLA dépassé (${kind})`,
+      message: `Le ticket ${ticket.ticketNumber} a dépassé le SLA ${kind} (${payload.waited}m > ${payload.max}m).`,
+      channel: NotificationChannel.IN_APP,
+    });
+  }
 
   async create(
     dto: CreateTicketDto,
@@ -145,7 +238,8 @@ export class TicketsService {
     const adminIds = await this.fetchAdminIds();
     await this.notifyAdminsOfNewTicket(ticket, adminIds);
 
-    return ticket;
+    const policies = await this.getActiveSlaPoliciesByPriority();
+    return this.withSla(ticket, new Date(), policies);
   }
 
   async findAll(filters: TicketFiltersDto) {
@@ -181,26 +275,34 @@ export class TicketsService {
       include: this.ticketInclude,
     });
 
-    return tickets;
+    const policies = await this.getActiveSlaPoliciesByPriority();
+    const now = new Date();
+    return tickets.map((ticket) => this.withSla(ticket, now, policies));
   }
 
   async findMine(userId: string) {
-    return this.prisma.client.ticket.findMany({
+    const tickets = await this.prisma.client.ticket.findMany({
       where: { createdById: userId },
       orderBy: { createdAt: 'desc' },
       include: this.ticketInclude,
     });
+    const policies = await this.getActiveSlaPoliciesByPriority();
+    const now = new Date();
+    return tickets.map((ticket) => this.withSla(ticket, now, policies));
   }
 
   async findReceivedByDsi(user: AuthenticatedUserDto) {
     if (user.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Accès réservé au super administrateur.');
     }
-    return this.prisma.client.ticket.findMany({
+    const tickets = await this.prisma.client.ticket.findMany({
       where: { assignedResponsibleId: user.id },
       orderBy: { createdAt: 'desc' },
       include: this.ticketInclude,
     });
+    const policies = await this.getActiveSlaPoliciesByPriority();
+    const now = new Date();
+    return tickets.map((ticket) => this.withSla(ticket, now, policies));
   }
 
   async findOne(id: string): Promise<TicketWithRelations> {
@@ -211,7 +313,8 @@ export class TicketsService {
     if (!ticket) {
       throw new NotFoundException(`Ticket ${id} introuvable.`);
     }
-    return ticket;
+    const policies = await this.getActiveSlaPoliciesByPriority();
+    return this.withSla(ticket, new Date(), policies);
   }
 
   async update(id: string, dto: UpdateTicketDto, actor?: AuthenticatedUserDto) {
@@ -340,7 +443,31 @@ export class TicketsService {
       ticket.id,
     );
     await this.handleStatusNotifications(updated, dto.status, actor);
-    return updated;
+
+    const policies = await this.getActiveSlaPoliciesByPriority();
+    const policy = policies.get(updated.priority);
+    if (policy?.isActive) {
+      if (dto.status === TicketStatus.ASSIGNED && policy.responseMinutes > 0) {
+        const waited = this.minutesBetween(updated.createdAt, updated.assignedAt ?? now);
+        if (waited > policy.responseMinutes) {
+          await this.logSlaBreach('response', updated, actor, {
+            waited,
+            max: policy.responseMinutes,
+          });
+        }
+      }
+      if (dto.status === TicketStatus.RESOLVED && policy.resolutionMinutes > 0) {
+        const waited = this.minutesBetween(updated.createdAt, updated.resolvedAt ?? now);
+        if (waited > policy.resolutionMinutes) {
+          await this.logSlaBreach('resolution', updated, actor, {
+            waited,
+            max: policy.resolutionMinutes,
+          });
+        }
+      }
+    }
+
+    return this.withSla(updated, new Date(), policies);
   }
 
   async addComment(
@@ -591,7 +718,7 @@ export class TicketsService {
   }
 
   private async ensureActiveResponsible(id: string) {
-    const responsible = await this.prisma.client.user.findUnique({
+    const responsible = await this.prisma.client.resolutionResponsible.findUnique({
       where: { id },
     });
     if (!responsible || !responsible.isActive) {

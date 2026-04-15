@@ -320,7 +320,7 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
   const filteredCount = table.getFilteredRowModel().rows.length;
   const totalColumns = table.getAllLeafColumns().length;
 
-  const mobileRows = filteredTickets;
+  const mobileRows = paginatedRows.map((row) => row.original);
 
   return (
     <>

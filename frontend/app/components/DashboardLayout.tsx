@@ -37,7 +37,7 @@ type NavSection = {
 
 const roleRoutes: Record<
   UserRole,
-  { root: string; tickets: string; newTicket: string; myTickets: string }
+  { root: string; tickets: string; newTicket: string; myTickets: string; journal?: string }
 > = {
   ADMIN: {
     root: "/dashboard/admin",
@@ -50,6 +50,7 @@ const roleRoutes: Record<
     tickets: "/dashboard/super-admin/tickets",
     newTicket: "/dashboard/super-admin/nouveau-ticket",
     myTickets: "/dashboard/super-admin/mes-tickets",
+    journal: "/dashboard/super-admin/journal",
   },
   EMPLOYE: {
     root: "/dashboard/employe",
@@ -66,7 +67,7 @@ const roleRoutes: Record<
 };
 
 const buildNavSections = (
-  routes: { root: string; tickets: string; newTicket: string; myTickets: string },
+  routes: { root: string; tickets: string; newTicket: string; myTickets: string; journal?: string },
   includeAllTicketsLink: boolean,
 ) => {
   const principal: NavSection = {
@@ -75,6 +76,7 @@ const buildNavSections = (
       { label: "Tableau de bord", href: routes.root, icon: <Activity className="h-4 w-4" /> },
       { label: "Nouveau ticket", href: routes.newTicket, icon: <PlusCircle className="h-4 w-4" /> },
       { label: "Mes tickets", href: routes.myTickets, icon: <List className="h-4 w-4" /> },
+      routes.journal ? { label: "Journal d'activité", href: routes.journal, icon: <List className="h-4 w-4" /> } : null,
       includeAllTicketsLink
         ? { label: "Tous les tickets", href: routes.tickets, icon: <Layers className="h-4 w-4" /> }
         : null,
@@ -101,7 +103,6 @@ const buildNavSections = (
       { label: "Utilisateurs", href: "/dashboard/super-admin/users", icon: <Users className="h-4 w-4" /> },
       { label: "Créer un utilisateur", href: "/dashboard/super-admin/users/create", icon: <UserPlus className="h-4 w-4" /> },
       { label: "Configuration", href: "/dashboard/super-admin/configuration", icon: <Settings className="h-4 w-4" /> },
-      { label: "Journal d'activité", href: "/dashboard/super-admin/journal", icon: <List className="h-4 w-4" /> },
     ],
   };
 

@@ -16,6 +16,7 @@ interface FetchOptions {
   limit?: number;
   actions?: string[];
   since?: Date;
+  until?: Date;
   actorId?: string;
   search?: string;
 }
@@ -38,13 +39,16 @@ export class ActivityLogService {
   }
 
   fetchLogs(options: FetchOptions = {}): Promise<ActivityLog[]> {
-    const sanitizedLimit = Math.max(1, Math.min(options.limit ?? 100, 200));
+    const sanitizedLimit = Math.max(1, Math.min(options.limit ?? 100, 500));
     const where: Prisma.ActivityLogWhereInput = {};
     if (options.actions?.length) {
       where.action = { in: options.actions };
     }
-    if (options.since) {
-      where.createdAt = { gte: options.since };
+    if (options.since || options.until) {
+      where.createdAt = {
+        gte: options.since,
+        lt: options.until,
+      };
     }
     if (options.actorId) {
       where.actorId = options.actorId;

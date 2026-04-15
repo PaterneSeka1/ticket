@@ -23,18 +23,34 @@ export class ActivityLogsController {
     @Query('limit', new DefaultValuePipe(30), ParseIntPipe) limit: number,
     @Query('action') action?: string,
     @Query('search') search?: string,
+    @Query('date') date?: string,
   ) {
-    const sanitizedLimit = Math.max(1, Math.min(limit, 60));
+    const sanitizedLimit = Math.max(1, Math.min(limit, 500));
     const actions =
       action === 'auth.login'
         ? ['auth.login']
         : action === 'auth.logout'
           ? ['auth.logout']
           : undefined;
+
+    const since =
+      date && /^\d{4}-\d{2}-\d{2}$/.test(date)
+        ? new Date(`${date}T00:00:00.000Z`)
+        : undefined;
+    const until =
+      date && /^\d{4}-\d{2}-\d{2}$/.test(date)
+        ? new Date(`${date}T00:00:00.000Z`)
+        : undefined;
+    if (until) {
+      until.setUTCDate(until.getUTCDate() + 1);
+    }
+
     return this.activity.fetchLogs({
       limit: sanitizedLimit,
       actions,
       search,
+      since,
+      until,
     });
   }
 }
