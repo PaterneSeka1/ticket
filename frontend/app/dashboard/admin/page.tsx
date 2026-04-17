@@ -35,6 +35,15 @@ import {
   statusLabels,
 } from "@/app/dashboard/lib/ticket-formatters";
 
+const PRIMARY_ACTION_BUTTON_CLASS =
+  "rounded-full bg-[#f9b800] px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#352300] shadow-[0_8px_16px_rgba(249,184,0,0.18)] transition enabled:cursor-pointer disabled:cursor-not-allowed enabled:hover:bg-[#f2aa00] enabled:hover:shadow-[0_10px_20px_rgba(249,184,0,0.26)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9b800]/40 focus-visible:ring-offset-2 active:translate-y-px";
+
+const SOLID_BUTTON_CLASS =
+  "rounded-md px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white transition enabled:cursor-pointer disabled:cursor-not-allowed enabled:hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b1d10]/15 focus-visible:ring-offset-2 active:translate-y-px";
+
+const OUTLINE_PAGINATION_BUTTON_CLASS =
+  "w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 enabled:hover:border-[#d29b55] enabled:hover:bg-[#fff5ec] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d29b55]/30 focus-visible:ring-offset-2 lg:w-auto";
+
 const STATUS_CHART_COLORS: Partial<Record<TicketStatus, string>> = {
   RECU: "#d9d9d9",
   EN_COURS: "#6d35d9",
@@ -210,7 +219,7 @@ function MobileTicketCard({ ticket }: { ticket: Ticket }) {
       </div>
       <SlaBar ticket={ticket} />
       <div className="flex justify-end">
-        <button className="rounded-full bg-[#f9b800] px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#352300] shadow-[0_8px_16px_rgba(249,184,0,0.18)]">
+        <button className={PRIMARY_ACTION_BUTTON_CLASS}>
           Voir
         </button>
       </div>
@@ -390,7 +399,7 @@ export function AdminDashboardContent() {
         header: "ACTION",
         cell: () => (
           <div className="flex justify-end">
-            <button className="rounded-full bg-[#f9b800] px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#352300] shadow-[0_8px_16px_rgba(249,184,0,0.18)]">
+            <button className={PRIMARY_ACTION_BUTTON_CLASS}>
               Voir
             </button>
           </div>
@@ -442,10 +451,10 @@ export function AdminDashboardContent() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button className="rounded-md bg-[#2dac45] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+            <button className={`${SOLID_BUTTON_CLASS} bg-[#2dac45]`}>
               Renvoyer WhatsApp
             </button>
-            <button className="rounded-md bg-[#1f1f1f] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+            <button className={`${SOLID_BUTTON_CLASS} bg-[#1f1f1f]`}>
               Renvoyer Email
             </button>
           </div>
@@ -464,7 +473,7 @@ export function AdminDashboardContent() {
             </p>
           </div>
 
-          <button className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#f0a000]">
+          <button className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.12em] text-[#f0a000] transition-colors hover:text-[#c26d00] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f0a000]/25 focus-visible:ring-offset-2">
             Voir
           </button>
         </div>
@@ -533,7 +542,7 @@ export function AdminDashboardContent() {
               type="button"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
-              className="w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40 lg:w-auto"
+              className={OUTLINE_PAGINATION_BUTTON_CLASS}
             >
               Précédent
             </button>
@@ -541,7 +550,7 @@ export function AdminDashboardContent() {
               type="button"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
-              className="w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40 lg:w-auto"
+              className={OUTLINE_PAGINATION_BUTTON_CLASS}
             >
               Suivant
             </button>
