@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -24,6 +24,7 @@ interface TicketDetailModalProps {
   ticket: Ticket;
   onClose: () => void;
   onTicketUpdated?: (ticket: Ticket) => void;
+  initialView?: "assign" | null;
 }
 
 const resolveTicketNumber = (ticket: Ticket) => ticket.ticketNumber ?? ticket.code ?? ticket.id;
@@ -63,6 +64,7 @@ export function TicketDetailModal({
   ticket,
   onClose,
   onTicketUpdated,
+  initialView,
 }: TicketDetailModalProps) {
   const { user } = useCurrentUser();
   const canAssign =
@@ -88,6 +90,7 @@ export function TicketDetailModal({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [selectedPriority, setSelectedPriority] = useState(ticket.priority);
   const [isUpdatingPriority, setIsUpdatingPriority] = useState(false);
+  const assignSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setSelectedPriority(ticket.priority);
@@ -119,6 +122,13 @@ export function TicketDetailModal({
       cancelled = true;
     };
   }, [canAssign]);
+
+  useEffect(() => {
+    if (initialView !== "assign") return;
+    if (!canAssign) return;
+    if (!assignSectionRef.current) return;
+    assignSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [canAssign, initialView]);
 
   const timelineEntries = useMemo<TimelineEntry[]>(() => {
     if (ticket.statusHistory?.length) {
@@ -358,7 +368,10 @@ export function TicketDetailModal({
             </div>
 
             {canAssign && (
-              <div className="rounded-2xl border border-[#eee3d6] bg-white p-4">
+              <div
+                ref={assignSectionRef}
+                className="rounded-2xl border border-[#eee3d6] bg-white p-4"
+              >
                 <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#9c958a]">
                   Assignation
                 </p>

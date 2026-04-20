@@ -1,5 +1,31 @@
 export type UserRole = "SUPER_ADMIN" | "ADMIN" | "READER" | "EMPLOYE";
 
+export type NotificationType =
+  | "TICKET_CREATED"
+  | "TICKET_ASSIGNED"
+  | "STATUS_IN_PROGRESS"
+  | "STATUS_RESOLVED"
+  | "STATUS_UNRESOLVED"
+  | "STATUS_CLOSED"
+  | "TICKET_REOPENED"
+  | "TICKET_CANCELLED"
+  | "TICKET_REASSIGNED"
+  | "NEW_COMMENT";
+
+export type NotificationChannel = "IN_APP" | "EMAIL";
+
+export interface UserNotification {
+  id: string;
+  userId: string;
+  ticketId?: string | null;
+  type: NotificationType;
+  channel: NotificationChannel;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 export interface Department {
   id: string;
   name: string;

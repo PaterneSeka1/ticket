@@ -111,7 +111,13 @@ export class TicketsService {
     const policies = await this.prisma.client.slaPolicy.findMany({
       where: {
         isActive: true,
-        priority: { in: [TicketPriority.CRITICAL, TicketPriority.HIGH, TicketPriority.MEDIUM] },
+        priority: {
+          in: [
+            TicketPriority.CRITICAL,
+            TicketPriority.HIGH,
+            TicketPriority.MEDIUM,
+          ],
+        },
       },
       select: {
         priority: true,
@@ -129,7 +135,12 @@ export class TicketsService {
     now: Date,
     policies: Map<
       TicketPriority,
-      { priority: TicketPriority; responseMinutes: number; resolutionMinutes: number; isActive: boolean }
+      {
+        priority: TicketPriority;
+        responseMinutes: number;
+        resolutionMinutes: number;
+        isActive: boolean;
+      }
     >,
   ) {
     const policy = policies.get(ticket.priority);
@@ -149,8 +160,14 @@ export class TicketsService {
           ? closedAt
           : null;
 
-    const responseWaitMinutes = this.minutesBetween(createdAt, assignedAt ?? now);
-    const resolutionWaitMinutes = this.minutesBetween(createdAt, resolutionEnd ?? now);
+    const responseWaitMinutes = this.minutesBetween(
+      createdAt,
+      assignedAt ?? now,
+    );
+    const resolutionWaitMinutes = this.minutesBetween(
+      createdAt,
+      resolutionEnd ?? now,
+    );
 
     const responseMaxMinutes = policy.responseMinutes ?? 0;
     const resolutionMaxMinutes = policy.resolutionMinutes ?? 0;
@@ -166,9 +183,13 @@ export class TicketsService {
       slaResolutionMinutes: resolutionMaxMinutes || undefined,
       resolutionWaitMinutes,
       slaResponseBreached:
-        responseMaxMinutes > 0 ? responseWaitMinutes > responseMaxMinutes : undefined,
+        responseMaxMinutes > 0
+          ? responseWaitMinutes > responseMaxMinutes
+          : undefined,
       slaResolutionBreached:
-        resolutionMaxMinutes > 0 ? resolutionWaitMinutes > resolutionMaxMinutes : undefined,
+        resolutionMaxMinutes > 0
+          ? resolutionWaitMinutes > resolutionMaxMinutes
+          : undefined,
     };
   }
 
@@ -179,7 +200,10 @@ export class TicketsService {
     payload: { waited: number; max: number },
   ) {
     await this.activity.log({
-      action: kind === 'response' ? 'sla.response.breached' : 'sla.resolution.breached',
+      action:
+        kind === 'response'
+          ? 'sla.response.breached'
+          : 'sla.resolution.breached',
       details: `Ticket ${ticket.ticketNumber} SLA ${kind} dépassé (${payload.waited}m > ${payload.max}m)`,
       actorId: actor.id,
       actorName: `${actor.nom} ${actor.prenom}`.trim(),
@@ -251,6 +275,14 @@ export class TicketsService {
     );
     const adminIds = await this.fetchAdminIds();
     await this.notifyAdminsOfNewTicket(ticket, adminIds);
+    await this.notification.notifyUsers([emitter.id], {
+      ticketId: ticket.id,
+      type: NotificationType.TICKET_CREATED,
+      title: `Ticket ${ticket.ticketNumber} créé`,
+      message:
+        'Votre demande a bien été enregistrée. Vous serez notifié des changements de statut.',
+      channel: NotificationChannel.IN_APP,
+    });
 
     const policies = await this.getActiveSlaPoliciesByPriority();
     return this.withSla(ticket, new Date(), policies);
@@ -493,13 +525,16 @@ export class TicketsService {
       actor,
       ticket.id,
     );
-    await this.handleStatusNotifications(updated, dto.status, actor);
+    await this.handleStatusNotifications(ticket, updated, dto.status, actor);
 
     const policies = await this.getActiveSlaPoliciesByPriority();
     const policy = policies.get(updated.priority);
     if (policy?.isActive) {
       if (dto.status === TicketStatus.ASSIGNED && policy.responseMinutes > 0) {
-        const waited = this.minutesBetween(updated.createdAt, updated.assignedAt ?? now);
+        const waited = this.minutesBetween(
+          updated.createdAt,
+          updated.assignedAt ?? now,
+        );
         if (waited > policy.responseMinutes) {
           await this.logSlaBreach('response', updated, actor, {
             waited,
@@ -531,7 +566,7 @@ export class TicketsService {
     dto: CreateTicketCommentDto,
     author: AuthenticatedUserDto,
   ) {
-    await this.findOne(id);
+    const ticket = await this.findOne(id);
     const comment = await this.prisma.client.ticketComment.create({
       data: {
         ticketId: id,
@@ -545,6 +580,28 @@ export class TicketsService {
       author,
       id,
     );
+
+    const recipients = new Set<string>();
+    if (ticket.createdById) {
+      recipients.add(ticket.createdById);
+    }
+    if (ticket.assignedResponsibleId) {
+      recipients.add(ticket.assignedResponsibleId);
+    }
+    recipients.delete(author.id);
+
+    if (recipients.size) {
+      const authorName = `${author.prenom} ${author.nom}`.trim();
+      const snippet = dto.content.trim().slice(0, 180);
+      await this.notification.notifyUsers(Array.from(recipients), {
+        ticketId: ticket.id,
+        type: NotificationType.NEW_COMMENT,
+        title: `Nouveau commentaire — ${ticket.ticketNumber}`,
+        message: `${authorName} : ${snippet}`,
+        channel: NotificationChannel.IN_APP,
+      });
+    }
+
     return comment;
   }
 
@@ -774,9 +831,10 @@ export class TicketsService {
   }
 
   private async ensureActiveResponsible(id: string) {
-    const responsible = await this.prisma.client.resolutionResponsible.findUnique({
-      where: { id },
-    });
+    const responsible =
+      await this.prisma.client.resolutionResponsible.findUnique({
+        where: { id },
+      });
     if (!responsible || !responsible.isActive) {
       throw new NotFoundException('Responsable introuvable ou désactivé.');
     }
@@ -784,89 +842,104 @@ export class TicketsService {
   }
 
   private async handleStatusNotifications(
-    ticket: TicketWithRelations,
+    before: TicketWithRelations,
+    after: TicketWithRelations,
     status: TicketStatus,
     actor: AuthenticatedUserDto,
   ) {
-    if (
-      status === TicketStatus.ASSIGNED ||
-      status === TicketStatus.IN_PROGRESS
-    ) {
-      await this.notifyAssignedUser(
-        ticket,
-        'Ticket assigné',
-        `Le ticket ${ticket.ticketNumber} vous a été attribué.`,
-      );
-    }
-    if (status === TicketStatus.RESOLVED) {
-      await this.notifyCreatorOnResolution(ticket, actor);
-    }
-    if (status === TicketStatus.UNRESOLVED) {
-      await this.notifyCreatorOnUnresolved(ticket, actor);
-    }
-  }
-
-  private async notifyAssignedUser(
-    ticket: TicketWithRelations,
-    title: string,
-    message: string,
-  ) {
-    if (!ticket.assignedResponsibleId) {
-      return;
-    }
-    await this.notification.notifyUsers([ticket.assignedResponsibleId], {
-      ticketId: ticket.id,
-      type: NotificationType.STATUS_IN_PROGRESS,
-      title,
-      message,
-      channel: NotificationChannel.IN_APP,
-    });
-  }
-
-  private async notifyCreatorOnResolution(
-    ticket: TicketWithRelations,
-    actor: AuthenticatedUserDto,
-  ) {
     const recipients = new Set<string>();
-    if (ticket.createdById) {
-      recipients.add(ticket.createdById);
+    if (after.createdById) {
+      recipients.add(after.createdById);
     }
-    if (ticket.assignedResponsibleId) {
-      recipients.add(ticket.assignedResponsibleId);
+    if (after.assignedResponsibleId) {
+      recipients.add(after.assignedResponsibleId);
     }
+    if (before.assignedResponsibleId) {
+      recipients.add(before.assignedResponsibleId);
+    }
+    recipients.delete(actor.id);
+
     if (!recipients.size) {
       return;
     }
-    const actorName = `${actor.prenom} ${actor.nom}`.trim();
-    await this.notification.notifyUsers(Array.from(recipients), {
-      ticketId: ticket.id,
-      type: NotificationType.STATUS_RESOLVED,
-      title: `Ticket ${ticket.ticketNumber} résolu`,
-      message: `${actorName} a marqué le ticket ${ticket.ticketNumber} comme résolu.`,
-      channel: NotificationChannel.IN_APP,
-    });
-  }
 
-  private async notifyCreatorOnUnresolved(
-    ticket: TicketWithRelations,
-    actor: AuthenticatedUserDto,
-  ) {
-    const recipients = new Set<string>();
-    if (ticket.createdById) {
-      recipients.add(ticket.createdById);
-    }
-    if (ticket.assignedResponsibleId) {
-      recipients.add(ticket.assignedResponsibleId);
-    }
-    if (!recipients.size) {
+    const actorName = `${actor.prenom} ${actor.nom}`.trim();
+    const isReassigned =
+      status === TicketStatus.ASSIGNED &&
+      Boolean(before.assignedResponsibleId) &&
+      before.assignedResponsibleId !== after.assignedResponsibleId;
+    const assigneeName = after.assignedResponsible
+      ? `${after.assignedResponsible.firstName} ${after.assignedResponsible.lastName}`.trim()
+      : null;
+
+    const comment = after.resolutionComment?.trim()
+      ? after.resolutionComment.trim().slice(0, 180)
+      : null;
+
+    const payload =
+      status === TicketStatus.ASSIGNED
+        ? {
+            type: isReassigned
+              ? NotificationType.TICKET_REASSIGNED
+              : NotificationType.TICKET_ASSIGNED,
+            title: isReassigned
+              ? `Ticket ${after.ticketNumber} réassigné`
+              : `Ticket ${after.ticketNumber} assigné`,
+            message: assigneeName
+              ? `${actorName} a assigné le ticket ${after.ticketNumber} à ${assigneeName}.`
+              : `${actorName} a assigné le ticket ${after.ticketNumber}.`,
+          }
+        : status === TicketStatus.IN_PROGRESS
+          ? {
+              type: NotificationType.STATUS_IN_PROGRESS,
+              title: `Ticket ${after.ticketNumber} en cours`,
+              message: `${actorName} a passé le ticket ${after.ticketNumber} en cours de traitement.`,
+            }
+          : status === TicketStatus.RESOLVED
+            ? {
+                type: NotificationType.STATUS_RESOLVED,
+                title: `Ticket ${after.ticketNumber} résolu`,
+                message: comment
+                  ? `${actorName} a résolu le ticket ${after.ticketNumber}. Commentaire : ${comment}`
+                  : `${actorName} a résolu le ticket ${after.ticketNumber}.`,
+              }
+            : status === TicketStatus.UNRESOLVED
+              ? {
+                  type: NotificationType.STATUS_UNRESOLVED,
+                  title: `Ticket ${after.ticketNumber} non résolu`,
+                  message: comment
+                    ? `${actorName} a marqué le ticket ${after.ticketNumber} comme non résolu. Commentaire : ${comment}`
+                    : `${actorName} a marqué le ticket ${after.ticketNumber} comme non résolu.`,
+                }
+              : status === TicketStatus.CLOSED
+                ? {
+                    type: NotificationType.STATUS_CLOSED,
+                    title: `Ticket ${after.ticketNumber} fermé`,
+                    message: `${actorName} a fermé le ticket ${after.ticketNumber}.`,
+                  }
+                : status === TicketStatus.REOPENED
+                  ? {
+                      type: NotificationType.TICKET_REOPENED,
+                      title: `Ticket ${after.ticketNumber} rouvert`,
+                      message: `${actorName} a rouvert le ticket ${after.ticketNumber}.`,
+                    }
+                  : status === TicketStatus.CANCELLED
+                    ? {
+                        type: NotificationType.TICKET_CANCELLED,
+                        title: `Ticket ${after.ticketNumber} annulé`,
+                        message: `${actorName} a annulé le ticket ${after.ticketNumber}.`,
+                      }
+                    : null;
+
+    if (!payload) {
       return;
     }
-    const actorName = `${actor.prenom} ${actor.nom}`.trim();
+
     await this.notification.notifyUsers(Array.from(recipients), {
-      ticketId: ticket.id,
-      type: NotificationType.STATUS_UNRESOLVED,
-      title: `Ticket ${ticket.ticketNumber} non résolu`,
-      message: `${actorName} a marqué le ticket ${ticket.ticketNumber} comme non résolu.`,
+      ticketId: after.id,
+      type: payload.type,
+      title: payload.title,
+      message: payload.message,
       channel: NotificationChannel.IN_APP,
     });
   }

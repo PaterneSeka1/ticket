@@ -1,46 +1,66 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchTickets } from "@/api/tickets";
 import type { Ticket } from "@/api/types";
 
-export function useTickets(isReady: boolean) {
+type UseTicketsOptions = {
+  pollMs?: number;
+};
+
+export function useTickets(isReady: boolean, options: UseTicketsOptions = {}) {
+  const pollMs = options.pollMs ?? 15000;
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(false);
+  const refreshInFlight = useRef(false);
+
+  const refresh = useCallback(async () => {
+    if (!isReady || refreshInFlight.current) return;
+    refreshInFlight.current = true;
+    setLoading(true);
+    try {
+      const data = await fetchTickets();
+      setTickets(data);
+    } catch (error) {
+      console.error(error);
+      setTickets([]);
+    } finally {
+      refreshInFlight.current = false;
+      setLoading(false);
+    }
+  }, [isReady]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   useEffect(() => {
     if (!isReady) return;
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, pollMs);
+    return () => window.clearInterval(timer);
+  }, [isReady, pollMs, refresh]);
 
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      try {
-        const data = await fetchTickets();
-        if (!cancelled) {
-          setTickets(data);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error(error);
-          setTickets([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+  useEffect(() => {
+    if (!isReady) return;
+    const onFocus = () => void refresh();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
       }
     };
-
-    void load();
-
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
-      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [isReady]);
+  }, [isReady, refresh]);
 
   return {
     tickets,
     loading,
+    refresh,
   };
 }

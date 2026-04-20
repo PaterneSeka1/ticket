@@ -4,7 +4,6 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   BarChart2,
-  Bell,
   Layers,
   List,
   LogOut,
@@ -24,6 +23,7 @@ import { formatFullName } from "@/app/dashboard/lib/api";
 import { UserRole } from "@/app/dashboard/lib/roles";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { usePathname } from "next/navigation";
+import { NotificationsMenu } from "@/app/dashboard/components/NotificationsMenu";
 
 type NavSection = {
   heading: string;
@@ -238,12 +238,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               <Image src="/logo1.png" alt="Logo Ticketing Vedem" width={85} height={80} className="object-contain" />
             </div>
             <div className="ml-auto flex items-center gap-3">
-              <button
-                type="button"
-                className="lg:inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/60 px-2 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-[#2b1d10] shadow-[0_10px_25px_rgba(0,0,0,0.15)] transition hover:bg-white hover:cursor-pointer"
-              >
-                <Bell className="h-4 w-4" />
-              </button>
+              <NotificationsMenu />
               <div className="hidden lg:flex items-center gap-1 rounded-full bg-white px-2 py-2 text-xs uppercase tracking-[0.02em] text-[#2b1d10] shadow-[0_10px_15px_rgba(0,0,0,0.08)]">
                 <span className="text-center flex h-5 w-8 items-center justify-center rounded-full bg-yellow-400 text-black font-semibold">{initials}</span>
                 <span className="text-[0.7rem] font-bold tracking-[0.05em] text-[#4a3826]">{formattedName}</span>

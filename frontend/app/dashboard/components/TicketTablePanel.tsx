@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, FileText } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ColumnDef,
   FilterFn,
@@ -70,6 +71,9 @@ interface TicketTablePanelProps {
 }
 
 export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTablePanelProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [ticketData, setTicketData] = useState<Ticket[]>(tickets);
 
   useEffect(() => {
@@ -87,11 +91,35 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 6 });
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const closeTicketModal = useCallback(() => setSelectedTicket(null), []);
+  const [ticketModalFocus, setTicketModalFocus] = useState<"assign" | null>(null);
+  const closeTicketModal = useCallback(() => {
+    setSelectedTicket(null);
+    setTicketModalFocus(null);
+
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("ticketId");
+    next.delete("focus");
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  }, [pathname, router, searchParams]);
   const handleTicketUpdated = useCallback((updated: Ticket) => {
     setTicketData((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     setSelectedTicket(updated);
   }, []);
+
+  useEffect(() => {
+    const ticketId = searchParams.get("ticketId");
+    if (!ticketId) return;
+
+    const focus = searchParams.get("focus");
+    const resolvedFocus = focus === "assign" ? "assign" : null;
+
+    const match = ticketData.find((ticket) => ticket.id === ticketId);
+    if (!match) return;
+
+    setSelectedTicket(match);
+    setTicketModalFocus(resolvedFocus);
+  }, [searchParams, ticketData]);
 
   const serviceOptions = useMemo(() => {
     return Array.from(
@@ -542,6 +570,7 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
           ticket={selectedTicket}
           onClose={closeTicketModal}
           onTicketUpdated={handleTicketUpdated}
+          initialView={ticketModalFocus}
         />
       )}
     </>

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ActivityLogService } from '../activity/activity-log.service.js';
@@ -65,7 +69,8 @@ export class ResolutionResponsibleService {
     if (dto.email !== undefined) data.email = dto.email.trim() || null;
     if (dto.phone !== undefined) data.phone = dto.phone.trim() || null;
     if (dto.role !== undefined) data.role = dto.role.trim() || null;
-    if (dto.department !== undefined) data.department = dto.department.trim() || null;
+    if (dto.department !== undefined)
+      data.department = dto.department.trim() || null;
     if (dto.isExternal !== undefined) data.isExternal = dto.isExternal;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
 

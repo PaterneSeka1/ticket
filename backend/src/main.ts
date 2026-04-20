@@ -11,14 +11,15 @@ async function bootstrap() {
   });
 
   if (process.env.LOG_HTTP === 'true') {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     app.use((req: any, _res: any, next: any) => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const hasAuth = Boolean(req.headers?.authorization);
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const origin = req.headers?.origin ?? '-';
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      console.log(`[HTTP] ${req.method} ${req.url} auth=${hasAuth ? 'yes' : 'no'} origin=${origin}`);
+
+      console.log(
+        `[HTTP] ${req.method} ${req.url} auth=${hasAuth ? 'yes' : 'no'} origin=${origin}`,
+      );
       next();
     });
   }
