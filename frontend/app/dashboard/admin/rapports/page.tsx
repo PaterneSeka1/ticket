@@ -50,8 +50,8 @@ const priorityPalette: Record<TicketPriority, { label: string; color: string }> 
 };
 
 const filters = {
-  period: ["Ce mois", "Ce trimestre", "Cet année"],
-  services: ["Tous services", "DSI", "Relation Clientèle", "Boldcode", "Opérations"],
+  period: ["Ce mois", "Ce trimestre", "Cette année"],
+  services: ["Tous services"],
   priorities: ["Toutes priorités", "P1", "P2", "P3", "P4"],
 };
 
@@ -59,6 +59,43 @@ const formatDate = (value: string) =>
   new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(
     new Date(value),
   );
+
+const DEFAULT_SERVICE_LABEL = "Non assigné";
+
+function resolveServiceLabel(service?: string | null) {
+  if (!service) return DEFAULT_SERVICE_LABEL;
+  switch (service) {
+    case "QUALITE":
+      return "Qualité";
+    case "OPERATIONS":
+      return "Opérations";
+    case "REPUTATION":
+      return "Réputation";
+    default:
+      return service;
+  }
+}
+
+function resolvePeriodStart(periodLabel: string) {
+  const now = new Date();
+  const monthIndex = now.getMonth();
+  const year = now.getFullYear();
+
+  if (periodLabel === "Ce mois") {
+    return new Date(year, monthIndex, 1, 0, 0, 0, 0);
+  }
+
+  if (periodLabel === "Ce trimestre") {
+    const quarterStartMonth = Math.floor(monthIndex / 3) * 3;
+    return new Date(year, quarterStartMonth, 1, 0, 0, 0, 0);
+  }
+
+  if (periodLabel === "Cette année" || periodLabel === "Cet année") {
+    return new Date(year, 0, 1, 0, 0, 0, 0);
+  }
+
+  return null;
+}
 
 export default function AdminRapportsPage() {
   const router = useRouter();
@@ -72,17 +109,46 @@ export default function AdminRapportsPage() {
     if (status !== "ready" || !user) return;
     if (!["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
       router.replace(getRedirectRouteForRole(user.role));
+      return;
+    }
+    if (user.accessReport === false) {
+      router.replace(getRedirectRouteForRole(user.role));
     }
   }, [router, status, user]);
 
+  const serviceOptions = useMemo(() => {
+    const services = new Set<string>();
+    let hasUnassigned = false;
+    tickets.forEach((ticket) => {
+      if (ticket.assignedService) {
+        services.add(ticket.assignedService);
+      } else {
+        hasUnassigned = true;
+      }
+    });
+    const sortedServices = Array.from(services).sort((a, b) => a.localeCompare(b));
+    return [filters.services[0], ...(hasUnassigned ? [DEFAULT_SERVICE_LABEL] : []), ...sortedServices];
+  }, [tickets]);
+
+  useEffect(() => {
+    if (!serviceOptions.includes(selectedService)) {
+      setSelectedService(filters.services[0]);
+    }
+  }, [selectedService, serviceOptions]);
+
+  const periodStart = useMemo(() => resolvePeriodStart(selectedPeriod), [selectedPeriod]);
+
   const filteredTickets = useMemo(() => {
     return tickets.filter((ticket) => {
-      const serviceMatch = selectedService === filters.services[0] || ticket.assignedService === selectedService;
+      const ticketService = ticket.assignedService ?? DEFAULT_SERVICE_LABEL;
+      const serviceMatch = selectedService === filters.services[0] || ticketService === selectedService;
       const priorityMatch =
         selectedPriority === filters.priorities[0] || priorityPalette[ticket.priority].label === selectedPriority;
-      return serviceMatch && priorityMatch;
+      const createdAt = new Date(ticket.createdAt);
+      const periodMatch = periodStart ? createdAt >= periodStart && createdAt <= new Date() : true;
+      return serviceMatch && priorityMatch && periodMatch;
     });
-  }, [tickets, selectedService, selectedPriority]);
+  }, [tickets, selectedService, selectedPriority, periodStart]);
 
   const totalTickets = filteredTickets.length;
   const criticalCount = filteredTickets.filter((ticket) => ticket.priority === "CRITICAL").length;
@@ -187,7 +253,9 @@ export default function AdminRapportsPage() {
         accessorKey: "assignedService",
         header: "Service",
         cell: ({ getValue }) => (
-          <span className="text-sm font-semibold text-[#4c4945]">{getValue<string>() ?? "Non assigné"}</span>
+          <span className="text-sm font-semibold text-[#4c4945]">
+            {resolveServiceLabel(getValue<string>() ?? null)}
+          </span>
         ),
       },
       {
@@ -223,13 +291,15 @@ export default function AdminRapportsPage() {
     );
   }
 
+  const canExport = user.exportReport !== false;
+
   return (
     <DashboardShell user={user} title="Rapports & Analyses" subtitle={`Statistiques sur ${totalTickets} ticket(s)`}>
       <div className="space-y-6">
         <div className="flex flex-wrap gap-3 rounded-[16px] border border-[#ece8e1] bg-white px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
           {[
             { label: "Période", value: selectedPeriod, setter: setSelectedPeriod, options: filters.period },
-            { label: "Service", value: selectedService, setter: setSelectedService, options: filters.services },
+            { label: "Service", value: selectedService, setter: setSelectedService, options: serviceOptions },
             {
               label: "Priorité",
               value: selectedPriority,
@@ -246,7 +316,7 @@ export default function AdminRapportsPage() {
               >
                 {filter.options.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {filter.label === "Service" ? resolveServiceLabel(option) : option}
                   </option>
                 ))}
               </select>
@@ -341,10 +411,20 @@ export default function AdminRapportsPage() {
               <p className="text-sm text-[#2b1d10]">Liste complète des tickets filtrés</p>
             </div>
             <div className="flex gap-2">
-              <button className="rounded-full border border-[#d6d2c8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#4b3e32]">
+              <button
+                disabled={!canExport}
+                className={`rounded-full border border-[#d6d2c8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#4b3e32] ${
+                  canExport ? "" : "cursor-not-allowed opacity-50"
+                }`}
+              >
                 CSV
               </button>
-              <button className="rounded-full border border-[#d6d2c8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#4b3e32]">
+              <button
+                disabled={!canExport}
+                className={`rounded-full border border-[#d6d2c8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#4b3e32] ${
+                  canExport ? "" : "cursor-not-allowed opacity-50"
+                }`}
+              >
                 PDF
               </button>
             </div>
