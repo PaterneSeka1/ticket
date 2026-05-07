@@ -196,6 +196,7 @@ export interface Ticket {
   assignedAt?: string | null;
   clientName?: string | null;
   product?: string | null;
+  products?: string[];
   attachmentName?: string | null;
   detectedAt?: string | null;
   resolvedAt?: string | null;
@@ -227,4 +228,13 @@ export interface SlaPolicy {
   responseMinutes: number;
   resolutionMinutes: number;
   isActive: boolean;
+}
+
+export interface ConcernedProduct {
+  id: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

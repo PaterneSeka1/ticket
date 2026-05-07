@@ -68,9 +68,10 @@ interface TicketTablePanelProps {
   tickets: Ticket[];
   loading: boolean;
   ticketFilter?: (ticket: Ticket) => boolean;
+  showExports?: boolean;
 }
 
-export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTablePanelProps) {
+export function TicketTablePanel({ tickets, loading, ticketFilter, showExports = true }: TicketTablePanelProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -362,22 +363,24 @@ export function TicketTablePanel({ tickets, loading, ticketFilter }: TicketTable
               {loading ? "Chargement des tickets…" : `${filteredCount} ticket(s) trié(s).`}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="inline-flex h-9 items-center gap-2 rounded-full border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#faf6f1]"
-            >
-              <Download className="h-3.5 w-3.5" />
-              CSV
-            </button>
-            <button
-              type="button"
-              className="inline-flex h-9 items-center gap-2 rounded-full border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#faf6f1]"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              PDF
-            </button>
-          </div>
+          {showExports ? (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-2 rounded-full border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#faf6f1]"
+              >
+                <Download className="h-3.5 w-3.5" />
+                CSV
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-2 rounded-full border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#faf6f1]"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                PDF
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="grid gap-2 md:grid-cols-[minmax(0,1.4fr)_180px_180px_180px]">

@@ -14,6 +14,11 @@ export interface CreateTicketPayload {
   incidentTypeId: string;
   categoryId: string;
   priority?: TicketPriority;
+  clientName?: string;
+  product?: string;
+  products?: string[];
+  attachmentName?: string;
+  detectedAt?: string;
 }
 
 export type UpdateTicketPayload = Partial<CreateTicketPayload>;

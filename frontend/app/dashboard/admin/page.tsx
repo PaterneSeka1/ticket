@@ -38,8 +38,8 @@ import {
 const PRIMARY_ACTION_BUTTON_CLASS =
   "rounded-full bg-[#f9b800] px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#352300] shadow-[0_8px_16px_rgba(249,184,0,0.18)] transition enabled:cursor-pointer disabled:cursor-not-allowed enabled:hover:bg-[#f2aa00] enabled:hover:shadow-[0_10px_20px_rgba(249,184,0,0.26)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9b800]/40 focus-visible:ring-offset-2 active:translate-y-px";
 
-const SOLID_BUTTON_CLASS =
-  "rounded-md px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white transition enabled:cursor-pointer disabled:cursor-not-allowed enabled:hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b1d10]/15 focus-visible:ring-offset-2 active:translate-y-px";
+// const SOLID_BUTTON_CLASS =
+//   "rounded-md px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white transition enabled:cursor-pointer disabled:cursor-not-allowed enabled:hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b1d10]/15 focus-visible:ring-offset-2 active:translate-y-px";
 
 const OUTLINE_PAGINATION_BUTTON_CLASS =
   "w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 enabled:hover:border-[#d29b55] enabled:hover:bg-[#fff5ec] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d29b55]/30 focus-visible:ring-offset-2 lg:w-auto";
@@ -438,25 +438,93 @@ export function AdminDashboardContent() {
         ))}
       </section>
 
-      {/* Alert */}
-      <section className="rounded-[14px] border border-[#f0df8e] bg-[#fff6cc] px-4 py-3 shadow-[0_2px_8px_rgba(17,17,17,0.02)]">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-[12px] font-semibold text-[#c26d00]">
-              Escalade automatique — 1 ticket(s) non ouvert(s) depuis +1h
-            </p>
-            <p className="text-[11px] text-[#7e6c58]">
-              Tickets concernés : #TK-001. Notifications envoyées automatiquement.
+      {/* Charts */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        {/* Donut */}
+        <div className="rounded-[14px] border border-[#ebe6df] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,17,17,0.03)]">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8f8b85]">
+              Tickets par statut
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button className={`${SOLID_BUTTON_CLASS} bg-[#2dac45]`}>
-              Renvoyer WhatsApp
-            </button>
-            <button className={`${SOLID_BUTTON_CLASS} bg-[#1f1f1f]`}>
-              Renvoyer Email
-            </button>
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Legend
+                  verticalAlign="top"
+                  align="center"
+                  iconType="rect"
+                  iconSize={10}
+                  formatter={(value) => (
+                    <span className="text-[11px] text-[#7a7268]">{value}</span>
+                  )}
+                />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 10,
+                    border: "1px solid #ece7df",
+                    fontSize: 12,
+                  }}
+                />
+                <Pie
+                  data={ticketStatusData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="58%"
+                  innerRadius={42}
+                  outerRadius={66}
+                  paddingAngle={2}
+                  stroke="transparent"
+                >
+                  {ticketStatusData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Vertical bar */}
+        <div className="rounded-[14px] border border-[#ebe6df] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,17,17,0.03)]">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8f8b85]">
+              Tickets par priorité
+            </p>
+          </div>
+
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={ticketPriorityData} margin={{ top: 12, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid stroke="#f0ece6" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: "#7d7469" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: "#7d7469" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 10,
+                    border: "1px solid #ece7df",
+                    fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  {ticketPriorityData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </section>
@@ -581,97 +649,6 @@ export function AdminDashboardContent() {
               Aucun ticket actif pour le moment.
             </div>
           )}
-        </div>
-      </section>
-
-      {/* Charts */}
-      <section className="grid gap-4 lg:grid-cols-2">
-        {/* Donut */}
-        <div className="rounded-[14px] border border-[#ebe6df] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,17,17,0.03)]">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8f8b85]">
-              Tickets par statut
-            </p>
-          </div>
-
-          <div className="h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Legend
-                  verticalAlign="top"
-                  align="center"
-                  iconType="rect"
-                  iconSize={10}
-                  formatter={(value) => (
-                    <span className="text-[11px] text-[#7a7268]">{value}</span>
-                  )}
-                />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 10,
-                    border: "1px solid #ece7df",
-                    fontSize: 12,
-                  }}
-                />
-                <Pie
-                  data={ticketStatusData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="58%"
-                  innerRadius={42}
-                  outerRadius={66}
-                  paddingAngle={2}
-                  stroke="transparent"
-                >
-                  {ticketStatusData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Vertical bar */}
-        <div className="rounded-[14px] border border-[#ebe6df] bg-white px-4 py-4 shadow-[0_2px_10px_rgba(17,17,17,0.03)]">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8f8b85]">
-              Tickets par priorité
-            </p>
-          </div>
-
-          <div className="h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={ticketPriorityData} margin={{ top: 12, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid stroke="#f0ece6" vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 11, fill: "#7d7469" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  tick={{ fontSize: 11, fill: "#7d7469" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 10,
-                    border: "1px solid #ece7df",
-                    fontSize: 12,
-                  }}
-                />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                  {ticketPriorityData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
         </div>
       </section>
     </div>

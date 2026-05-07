@@ -10,10 +10,12 @@ import { ActivityLogService } from '../activity/activity-log.service.js';
 import { AuthenticatedUserDto } from '../auth/dto/authenticated-user.dto.js';
 import { NotificationService } from '../notifications/notification.service.js';
 import { CreateTicketDto } from './dto/create-ticket.dto.js';
+import { CreateConcernedProductDto } from './dto/create-concerned-product.dto.js';
 import { CreateTicketCategoryDto } from './dto/create-ticket-category.dto.js';
 import { CreateTicketCommentDto } from './dto/create-ticket-comment.dto.js';
 import { CreateTicketTimelineDto } from './dto/create-ticket-timeline.dto.js';
 import { TicketFiltersDto } from './dto/ticket-filters.dto.js';
+import { UpdateConcernedProductDto } from './dto/update-concerned-product.dto.js';
 import { UpdateTicketCategoryDto } from './dto/update-ticket-category.dto.js';
 import { UpdateTicketDto } from './dto/update-ticket.dto.js';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto.js';
@@ -130,6 +132,57 @@ export class TicketsService {
     return new Map(policies.map((policy) => [policy.priority, policy]));
   }
 
+  private optionalTrimmed(value?: string | null) {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  private normalizeProducts(products?: string[], product?: string | null) {
+    const values = [...(products ?? []), product ?? '']
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    return Array.from(new Set(values));
+  }
+
+  private canManageConcernedProducts(actor?: AuthenticatedUserDto) {
+    return actor?.role === UserRole.ADMIN || actor?.role === UserRole.SUPER_ADMIN;
+  }
+
+  private parseOptionalDate(value?: string) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('La date de détection est invalide.');
+    }
+    return date;
+  }
+
+  private async ensureConcernedProducts(productNames: string[]) {
+    if (!productNames.length) return;
+
+    const configuredProducts =
+      await this.prisma.client.concernedProduct.findMany({
+        where: {
+          isActive: true,
+          name: { in: productNames },
+        },
+        select: { name: true },
+      });
+    const configuredNames = new Set(
+      configuredProducts.map((product) => product.name),
+    );
+    const missingProducts = productNames.filter(
+      (productName) => !configuredNames.has(productName),
+    );
+
+    if (missingProducts.length) {
+      throw new BadRequestException(
+        `Produit concerné inconnu: ${missingProducts.join(', ')}`,
+      );
+    }
+  }
+
   private withSla(
     ticket: TicketWithRelations,
     now: Date,
@@ -227,6 +280,7 @@ export class TicketsService {
     emitter: AuthenticatedUserDto,
   ): Promise<TicketWithRelations> {
     await this.ensureCategory(dto.categoryId, dto.incidentTypeId);
+    const incidentType = await this.ensureIncidentType(dto.incidentTypeId);
     const ticketNumber = await this.generateTicketNumber();
     const attachments = dto.attachments?.map((attachment) => ({
       filename: attachment.filename,
@@ -235,6 +289,27 @@ export class TicketsService {
       url: attachment.url,
       uploadedById: emitter.id,
     }));
+    const products = this.normalizeProducts(dto.products, dto.product);
+    const clientName = this.optionalTrimmed(dto.clientName);
+    const canManageProducts = this.canManageConcernedProducts(emitter);
+
+    if (!canManageProducts && products.length) {
+      throw new ForbiddenException(
+        'Seuls les administrateurs peuvent ajouter des produits concernés.',
+      );
+    }
+
+    if (incidentType.scope === IncidentScope.EXTERNE) {
+      if (!clientName) {
+        throw new BadRequestException('Le nom du client est requis.');
+      }
+      if (canManageProducts && !products.length) {
+        throw new BadRequestException('Au moins un produit concerné est requis.');
+      }
+    }
+    if (canManageProducts) {
+      await this.ensureConcernedProducts(products);
+    }
 
     const ticket = await this.prisma.client.ticket.create({
       data: {
@@ -246,6 +321,11 @@ export class TicketsService {
         priority: dto.priority ?? TicketPriority.MEDIUM,
         status: TicketStatus.PENDING_ASSIGNMENT,
         createdById: emitter.id,
+        clientName,
+        product: canManageProducts ? products[0] ?? null : null,
+        products: canManageProducts ? products : [],
+        attachmentName: this.optionalTrimmed(dto.attachmentName),
+        detectedAt: this.parseOptionalDate(dto.detectedAt),
         assignedResponsibleId: dto.assignedResponsibleId ?? null,
         assignedAt: dto.assignedResponsibleId ? new Date() : null,
         attachments: attachments?.length ? { create: attachments } : undefined,
@@ -404,6 +484,29 @@ export class TicketsService {
     }
     if (dto.priority) {
       data.priority = dto.priority;
+    }
+    if (dto.clientName !== undefined) {
+      data.clientName = this.optionalTrimmed(dto.clientName);
+    }
+    if (dto.products !== undefined || dto.product !== undefined) {
+      if (!this.canManageConcernedProducts(actor)) {
+        throw new ForbiddenException(
+          'Seuls les administrateurs peuvent modifier les produits concernés.',
+        );
+      }
+      const products = this.normalizeProducts(
+        dto.products ?? [],
+        dto.product,
+      );
+      await this.ensureConcernedProducts(products);
+      data.products = products;
+      data.product = products[0] ?? null;
+    }
+    if (dto.attachmentName !== undefined) {
+      data.attachmentName = this.optionalTrimmed(dto.attachmentName);
+    }
+    if (dto.detectedAt !== undefined) {
+      data.detectedAt = this.parseOptionalDate(dto.detectedAt);
     }
 
     if (!Object.keys(data).length) {
@@ -776,6 +879,123 @@ export class TicketsService {
       where: { isActive: true },
       orderBy: { name: 'asc' },
     });
+  }
+
+  listConcernedProducts() {
+    return this.prisma.client.concernedProduct.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createConcernedProduct(
+    dto: CreateConcernedProductDto,
+    actor: AuthenticatedUserDto,
+  ) {
+    const name = dto.name.trim();
+    if (!name) {
+      throw new BadRequestException('Le nom du produit est requis.');
+    }
+
+    try {
+      const product = await this.prisma.client.concernedProduct.create({
+        data: {
+          name,
+          description: this.optionalTrimmed(dto.description),
+          isActive: dto.isActive ?? true,
+        },
+      });
+
+      await this.logActivity(
+        'ticket.product.created',
+        `Produit concerné ${product.name} créé`,
+        actor,
+      );
+      return product;
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new BadRequestException('Ce produit concerné existe déjà.');
+      }
+      throw error;
+    }
+  }
+
+  async updateConcernedProduct(
+    id: string,
+    dto: UpdateConcernedProductDto,
+    actor: AuthenticatedUserDto,
+  ) {
+    const data: Prisma.ConcernedProductUpdateInput = {};
+    if (dto.name !== undefined) {
+      const name = dto.name.trim();
+      if (!name) {
+        throw new BadRequestException('Le nom du produit est requis.');
+      }
+      data.name = name;
+    }
+    if (dto.description !== undefined) {
+      data.description = this.optionalTrimmed(dto.description);
+    }
+    if (dto.isActive !== undefined) {
+      data.isActive = dto.isActive;
+    }
+
+    if (!Object.keys(data).length) {
+      throw new BadRequestException('Aucune donnée à mettre à jour.');
+    }
+
+    try {
+      const product = await this.prisma.client.concernedProduct.update({
+        where: { id },
+        data,
+      });
+
+      await this.logActivity(
+        'ticket.product.updated',
+        `Produit concerné ${product.name} modifié`,
+        actor,
+      );
+      return product;
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new BadRequestException('Ce produit concerné existe déjà.');
+      }
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Produit concerné introuvable.');
+      }
+      throw error;
+    }
+  }
+
+  async deleteConcernedProduct(id: string, actor: AuthenticatedUserDto) {
+    try {
+      const product = await this.prisma.client.concernedProduct.delete({
+        where: { id },
+      });
+
+      await this.logActivity(
+        'ticket.product.deleted',
+        `Produit concerné ${product.name} supprimé`,
+        actor,
+      );
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Produit concerné introuvable.');
+      }
+      throw error;
+    }
   }
 
   private async ensureCategory(categoryId: string, incidentTypeId: string) {

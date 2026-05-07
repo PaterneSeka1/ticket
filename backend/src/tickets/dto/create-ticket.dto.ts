@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsDateString,
   IsEnum,
   IsInt,
   IsMongoId,
@@ -48,6 +49,27 @@ export class CreateTicketDto {
   @IsOptional()
   @IsEnum(TicketPriority)
   priority?: TicketPriority;
+
+  @IsOptional()
+  @IsString()
+  clientName?: string;
+
+  @IsOptional()
+  @IsString()
+  product?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  products?: string[];
+
+  @IsOptional()
+  @IsString()
+  attachmentName?: string;
+
+  @IsOptional()
+  @IsDateString()
+  detectedAt?: string;
 
   @IsOptional()
   @IsMongoId()

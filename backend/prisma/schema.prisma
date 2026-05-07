@@ -177,6 +177,18 @@ model Category {
   @@index([isActive])
 }
 
+model ConcernedProduct {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([createdAt])
+}
+
 model Ticket {
   id                    String         @id @default(auto()) @map("_id") @db.ObjectId
   ticketNumber          String         @unique
@@ -187,6 +199,11 @@ model Ticket {
   priority              TicketPriority @default(MEDIUM)
   status                TicketStatus   @default(PENDING_ASSIGNMENT)
   createdById           String         @db.ObjectId
+  clientName            String?
+  product               String?
+  products              String[]       @default([])
+  attachmentName        String?
+  detectedAt            DateTime?
   assignedResponsibleId String?        @db.ObjectId
   assignedAt            DateTime?
   resolvedAt            DateTime?

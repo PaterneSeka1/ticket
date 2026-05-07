@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomInt } from 'crypto';
 import { hash } from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ActivityLogService } from '../activity/activity-log.service.js';
@@ -17,6 +18,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { UserRole } from '../prisma/enums.js';
 
 const PASSWORD_SALT_ROUNDS = 10;
+const TEMPORARY_PASSWORD_LENGTH = 12;
 
 @Injectable()
 export class UsersService {
@@ -174,6 +176,31 @@ export class UsersService {
     }
   }
 
+  async resetPassword(
+    id: string,
+    actor?: AuthenticatedUserDto,
+  ): Promise<{ user: UserDto; password: string }> {
+    const temporaryPassword = this.generateTemporaryPassword();
+    const passwordHash = await this.hashPassword(temporaryPassword);
+
+    try {
+      const user = await this.prisma.client.user.update({
+        where: { id },
+        data: { passwordHash },
+        include: this.userInclude,
+      });
+      await this.logActivity({
+        action: 'user.password_reset',
+        details: `Mot de passe de l'utilisateur ${id} réinitialisé.`,
+        actor,
+      });
+      return { user: toUserDto(user), password: temporaryPassword };
+    } catch (error) {
+      this.handleNotFound(id, error);
+      throw error;
+    }
+  }
+
   private buildCreatePayload(
     dto: CreateUserDto,
     hashedPassword: string,
@@ -238,6 +265,42 @@ export class UsersService {
 
   private async hashPassword(password: string): Promise<string> {
     return hash(password, PASSWORD_SALT_ROUNDS);
+  }
+
+  private generateTemporaryPassword(): string {
+    const groups = [
+      'ABCDEFGHJKLMNPQRSTUVWXYZ',
+      'abcdefghijkmnopqrstuvwxyz',
+      '23456789',
+      '!@#$%*?',
+    ];
+    const allCharacters = groups.join('');
+    const requiredCharacters = groups.map((group) => this.pickCharacter(group));
+    const remainingCharacters = Array.from(
+      { length: TEMPORARY_PASSWORD_LENGTH - requiredCharacters.length },
+      () => this.pickCharacter(allCharacters),
+    );
+
+    return this.shuffleCharacters([
+      ...requiredCharacters,
+      ...remainingCharacters,
+    ]).join('');
+  }
+
+  private pickCharacter(characters: string): string {
+    return characters[randomInt(characters.length)];
+  }
+
+  private shuffleCharacters(characters: string[]): string[] {
+    const shuffled = [...characters];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = randomInt(index + 1);
+      [shuffled[index], shuffled[swapIndex]] = [
+        shuffled[swapIndex],
+        shuffled[index],
+      ];
+    }
+    return shuffled;
   }
 
   private handleConflict(error: unknown): void {

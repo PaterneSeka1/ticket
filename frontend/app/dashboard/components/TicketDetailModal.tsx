@@ -174,7 +174,10 @@ export function TicketDetailModal({
     { label: "Émetteur", value: emitterName },
     { label: "Reçu par", value: receivedByName },
     { label: "Client", value: ticket.clientName ?? "—" },
-    { label: "Produit", value: ticket.product ?? "—" },
+    {
+      label: "Produits",
+      value: ticket.products?.length ? ticket.products.join(", ") : ticket.product ?? "—",
+    },
     { label: "Pièce jointe", value: ticket.attachmentName ?? "—" },
     {
       label: "Commentaires",

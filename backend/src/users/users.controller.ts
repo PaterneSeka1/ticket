@@ -72,4 +72,13 @@ export class UsersController {
   ) {
     return this.usersService.deactivate(id, user);
   }
+
+  @Roles(UserRole.SUPER_ADMIN)
+  @Patch(':id/reset-password')
+  resetPassword(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUserDto,
+  ) {
+    return this.usersService.resetPassword(id, user);
+  }
 }

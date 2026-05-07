@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Check,
   Eye,
+  EyeOff,
+  KeyRound,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -18,7 +20,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import toast from "react-hot-toast";
-import { activateUser, deactivateUser, listUsers } from "@/api/users";
+import { activateUser, deactivateUser, listUsers, resetUserPassword } from "@/api/users";
 import type { AuthenticatedUser, UserRole } from "@/api/types";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { UserForm } from "./UserForm";
@@ -63,6 +65,9 @@ export function UserManagementPanel() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [isActing, setIsActing] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, string>>({});
+  const [visiblePasswordIds, setVisiblePasswordIds] = useState<Set<string>>(() => new Set());
+  const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -116,6 +121,52 @@ export function UserManagementPanel() {
       );
     } finally {
       setIsActing(false);
+    }
+  };
+
+  const togglePasswordVisibility = (userId: string) => {
+    setVisiblePasswordIds((current) => {
+      const next = new Set(current);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
+  const handleResetPassword = async (user: AuthenticatedUser) => {
+    const displayName = `${user.prenom} ${user.nom}`.trim() || user.email;
+    const confirmed = window.confirm(
+      `Réinitialiser le mot de passe de ${displayName} ? Le nouveau mot de passe sera affiché en clair.`,
+    );
+    if (!confirmed) return;
+
+    setResettingPasswordId(user.id);
+    try {
+      const response = await resetUserPassword(user.id);
+      setUsers((prev) =>
+        prev.map((item) => (item.id === response.user.id ? response.user : item)),
+      );
+      setRevealedPasswords((current) => ({
+        ...current,
+        [user.id]: response.password,
+      }));
+      setVisiblePasswordIds((current) => {
+        const next = new Set(current);
+        next.add(user.id);
+        return next;
+      });
+      toast.success("Mot de passe réinitialisé et affiché.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Impossible de réinitialiser le mot de passe.",
+      );
+    } finally {
+      setResettingPasswordId(null);
     }
   };
 
@@ -245,6 +296,10 @@ export function UserManagementPanel() {
                   ) : filteredCount ? (
                     paginatedRows.map((row) => {
                       const user = row.original;
+                      const revealedPassword = revealedPasswords[user.id];
+                      const isPasswordVisible = visiblePasswordIds.has(user.id);
+                      const canResetPassword = currentUser?.role === "SUPER_ADMIN";
+                      const isResettingPassword = resettingPasswordId === user.id;
 
                       return (
                         <tr key={user.id} className="hover:bg-[#fcfcfd]">
@@ -268,13 +323,49 @@ export function UserManagementPanel() {
                           </td>
 
                           <td className="px-4 py-3">
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-2 rounded-full border border-[#eaecf0] px-3 py-1 text-xs text-[#667085]"
-                            >
-                              ••••••••
-                              <Eye className="h-3.5 w-3.5" />
-                            </button>
+                            {canResetPassword ? (
+                              <div className="flex min-w-[190px] items-center gap-2">
+                                <span className="inline-flex h-8 min-w-[112px] items-center rounded-full border border-[#eaecf0] bg-[#f9fafb] px-3 font-mono text-xs text-[#475467]">
+                                  {revealedPassword
+                                    ? isPasswordVisible
+                                      ? revealedPassword
+                                      : "••••••••••••"
+                                    : "Non affiché"}
+                                </span>
+                                {revealedPassword ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => togglePasswordVisibility(user.id)}
+                                    aria-label={
+                                      isPasswordVisible
+                                        ? "Masquer le mot de passe"
+                                        : "Afficher le mot de passe"
+                                    }
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#eaecf0] text-[#667085] hover:bg-[#f9fafb]"
+                                  >
+                                    {isPasswordVisible ? (
+                                      <EyeOff className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <Eye className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResetPassword(user)}
+                                    disabled={isResettingPassword}
+                                    aria-label="Réinitialiser et afficher un nouveau mot de passe"
+                                    title="Réinitialiser et afficher un nouveau mot de passe"
+                                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#d0d5dd] px-3 text-[11px] font-medium text-[#344054] hover:bg-[#f9fafb] disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    <KeyRound className="h-3.5 w-3.5" />
+                                    {isResettingPassword ? "..." : "Réinit."}
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-[#98a2b3]">—</span>
+                            )}
                           </td>
 
                           <td className="px-4 py-3">

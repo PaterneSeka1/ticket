@@ -4,9 +4,10 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Upload, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { ApiError } from "@/api/client";
+import { fetchConcernedProducts } from "@/api/products";
 import { createTicket, fetchCategories } from "@/api/tickets";
 import type { CreateTicketPayload } from "@/api/tickets";
-import type { TicketCategory, TicketPriority, TicketType } from "@/api/types";
+import type { ConcernedProduct, TicketCategory, TicketPriority, TicketType } from "@/api/types";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -38,13 +39,6 @@ const priorityLevels = [
   },
 ] as const;
 
-const productOptions = [
-  "Plateforme 360",
-  "Portail client",
-  "API interne",
-  "Application mobile",
-];
-
 const incidentTypeMap: Record<IncidentSelection, TicketType> = {
   INTERNE: "INCIDENT",
   CLIENT: "DEMANDE",
@@ -72,6 +66,12 @@ const getLocalTimeValue = (date = new Date()) => {
   return `${hours}:${minutes}`;
 };
 
+const buildDetectedAtValue = (date: string, time: string) => {
+  if (!date || !time) return undefined;
+  const detectedAt = new Date(`${date}T${time}`);
+  return Number.isNaN(detectedAt.getTime()) ? undefined : detectedAt.toISOString();
+};
+
 export default function NewTicketPage() {
   const { user, status } = useCurrentUser();
   const router = useRouter();
@@ -87,7 +87,9 @@ export default function NewTicketPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [clientName, setClientName] = useState("");
-  const [product, setProduct] = useState("");
+  const [products, setProducts] = useState<string[]>([]);
+  const [configuredProducts, setConfiguredProducts] = useState<ConcernedProduct[]>([]);
+  const [productStatus, setProductStatus] = useState<"idle" | "loading" | "error">("idle");
 
   const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [categoryStatus, setCategoryStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -99,6 +101,7 @@ export default function NewTicketPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const canSelectConcernedProducts = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     if (status !== "ready") return;
@@ -121,6 +124,33 @@ export default function NewTicketPage() {
       cancelled = true;
     };
   }, [status]);
+
+  useEffect(() => {
+    if (status !== "ready" || !canSelectConcernedProducts) {
+      setConfiguredProducts([]);
+      setProductStatus("idle");
+      return;
+    }
+
+    let cancelled = false;
+    setProductStatus("loading");
+
+    fetchConcernedProducts()
+      .then((data) => {
+        if (cancelled) return;
+        setConfiguredProducts(data.filter((item) => item.isActive));
+        setProductStatus("idle");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setConfiguredProducts([]);
+        setProductStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canSelectConcernedProducts, status]);
 
   const incidentCategories = useMemo(
     () => categories.filter((category) => category.type === "INCIDENT" && category.isActive),
@@ -147,9 +177,14 @@ export default function NewTicketPage() {
   useEffect(() => {
     if (selectedIncidentType === "INTERNE") {
       setClientName("");
-      setProduct("");
+      setProducts([]);
     }
   }, [selectedIncidentType]);
+
+  useEffect(() => {
+    const availableProductNames = new Set(configuredProducts.map((item) => item.name));
+    setProducts((current) => current.filter((item) => availableProductNames.has(item)));
+  }, [configuredProducts]);
 
   const ticketId = useMemo(() => {
     const random = Math.floor(1000 + Math.random() * 9000);
@@ -167,9 +202,12 @@ export default function NewTicketPage() {
     !selectedCategoryId ||
     categoryStatus === "loading" ||
     categoryStatus === "error" ||
+    (requiresClientFields && canSelectConcernedProducts && productStatus !== "idle") ||
     !title.trim() ||
     !description.trim() ||
-    (requiresClientFields && (!clientName.trim() || !product));
+    (requiresClientFields &&
+      (!clientName.trim() ||
+        (canSelectConcernedProducts && products.length === 0)));
 
   const handleReset = () => {
     setSelectedIncidentType("INTERNE");
@@ -179,7 +217,7 @@ export default function NewTicketPage() {
     setTitle("");
     setDescription("");
     setClientName("");
-    setProduct("");
+    setProducts([]);
     setAttachment(null);
 
     if (incidentCategories.length) {
@@ -193,6 +231,14 @@ export default function NewTicketPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const toggleProduct = (productName: string) => {
+    setProducts((current) =>
+      current.includes(productName)
+        ? current.filter((item) => item !== productName)
+        : [...current, productName],
+    );
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -216,8 +262,13 @@ export default function NewTicketPage() {
         return;
       }
 
-      if (!product) {
-        toast.error("Le produit concerné est requis.");
+      if (canSelectConcernedProducts && productStatus !== "idle") {
+        toast.error("Les produits concernés ne sont pas disponibles.");
+        return;
+      }
+
+      if (canSelectConcernedProducts && products.length === 0) {
+        toast.error("Sélectionnez au moins un produit concerné.");
         return;
       }
     }
@@ -237,6 +288,19 @@ export default function NewTicketPage() {
         priority: priorityMap[selectedPriority],
         categoryId: selectedCategoryId,
         incidentTypeId: category.incidentTypeId,
+        detectedAt: buildDetectedAtValue(detectionDate, detectionTime),
+        attachmentName: attachment?.name,
+        ...(requiresClientFields
+          ? {
+              clientName: clientName.trim(),
+            }
+          : {}),
+        ...(requiresClientFields && canSelectConcernedProducts
+          ? {
+              product: products[0],
+              products,
+            }
+          : {}),
       };
 
       await createTicket(payload);
@@ -412,50 +476,87 @@ export default function NewTicketPage() {
 
                   <label>
                     <span className={labelClass}>
-                      Produit concerné <span className="text-[#d92d20]">*</span>
+                      Nature de la réclamation <span className="text-[#d92d20]">*</span>
                     </span>
                     <select
-                      value={product}
-                      onChange={(event) => setProduct(event.target.value)}
+                      value={selectedReclamationCategoryId ?? ""}
+                      onChange={(event) => setSelectedReclamationCategoryId(event.target.value)}
+                      disabled={categoryStatus !== "idle" || reclamationCategories.length === 0}
                       className={inputClass}
                     >
-                      <option value="">-- Sélectionner --</option>
-                      {productOptions.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
+                      <option value="" disabled>
+                        {categoryStatus === "loading"
+                          ? "Chargement…"
+                          : categoryStatus === "error"
+                            ? "Impossible de charger les catégories"
+                            : reclamationCategories.length
+                              ? "-- Sélectionner --"
+                              : "Aucune catégorie disponible"}
+                      </option>
+
+                      {reclamationCategories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.libelle}
                         </option>
                       ))}
                     </select>
                   </label>
                 </div>
 
-                <label>
-                  <span className={labelClass}>
-                    Nature de la réclamation <span className="text-[#d92d20]">*</span>
-                  </span>
-                  <select
-                    value={selectedReclamationCategoryId ?? ""}
-                    onChange={(event) => setSelectedReclamationCategoryId(event.target.value)}
-                    disabled={categoryStatus !== "idle" || reclamationCategories.length === 0}
-                    className={inputClass}
-                  >
-                    <option value="" disabled>
-                      {categoryStatus === "loading"
-                        ? "Chargement…"
-                        : categoryStatus === "error"
-                          ? "Impossible de charger les catégories"
-                          : reclamationCategories.length
-                            ? "-- Sélectionner --"
-                            : "Aucune catégorie disponible"}
-                    </option>
+                {canSelectConcernedProducts ? (
+                  <div>
+                    <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+                      <div>
+                        <p className={labelClass}>
+                          Produits concernés <span className="text-[#d92d20]">*</span>
+                        </p>
+                        <p className="text-xs text-[#7a695a]">
+                          {products.length} produit(s) associé(s) à cette réclamation
+                        </p>
+                      </div>
+                    </div>
 
-                    {reclamationCategories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.libelle}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    {productStatus === "loading" ? (
+                      <p className="rounded-[8px] border border-[#e5e7eb] bg-[#fbfcfe] px-3 py-3 text-sm text-[#7a695a]">
+                        Chargement des produits…
+                      </p>
+                    ) : productStatus === "error" ? (
+                      <p className="rounded-[8px] border border-[#ffd7d2] bg-[#fff6f5] px-3 py-3 text-sm font-medium text-[#b42318]">
+                        Impossible de charger les produits concernés.
+                      </p>
+                    ) : configuredProducts.length ? (
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {configuredProducts.map((item) => {
+                          const checked = products.includes(item.name);
+
+                          return (
+                            <label
+                              key={item.id}
+                              className={cn(
+                                "flex min-h-11 cursor-pointer items-center gap-3 rounded-[8px] border px-3 py-2 text-sm transition",
+                                checked
+                                  ? "border-[#d5a15c] bg-[#fff8e8] text-[#2b1d10]"
+                                  : "border-[#e5e7eb] bg-white text-[#4b5563] hover:bg-[#fbfcfe]",
+                              )}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleProduct(item.name)}
+                                className="h-4 w-4 accent-[#fdbf12]"
+                              />
+                              <span className="min-w-0 truncate font-medium">{item.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-[#8a7f73]">
+                        Aucun produit configuré.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </div>
             )}
 

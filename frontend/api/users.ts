@@ -16,6 +16,11 @@ export interface CreateUserPayload {
 
 export type UpdateUserPayload = Partial<CreateUserPayload>;
 
+export interface ResetUserPasswordResponse {
+  user: AuthenticatedUser;
+  password: string;
+}
+
 export function createUser(payload: CreateUserPayload) {
   return apiRequest<AuthenticatedUser>("/users", {
     method: "POST",
@@ -52,6 +57,12 @@ export function activateUser(id: string) {
 
 export function deactivateUser(id: string) {
   return apiRequest<AuthenticatedUser>(`/users/${id}/deactivate`, {
+    method: "PATCH",
+  });
+}
+
+export function resetUserPassword(id: string) {
+  return apiRequest<ResetUserPasswordResponse>(`/users/${id}/reset-password`, {
     method: "PATCH",
   });
 }

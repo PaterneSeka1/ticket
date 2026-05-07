@@ -32,7 +32,7 @@ export default function SuperAdminMesTicketsPage() {
 
   return (
     <DashboardShell user={user} title="Mes tickets" subtitle="Les tickets qui vous concernent">
-      <TicketTablePanel tickets={tickets} loading={loading} />
+      <TicketTablePanel tickets={tickets} loading={loading} showExports={false} />
     </DashboardShell>
   );
 }
