@@ -50,7 +50,7 @@ export default function EmployeMesTicketsPage() {
           </div>
         </div>
         <div className="overflow-hidden rounded-[26px] border border-[#f1e5d7] bg-[#fffaf5] p-5 shadow-[0_18px_40px_rgba(43,29,16,0.05)]">
-          <TicketTablePanel tickets={tickets} loading={loading} />
+          <TicketTablePanel tickets={tickets} loading={loading} showExports={false} />
         </div>
       </div>
     </DashboardShell>

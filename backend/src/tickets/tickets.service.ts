@@ -1209,12 +1209,19 @@ export class TicketsService {
 
   private async generateTicketNumber() {
     const date = new Date();
-    const prefix = `INC-${date.getFullYear()}${(date.getMonth() + 1)
+    const datePart = `${date.getFullYear()}${(date.getMonth() + 1)
       .toString()
-      .padStart(2, '0')}`;
-    const count = await this.prisma.client.ticket.count({
+      .padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+    const prefix = `TK-${datePart}-`;
+    const tickets = await this.prisma.client.ticket.findMany({
       where: { ticketNumber: { startsWith: prefix } },
+      select: { ticketNumber: true },
     });
-    return `${prefix}-${(count + 1).toString().padStart(4, '0')}`;
+    const highestOrder = tickets.reduce((highest, ticket) => {
+      const suffix = ticket.ticketNumber.slice(prefix.length);
+      if (!/^\d+$/.test(suffix)) return highest;
+      return Math.max(highest, Number(suffix));
+    }, 0);
+    return `${prefix}${(highestOrder + 1).toString().padStart(3, '0')}`;
   }
 }

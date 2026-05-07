@@ -187,8 +187,11 @@ export default function NewTicketPage() {
   }, [configuredProducts]);
 
   const ticketId = useMemo(() => {
-    const random = Math.floor(1000 + Math.random() * 9000);
-    return `TK-${new Date().getFullYear()}-${random}`;
+    const date = new Date();
+    const datePart = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(
+      date.getDate(),
+    ).padStart(2, "0")}`;
+    return `TK-${datePart}-XXX`;
   }, []);
 
   const ticketType = incidentTypeMap[selectedIncidentType];

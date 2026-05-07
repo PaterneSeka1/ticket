@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { MongoClient, ObjectId } from 'mongodb';
+import { MongoClient } from 'mongodb';
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -9,22 +9,12 @@ if (!url) {
 
 const client = new MongoClient(url, { maxPoolSize: 5 });
 
-const pad = (value, length = 4) => value.toString().padStart(length, '0');
+const pad = (value, length = 3) => value.toString().padStart(length, '0');
 
-const generator = () => {
-  const now = new Date();
-  const prefix = `INC-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-  let counter = 1;
-  const known = new Set();
-  return () => {
-    let candidate;
-    do {
-      candidate = `${prefix}-${pad(counter++)}`;
-    } while (known.has(candidate));
-    known.add(candidate);
-    return candidate;
-  };
-};
+const formatDatePart = (date) =>
+  `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(
+    date.getDate(),
+  ).padStart(2, '0')}`;
 
 async function main() {
   await client.connect();
@@ -53,8 +43,17 @@ async function main() {
 
   const nextNumber = (() => {
     const now = new Date();
-    const pre = `INC-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-    let counter = 1;
+    const pre = `TK-${formatDatePart(now)}`;
+    const prefixWithSeparator = `${pre}-`;
+    let counter =
+      Array.from(existingNumbers).reduce((highest, number) => {
+        if (typeof number !== 'string' || !number.startsWith(prefixWithSeparator)) {
+          return highest;
+        }
+        const suffix = number.slice(prefixWithSeparator.length);
+        if (!/^\d+$/.test(suffix)) return highest;
+        return Math.max(highest, Number(suffix));
+      }, 0) + 1;
     return () => {
       let candidate;
       do {

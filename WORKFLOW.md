@@ -7,7 +7,7 @@
 1. **Création** (`TicketsService.create`, `backend/src/tickets/tickets.service.ts:65-135`) :
    - la catégorie est vérifiée (statut actif et type cohérent) puis la SLA est résolue via la politique prioritaire (`sla.getPolicy`).
    - la personne qui recevra le ticket est choisie (`findActiveSuperAdmin > findActiveDsiResponsible > findAnyAdmin`).
-   - un code unique (`TK-YYYYMMDD-XXX`) est calculé et l’enregistrement est créé avec un statut initial `RECU`.
+   - un code unique (`TK-YYYYMMDD-XXX`, avec `XXX` comme numéro d'ordre du jour) est calculé et l’enregistrement est créé avec un statut initial `RECU`.
    - deux événements de timeline (création, réception) sont ajoutés et l’activité est tracée pour l’émetteur et le destinataire grâce à `ActivityLogService`.
 2. **Mise à jour** (`backend/src/tickets/tickets.service.ts:207-244`) : toute propriété modifiable (catégorie, priorité, métadonnées) passe par `buildUpdatePayload`, avec compensation SLA automatique si seule la priorité bouge.
 3. **Transitions de statut** (`STATUS_TRANSITIONS` et `updateStatus`, `backend/src/tickets/tickets.service.ts:32-291`) :

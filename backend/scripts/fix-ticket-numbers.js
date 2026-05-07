@@ -3,12 +3,26 @@ import { PrismaClient } from '../generated/prisma/client.js';
 
 const prisma = new PrismaClient();
 
-const pad = (value, length = 4) => value.toString().padStart(length, '0');
+const pad = (value, length = 3) => value.toString().padStart(length, '0');
+
+const formatDatePart = (date) =>
+  `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(
+    date.getDate(),
+  ).padStart(2, '0')}`;
 
 const buildGenerator = (existingNumbers) => {
   const now = new Date();
-  const prefix = `INC-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-  let counter = 1;
+  const prefix = `TK-${formatDatePart(now)}`;
+  const prefixWithSeparator = `${prefix}-`;
+  let counter =
+    Array.from(existingNumbers).reduce((highest, number) => {
+      if (typeof number !== 'string' || !number.startsWith(prefixWithSeparator)) {
+        return highest;
+      }
+      const suffix = number.slice(prefixWithSeparator.length);
+      if (!/^\d+$/.test(suffix)) return highest;
+      return Math.max(highest, Number(suffix));
+    }, 0) + 1;
   return () => {
     let candidate;
     do {
