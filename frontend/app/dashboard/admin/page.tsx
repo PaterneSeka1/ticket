@@ -8,6 +8,8 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ResponsiveContainer,
   PieChart,
@@ -25,7 +27,6 @@ import { DashboardShell } from "../components/DashboardShell";
 import { getRedirectRouteForRole } from "../lib/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useTickets } from "../hooks/useTickets";
-import { useRouter } from "next/navigation";
 import type { Ticket, TicketPriority, TicketStatus } from "@/api/types";
 import {
   formatDuration,
@@ -36,7 +37,7 @@ import {
 } from "@/app/dashboard/lib/ticket-formatters";
 
 const PRIMARY_ACTION_BUTTON_CLASS =
-  "rounded-full bg-[#f9b800] px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#352300] shadow-[0_8px_16px_rgba(249,184,0,0.18)] transition enabled:cursor-pointer disabled:cursor-not-allowed enabled:hover:bg-[#f2aa00] enabled:hover:shadow-[0_10px_20px_rgba(249,184,0,0.26)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9b800]/40 focus-visible:ring-offset-2 active:translate-y-px";
+  "inline-flex items-center justify-center rounded-full bg-[#f9b800] px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#352300] shadow-[0_8px_16px_rgba(249,184,0,0.18)] transition hover:bg-[#f2aa00] hover:shadow-[0_10px_20px_rgba(249,184,0,0.26)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9b800]/40 focus-visible:ring-offset-2 active:translate-y-px";
 
 // const SOLID_BUTTON_CLASS =
 //   "rounded-md px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white transition enabled:cursor-pointer disabled:cursor-not-allowed enabled:hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b1d10]/15 focus-visible:ring-offset-2 active:translate-y-px";
@@ -131,6 +132,14 @@ function getAssigneeLabel(ticket: Ticket) {
 
 const resolveTicketNumber = (ticket: Ticket) => ticket.ticketNumber ?? ticket.code ?? ticket.id;
 const resolveTicketCategory = (ticket: Ticket) => ticket.category?.name ?? ticket.category?.libelle ?? "—";
+const resolveTicketListRoute = (pathname: string | null) =>
+  pathname?.startsWith("/dashboard/super-admin")
+    ? "/dashboard/super-admin/tickets"
+    : "/dashboard/admin/tickets";
+const resolveTicketDetailsHref = (ticketId: string, ticketListRoute: string) => {
+  const query = new URLSearchParams({ ticketId });
+  return `${ticketListRoute}?${query.toString()}`;
+};
 
 function SlaBar({ ticket }: { ticket: Ticket }) {
   const progress = getSlaProgress(ticket);
@@ -195,7 +204,7 @@ export default function AdminDashboardPage() {
   );
 }
 
-function MobileTicketCard({ ticket }: { ticket: Ticket }) {
+function MobileTicketCard({ ticket, detailsHref }: { ticket: Ticket; detailsHref: string }) {
   const statusInfo = getStatusInfo(ticket.status);
   return (
     <article className="space-y-2 rounded-[12px] border border-[#ebe6df] bg-white px-4 py-3 shadow-sm">
@@ -219,9 +228,9 @@ function MobileTicketCard({ ticket }: { ticket: Ticket }) {
       </div>
       <SlaBar ticket={ticket} />
       <div className="flex justify-end">
-        <button className={PRIMARY_ACTION_BUTTON_CLASS}>
+        <Link className={PRIMARY_ACTION_BUTTON_CLASS} href={detailsHref}>
           Voir
-        </button>
+        </Link>
       </div>
     </article>
   );
@@ -229,7 +238,9 @@ function MobileTicketCard({ ticket }: { ticket: Ticket }) {
 
 export function AdminDashboardContent() {
   const { tickets, loading } = useTickets(true);
+  const pathname = usePathname();
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 6 });
+  const ticketListRoute = resolveTicketListRoute(pathname);
 
   const { metrics, ticketStatusData, ticketPriorityData } = useMemo(() => {
     const todayKey = new Date().toDateString();
@@ -397,16 +408,19 @@ export function AdminDashboardContent() {
       {
         id: "action",
         header: "ACTION",
-        cell: () => (
+        cell: ({ row }) => (
           <div className="flex justify-end">
-            <button className={PRIMARY_ACTION_BUTTON_CLASS}>
+            <Link
+              className={PRIMARY_ACTION_BUTTON_CLASS}
+              href={resolveTicketDetailsHref(row.original.id, ticketListRoute)}
+            >
               Voir
-            </button>
+            </Link>
           </div>
         ),
       },
     ],
-    []
+    [ticketListRoute]
   );
 
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -541,9 +555,12 @@ export function AdminDashboardContent() {
             </p>
           </div>
 
-          <button className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.12em] text-[#f0a000] transition-colors hover:text-[#c26d00] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f0a000]/25 focus-visible:ring-offset-2">
+          <Link
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.12em] text-[#f0a000] transition-colors hover:text-[#c26d00] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f0a000]/25 focus-visible:ring-offset-2"
+            href={ticketListRoute}
+          >
             Voir
-          </button>
+          </Link>
         </div>
 
         <div className="hidden lg:block overflow-x-auto">
@@ -642,7 +659,11 @@ export function AdminDashboardContent() {
             </div>
           ) : tickets.length ? (
             tickets.map((ticket) => (
-              <MobileTicketCard key={ticket.id} ticket={ticket} />
+              <MobileTicketCard
+                key={ticket.id}
+                ticket={ticket}
+                detailsHref={resolveTicketDetailsHref(ticket.id, ticketListRoute)}
+              />
             ))
           ) : (
             <div className="rounded-[12px] border border-[#ebe6df] bg-[#f9fafb] px-4 py-3 text-[12px] text-[#7d7267]">
