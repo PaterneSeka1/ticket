@@ -8,7 +8,6 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  X,
 } from "lucide-react";
 import {
   ColumnDef,
@@ -19,7 +18,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import toast from "react-hot-toast";
-import { activateUser, deactivateUser, listUsers, resetUserPassword } from "@/api/users";
+import { activateUser, deactivateUser, getUserPassword, listUsers } from "@/api/users";
 import type { AuthenticatedUser, UserRole } from "@/api/types";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { UserForm } from "./UserForm";
@@ -64,7 +63,7 @@ export function UserManagementPanel() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [isActing, setIsActing] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, string>>({});
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, string | null>>({});
   const [visiblePasswordIds, setVisiblePasswordIds] = useState<Set<string>>(() => new Set());
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
 
@@ -135,34 +134,22 @@ export function UserManagementPanel() {
     });
   };
 
-  const handleResetPassword = async (user: AuthenticatedUser) => {
-    const displayName = `${user.prenom} ${user.nom}`.trim() || user.email;
-    const confirmed = window.confirm(
-      `Réinitialiser le mot de passe de ${displayName} ? Le nouveau mot de passe sera affiché en clair.`,
-    );
-    if (!confirmed) return;
-
-    setResettingPasswordId(user.id);
+  const handleFetchPassword = async (userId: string) => {
+    setResettingPasswordId(userId);
     try {
-      const response = await resetUserPassword(user.id);
-      setUsers((prev) =>
-        prev.map((item) => (item.id === response.user.id ? response.user : item)),
-      );
+      const { password } = await getUserPassword(userId);
       setRevealedPasswords((current) => ({
         ...current,
-        [user.id]: response.password,
+        [userId]: password,
       }));
       setVisiblePasswordIds((current) => {
         const next = new Set(current);
-        next.add(user.id);
+        next.add(userId);
         return next;
       });
-      toast.success("Mot de passe réinitialisé et affiché.");
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Impossible de réinitialiser le mot de passe.",
+        error instanceof Error ? error.message : "Impossible de récupérer le mot de passe.",
       );
     } finally {
       setResettingPasswordId(null);
@@ -295,6 +282,7 @@ export function UserManagementPanel() {
                   ) : filteredCount ? (
                     paginatedRows.map((row) => {
                       const user = row.original;
+                      const isFetched = user.id in revealedPasswords;
                       const revealedPassword = revealedPasswords[user.id];
                       const isPasswordVisible = visiblePasswordIds.has(user.id);
                       const canResetPassword =
@@ -326,37 +314,25 @@ export function UserManagementPanel() {
                             {canResetPassword ? (
                               <div className="flex min-w-[190px] items-center gap-2">
                                 <span className="inline-flex h-8 min-w-[112px] items-center rounded-full border border-[#eaecf0] bg-[#f9fafb] px-3 font-mono text-xs text-[#475467]">
-                                  {revealedPassword && isPasswordVisible
-                                    ? revealedPassword
+                                  {isFetched && isPasswordVisible
+                                    ? (revealedPassword ?? "—")
                                     : "••••••••"}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    revealedPassword
+                                    isFetched
                                       ? togglePasswordVisibility(user.id)
-                                      : handleResetPassword(user)
+                                      : handleFetchPassword(user.id)
                                   }
                                   disabled={isResettingPassword}
-                                  aria-label={
-                                    revealedPassword
-                                      ? isPasswordVisible
-                                        ? "Masquer le mot de passe"
-                                        : "Afficher le mot de passe"
-                                      : "Réinitialiser et afficher un nouveau mot de passe"
-                                  }
-                                  title={
-                                    revealedPassword
-                                      ? isPasswordVisible
-                                        ? "Masquer"
-                                        : "Afficher"
-                                      : "Réinitialiser le mot de passe"
-                                  }
+                                  aria-label={isPasswordVisible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                                  title={isPasswordVisible ? "Masquer" : "Afficher"}
                                   className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#eaecf0] text-[#667085] hover:bg-[#f9fafb] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                   {isResettingPassword ? (
                                     <span className="text-[10px]">…</span>
-                                  ) : revealedPassword && isPasswordVisible ? (
+                                  ) : isPasswordVisible ? (
                                     <EyeOff className="h-3.5 w-3.5" />
                                   ) : (
                                     <Eye className="h-3.5 w-3.5" />
@@ -470,16 +446,15 @@ export function UserManagementPanel() {
         </div>
 
       {editingUser && isEditModalOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <div className="relative w-full max-w-4xl rounded-2xl bg-white p-4 shadow-xl">
-            <button
-              type="button"
-              onClick={closeEditModal}
-              className="absolute right-3 top-3 rounded-full border border-[#eaecf0] p-2 text-[#344054]"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.45)" }}
+          onClick={closeEditModal}
+        >
+          <div
+            className="w-full max-w-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <UserForm
               initialUser={editingUser}
               onCancel={closeEditModal}

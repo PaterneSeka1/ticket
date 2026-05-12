@@ -67,6 +67,7 @@ model User {
   email         String   @unique
   matricule     String   @unique
   passwordHash  String
+  plainPassword String?
   role          UserRole @default(EMPLOYE)
   departmentId  String?  @db.ObjectId
   serviceId     String?  @db.ObjectId

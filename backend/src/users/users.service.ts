@@ -186,7 +186,7 @@ export class UsersService {
     try {
       const user = await this.prisma.client.user.update({
         where: { id },
-        data: { passwordHash },
+        data: { passwordHash, plainPassword: temporaryPassword },
         include: this.userInclude,
       });
       await this.logActivity({
@@ -201,6 +201,17 @@ export class UsersService {
     }
   }
 
+  async getPassword(id: string): Promise<{ password: string | null }> {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id },
+      select: { plainPassword: true },
+    });
+    if (!user) {
+      throw new NotFoundException(`Utilisateur ${id} introuvable.`);
+    }
+    return { password: user.plainPassword ?? null };
+  }
+
   private buildCreatePayload(
     dto: CreateUserDto,
     hashedPassword: string,
@@ -211,6 +222,7 @@ export class UsersService {
       email: dto.email.trim().toLowerCase(),
       matricule: dto.matricule.trim(),
       passwordHash: hashedPassword,
+      plainPassword: dto.passwordHash,
       role: dto.role ?? UserRole.EMPLOYE,
       departmentId: dto.departmentId ?? null,
       serviceId: dto.serviceId ?? null,
@@ -240,6 +252,7 @@ export class UsersService {
     }
     if (dto.passwordHash && hashedPassword) {
       payload.passwordHash = hashedPassword;
+      payload.plainPassword = dto.passwordHash;
     }
     if (dto.role) {
       payload.role = dto.role;

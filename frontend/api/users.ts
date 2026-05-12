@@ -66,3 +66,7 @@ export function resetUserPassword(id: string) {
     method: "PATCH",
   });
 }
+
+export function getUserPassword(id: string) {
+  return apiRequest<{ password: string | null }>(`/users/${id}/password`);
+}
