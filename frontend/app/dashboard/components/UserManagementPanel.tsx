@@ -5,7 +5,6 @@ import {
   Check,
   Eye,
   EyeOff,
-  KeyRound,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -298,7 +297,8 @@ export function UserManagementPanel() {
                       const user = row.original;
                       const revealedPassword = revealedPasswords[user.id];
                       const isPasswordVisible = visiblePasswordIds.has(user.id);
-                      const canResetPassword = currentUser?.role === "SUPER_ADMIN";
+                      const canResetPassword =
+                        currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "ADMIN";
                       const isResettingPassword = resettingPasswordId === user.id;
 
                       return (
@@ -326,42 +326,42 @@ export function UserManagementPanel() {
                             {canResetPassword ? (
                               <div className="flex min-w-[190px] items-center gap-2">
                                 <span className="inline-flex h-8 min-w-[112px] items-center rounded-full border border-[#eaecf0] bg-[#f9fafb] px-3 font-mono text-xs text-[#475467]">
-                                  {revealedPassword
-                                    ? isPasswordVisible
-                                      ? revealedPassword
-                                      : "••••••••••••"
-                                    : "Non affiché"}
+                                  {revealedPassword && isPasswordVisible
+                                    ? revealedPassword
+                                    : "••••••••"}
                                 </span>
-                                {revealedPassword ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => togglePasswordVisibility(user.id)}
-                                    aria-label={
-                                      isPasswordVisible
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    revealedPassword
+                                      ? togglePasswordVisibility(user.id)
+                                      : handleResetPassword(user)
+                                  }
+                                  disabled={isResettingPassword}
+                                  aria-label={
+                                    revealedPassword
+                                      ? isPasswordVisible
                                         ? "Masquer le mot de passe"
                                         : "Afficher le mot de passe"
-                                    }
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#eaecf0] text-[#667085] hover:bg-[#f9fafb]"
-                                  >
-                                    {isPasswordVisible ? (
-                                      <EyeOff className="h-3.5 w-3.5" />
-                                    ) : (
-                                      <Eye className="h-3.5 w-3.5" />
-                                    )}
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleResetPassword(user)}
-                                    disabled={isResettingPassword}
-                                    aria-label="Réinitialiser et afficher un nouveau mot de passe"
-                                    title="Réinitialiser et afficher un nouveau mot de passe"
-                                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#d0d5dd] px-3 text-[11px] font-medium text-[#344054] hover:bg-[#f9fafb] disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    <KeyRound className="h-3.5 w-3.5" />
-                                    {isResettingPassword ? "..." : "Réinit."}
-                                  </button>
-                                )}
+                                      : "Réinitialiser et afficher un nouveau mot de passe"
+                                  }
+                                  title={
+                                    revealedPassword
+                                      ? isPasswordVisible
+                                        ? "Masquer"
+                                        : "Afficher"
+                                      : "Réinitialiser le mot de passe"
+                                  }
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#eaecf0] text-[#667085] hover:bg-[#f9fafb] disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {isResettingPassword ? (
+                                    <span className="text-[10px]">…</span>
+                                  ) : revealedPassword && isPasswordVisible ? (
+                                    <EyeOff className="h-3.5 w-3.5" />
+                                  ) : (
+                                    <Eye className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
                               </div>
                             ) : (
                               <span className="text-xs text-[#98a2b3]">—</span>

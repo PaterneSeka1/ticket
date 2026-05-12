@@ -27,11 +27,9 @@ export class SlaController {
     CRITICAL: TicketPriority.CRITICAL,
     HIGH: TicketPriority.HIGH,
     MEDIUM: TicketPriority.MEDIUM,
-    LOW: TicketPriority.LOW,
     CRITIQUE: TicketPriority.CRITICAL,
     HAUT: TicketPriority.HIGH,
     MOYEN: TicketPriority.MEDIUM,
-    BAS: TicketPriority.LOW,
   };
 
   constructor(private readonly slaService: SlaService) {}

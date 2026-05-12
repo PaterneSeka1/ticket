@@ -16,7 +16,6 @@ enum UserRole {
 }
 
 enum TicketPriority {
-  LOW
   MEDIUM
   HIGH
   CRITICAL

@@ -24,9 +24,8 @@ export const statusLabels: Partial<Record<TicketStatus, { label: string; color: 
 
 export const priorityLabels: Record<TicketPriority, { label: string; tone: string }> = {
   CRITICAL: { label: "P1", tone: "bg-[#fee2e0] text-[#c42d1f]" },
-  HIGH: { label: "P2", tone: "bg-[#fff1d6] text-[#d9731d]" },
-  MEDIUM: { label: "P3", tone: "bg-[#e8f6eb] text-[#1f6f3a]" },
-  LOW: { label: "P4", tone: "bg-[#eef5ff] text-[#1f4bbf]" },
+  HIGH:     { label: "P2", tone: "bg-[#fff1d6] text-[#d9731d]" },
+  MEDIUM:   { label: "P3", tone: "bg-[#e8f6eb] text-[#1f6f3a]" },
 };
 
 export const typeLabels: Record<NonNullable<Ticket["type"]>, string> = {

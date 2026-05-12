@@ -556,14 +556,7 @@ export class TicketsService {
     };
     const isAdmin =
       actor.role === UserRole.ADMIN || actor.role === UserRole.SUPER_ADMIN;
-    if (dto.status === TicketStatus.RESOLVED && !dto.resolutionComment) {
-      throw new BadRequestException('Le commentaire de résolution est requis.');
-    }
-    if (dto.status === TicketStatus.UNRESOLVED && !dto.resolutionComment) {
-      throw new BadRequestException(
-        'Le commentaire est requis pour marquer un ticket comme non résolu.',
-      );
-    }
+
     if (dto.status === TicketStatus.RESOLVED && !isAdmin) {
       throw new ForbiddenException(
         'Seuls les administrateurs peuvent marquer un ticket comme résolu.',

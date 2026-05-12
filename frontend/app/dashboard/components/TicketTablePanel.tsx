@@ -309,7 +309,7 @@ export function TicketTablePanel({ tickets, loading, ticketFilter, showExports =
             cell: ({ row }) => (
               <button
                 type="button"
-                className="rounded-[10px] border border-[#d8cabc] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:bg-[#faf6f1]"
+                className="cursor-pointer rounded-[10px] border border-[#d8cabc] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition hover:border-[#c8964a] hover:bg-[#fdf3e7] hover:text-[#8b5e1e] hover:shadow-[0_2px_8px_rgba(184,119,49,0.18)]"
                 onClick={() => setSelectedTicket(row.original)}
               >
                 Détail
@@ -467,7 +467,7 @@ export function TicketTablePanel({ tickets, loading, ticketFilter, showExports =
                       </span>
                       <button
                         type="button"
-                        className="rounded-[10px] border border-[#dcccbc] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition hover:bg-[#faf6f1]"
+                        className="cursor-pointer rounded-[10px] border border-[#dcccbc] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition hover:border-[#c8964a] hover:bg-[#fdf3e7] hover:text-[#8b5e1e] hover:shadow-[0_2px_8px_rgba(184,119,49,0.18)]"
                         onClick={() => setSelectedTicket(ticket)}
                       >
                         Détails

@@ -67,14 +67,12 @@ const PRIORITY_CHART_COLORS: Record<TicketPriority, string> = {
   CRITICAL: "#e53935",
   HIGH: "#f4a300",
   MEDIUM: "#2ba84a",
-  LOW: "#1f6bb7",
 };
 
 const PRIORITY_DISPLAY_NAMES: Record<TicketPriority, string> = {
   CRITICAL: "Critique",
   HIGH: "Haut",
   MEDIUM: "Moyen",
-  LOW: "Bas",
 };
 
 const OPEN_STATUSES = new Set<TicketStatus>([
@@ -92,12 +90,13 @@ const RESOLVED_STATUSES = new Set<TicketStatus>([
   "FERME",
   "ABANDONNE",
   "RESOLVED",
+  "UNRESOLVED",
   "CLOSED",
   "CANCELLED",
 ]);
 
 const STATUS_LIST = Object.keys(statusLabels) as TicketStatus[];
-const PRIORITY_LIST: TicketPriority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+const PRIORITY_LIST: TicketPriority[] = ["CRITICAL", "HIGH", "MEDIUM"];
 
 type Metric = {
   label: string;

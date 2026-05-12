@@ -63,7 +63,7 @@ export type TicketStatus =
   | "REOPENED"
   | "CANCELLED";
 
-export type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type TicketPriority = "MEDIUM" | "HIGH" | "CRITICAL";
 
 export type TimelineEventType = "CREATE" | "RECEIVE" | "STATUS_CHANGE" | "ACTION";
 

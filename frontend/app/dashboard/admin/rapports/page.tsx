@@ -37,6 +37,7 @@ const statusPalette: Partial<Record<TicketStatus, { label: string; color: string
   ASSIGNED: { label: "Assigné", color: "#23b47e" },
   IN_PROGRESS: { label: "En cours", color: "#7552d4" },
   RESOLVED: { label: "Résolu", color: "#727885" },
+  UNRESOLVED: { label: "Non résolu", color: "#d63b35" },
   CLOSED: { label: "Clôturé", color: "#1f6c97" },
   REOPENED: { label: "Réouvert", color: "#b266f5" },
   CANCELLED: { label: "Annulé", color: "#d63b35" },
@@ -44,15 +45,14 @@ const statusPalette: Partial<Record<TicketStatus, { label: string; color: string
 
 const priorityPalette: Record<TicketPriority, { label: string; color: string }> = {
   CRITICAL: { label: "P1", color: "#d63b35" },
-  HIGH: { label: "P2", color: "#f4a300" },
-  MEDIUM: { label: "P3", color: "#20b16a" },
-  LOW: { label: "P4", color: "#6f8ecb" },
+  HIGH:     { label: "P2", color: "#f4a300" },
+  MEDIUM:   { label: "P3", color: "#20b16a" },
 };
 
 const filters = {
   period: ["Ce mois", "Ce trimestre", "Cette année"],
   services: ["Tous services"],
-  priorities: ["Toutes priorités", "P1", "P2", "P3", "P4"],
+  priorities: ["Toutes priorités", "P1", "P2", "P3"],
 };
 
 const formatDate = (value: string) =>
@@ -155,7 +155,7 @@ export default function AdminRapportsPage() {
   const majorCount = filteredTickets.filter((ticket) => ticket.priority === "HIGH").length;
   const minorCount = filteredTickets.filter((ticket) => ticket.priority === "MEDIUM").length;
   const resolvedCount = filteredTickets.filter((ticket) =>
-    ticket.status === "RESOLU" || ticket.status === "RESOLVED" || ticket.status === "FERME" || ticket.status === "CLOSED",
+    ticket.status === "RESOLU" || ticket.status === "RESOLVED" || ticket.status === "UNRESOLVED" || ticket.status === "FERME" || ticket.status === "CLOSED",
   ).length;
   const resolutionRate = totalTickets ? Math.round((resolvedCount / totalTickets) * 100) : 0;
 

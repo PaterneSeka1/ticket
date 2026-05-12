@@ -21,9 +21,8 @@ type Props = {
 
 const labelMap: Record<TicketPriority, string> = {
   CRITICAL: "P1",
-  HIGH: "P2",
-  MEDIUM: "P3",
-  LOW: "P4",
+  HIGH:     "P2",
+  MEDIUM:   "P3",
 };
 
 export function SlaPolicyModal({

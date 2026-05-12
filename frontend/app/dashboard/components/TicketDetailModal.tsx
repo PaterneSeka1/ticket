@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import toast from "react-hot-toast";
-import Link from "next/link";
-import type { Ticket } from "@/api/types";
+import type { Ticket, TicketPriority, TicketStatus } from "@/api/types";
 import { ApiError } from "@/api/client";
-import { changeTicketStatus, updateTicket } from "@/api/tickets";
-import type { ResolutionResponsible } from "@/api/resolution";
-import { fetchResolutionResponsibles } from "@/api/resolution";
+import { changeTicketStatus, createTicketComment, updateTicket } from "@/api/tickets";
+import { fetchResolutionResponsibles, type ResolutionResponsible } from "@/api/resolution";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import {
   formatDateTime,
@@ -17,7 +15,6 @@ import {
   getSlaTone,
   priorityLabels,
   statusLabels,
-  typeLabels,
 } from "@/app/dashboard/lib/ticket-formatters";
 
 interface TicketDetailModalProps {
@@ -27,30 +24,52 @@ interface TicketDetailModalProps {
   initialView?: "assign" | null;
 }
 
-const resolveTicketNumber = (ticket: Ticket) => ticket.ticketNumber ?? ticket.code ?? ticket.id;
-const resolveTicketCategory = (ticket: Ticket) => ticket.category?.name ?? ticket.category?.libelle ?? "—";
-const resolveTicketTitle = (ticket: Ticket) => ticket.title ?? resolveTicketCategory(ticket);
-const resolveTicketType = (ticket: Ticket) => {
-  if (ticket.type) return ticket.type;
-  const scope = ticket.category?.incidentType?.scope;
+const resolveTicketNumber = (t: Ticket) => t.ticketNumber ?? t.code ?? t.id;
+const resolveTicketCategory = (t: Ticket) => t.category?.name ?? t.category?.libelle ?? "—";
+const resolveEmitterName = (t: Ticket) => {
+  const src = t.emitter ?? t.createdBy ?? undefined;
+  if (!src) return "—";
+  return `${src.prenom ?? ""} ${src.nom ?? ""}`.trim() || "—";
+};
+const resolveTicketType = (t: Ticket) => {
+  if (t.type) return t.type;
+  const scope = t.category?.incidentType?.scope;
   if (scope === "EXTERNE") return "DEMANDE";
   if (scope === "INTERNE") return "INCIDENT";
   return undefined;
 };
-const resolveEmitterName = (ticket: Ticket) => {
-  const source = ticket.emitter ?? ticket.createdBy ?? undefined;
-  if (!source) return "—";
-  return `${source.prenom ?? ""} ${source.nom ?? ""}`.trim() || "—";
+
+const PRIORITY_ORDER: TicketPriority[] = ["CRITICAL", "HIGH", "MEDIUM"];
+
+const PRIO_ACTIVE: Record<TicketPriority, string> = {
+  CRITICAL: "bg-[#dc2626] text-white border-[#dc2626]",
+  HIGH:     "bg-[#e07b1a] text-white border-[#e07b1a]",
+  MEDIUM:   "bg-[#16a34a] text-white border-[#16a34a]",
 };
-const resolveAssigneeName = (ticket: Ticket) => {
-  if (ticket.assignedResponsible) {
-    return `${ticket.assignedResponsible.firstName} ${ticket.assignedResponsible.lastName}`.trim() || "—";
-  }
-  if (ticket.receivedBy) {
-    return `${ticket.receivedBy.prenom ?? ""} ${ticket.receivedBy.nom ?? ""}`.trim() || "—";
-  }
-  return ticket.assignedService ?? "—";
+
+const PRIO_INACTIVE: Record<TicketPriority, string> = {
+  CRITICAL: "bg-transparent text-[#dc2626] border-[#dc2626]",
+  HIGH:     "bg-transparent text-[#e07b1a] border-[#e07b1a]",
+  MEDIUM:   "bg-transparent text-[#16a34a] border-[#16a34a]",
 };
+
+const ALL_STATUSES = Object.keys(statusLabels) as TicketStatus[];
+
+function dotColor(label: string): string {
+  const l = label.toLowerCase();
+  if (l.includes("résolu") || l.includes("fermé") || l.includes("clôturé")) return "bg-[#16a34a]";
+  if (l.includes("alerte") || l.includes("non ouvert") || l.includes("abandonné")) return "bg-[#dc2626]";
+  if (l.includes("escalade")) return "bg-[#b45309]";
+  return "bg-[#e07b1a]";
+}
+
+function dotShadow(label: string): string {
+  const l = label.toLowerCase();
+  if (l.includes("résolu") || l.includes("fermé") || l.includes("clôturé")) return "0 0 0 1px #16a34a";
+  if (l.includes("alerte") || l.includes("non ouvert") || l.includes("abandonné")) return "0 0 0 1px #dc2626";
+  if (l.includes("escalade")) return "0 0 0 1px #b45309";
+  return "0 0 0 1px #e07b1a";
+}
 
 type TimelineEntry = {
   id: string;
@@ -64,141 +83,120 @@ export function TicketDetailModal({
   ticket,
   onClose,
   onTicketUpdated,
-  initialView,
 }: TicketDetailModalProps) {
   const { user } = useCurrentUser();
-  const canAssign =
-    !!user &&
-    ["ADMIN", "SUPER_ADMIN"].includes(user.role) &&
-    ticket.status === "PENDING_ASSIGNMENT";
-  const canChangeStatus =
-    !!user && ["ADMIN", "SUPER_ADMIN"].includes(user.role) && ["ASSIGNED", "IN_PROGRESS"].includes(ticket.status);
-  const canMarkUnresolved =
-    !!user && ["ADMIN", "SUPER_ADMIN"].includes(user.role) && ticket.status === "RESOLVED";
-  const canChangePriority = !!user && ["ADMIN", "SUPER_ADMIN"].includes(user.role);
+  const isAdmin  = !!user && ["ADMIN", "SUPER_ADMIN"].includes(user.role);
+  const isClosed = ["RESOLVED", "RESOLU", "UNRESOLVED", "FERME", "CLOSED"].includes(ticket.status);
+  const canEdit   = isAdmin && !isClosed;
+  const canComment = !!user && !isClosed;
 
-  const configurationRoute =
-    user?.role === "SUPER_ADMIN"
-      ? "/dashboard/super-admin/configuration"
-      : "/dashboard/admin/configuration";
-
-  const [responsibles, setResponsibles] = useState<ResolutionResponsible[]>([]);
+  const [localPriority, setLocalPriority]           = useState<TicketPriority>(ticket.priority);
+  const [localStatus, setLocalStatus]               = useState<TicketStatus>(ticket.status);
+  const [newComment, setNewComment]                 = useState("");
+  const [isSaving, setIsSaving]                     = useState(false);
+  const [responsibles, setResponsibles]             = useState<ResolutionResponsible[]>([]);
   const [responsiblesLoading, setResponsiblesLoading] = useState(false);
   const [selectedResponsibleId, setSelectedResponsibleId] = useState("");
-  const [isAssigning, setIsAssigning] = useState(false);
-  const [statusComment, setStatusComment] = useState("");
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [selectedPriority, setSelectedPriority] = useState(ticket.priority);
-  const [isUpdatingPriority, setIsUpdatingPriority] = useState(false);
-  const assignSectionRef = useRef<HTMLDivElement | null>(null);
+  const [isAssigning, setIsAssigning]               = useState(false);
+
+  const canAssign = isAdmin && ticket.status === "PENDING_ASSIGNMENT";
 
   useEffect(() => {
-    setSelectedPriority(ticket.priority);
-  }, [ticket.priority]);
+    setLocalPriority(ticket.priority);
+    setLocalStatus(ticket.status);
+    setNewComment("");
+    setSelectedResponsibleId("");
+  }, [ticket.id, ticket.priority, ticket.status]);
 
   useEffect(() => {
     if (!canAssign) return;
-    let cancelled = false;
     setResponsiblesLoading(true);
     fetchResolutionResponsibles()
-      .then((data) => {
-        if (cancelled) return;
-        const active = data.filter((item) => item.isActive);
-        setResponsibles(active);
-        setSelectedResponsibleId(active[0]?.id ?? "");
-      })
-      .catch((error) => {
-        console.error(error);
-        if (!cancelled) {
-          setResponsibles([]);
-          setSelectedResponsibleId("");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setResponsiblesLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+      .then((data) => setResponsibles(data.filter((r) => r.isActive)))
+      .catch(() => setResponsibles([]))
+      .finally(() => setResponsiblesLoading(false));
   }, [canAssign]);
 
-  useEffect(() => {
-    if (initialView !== "assign") return;
-    if (!canAssign) return;
-    if (!assignSectionRef.current) return;
-    assignSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [canAssign, initialView]);
+  const resolveStatusLabel = (s?: string | null) =>
+    s ? (statusLabels[s as TicketStatus]?.label ?? s) : "—";
 
   const timelineEntries = useMemo<TimelineEntry[]>(() => {
     if (ticket.statusHistory?.length) {
       return [...ticket.statusHistory]
-        .map((entry) => ({
-          id: entry.id,
-          label: `${entry.fromStatus ?? "—"} → ${entry.toStatus}`,
-          meta: entry.changedBy ? `${entry.changedBy.prenom ?? ""} ${entry.changedBy.nom ?? ""}`.trim() : undefined,
-          createdAt: entry.createdAt,
-          comment: entry.comment ?? null,
+        .map((e) => ({
+          id: e.id,
+          label: `${resolveStatusLabel(e.fromStatus)} → ${resolveStatusLabel(e.toStatus)}`,
+          meta: e.changedBy
+            ? `${e.changedBy.prenom ?? ""} ${e.changedBy.nom ?? ""}`.trim()
+            : undefined,
+          createdAt: e.createdAt,
+          comment: e.comment ?? null,
         }))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     }
-
     return [...(ticket.timeline ?? [])]
-      .map((event) => ({
-        id: event.id,
-        label: event.label,
-        meta: `${event.actorName} • ${event.type}`,
-        createdAt: event.createdAt,
+      .map((e) => ({
+        id: e.id,
+        label: e.label,
+        meta: `${e.actorName} • ${e.type}`,
+        createdAt: e.createdAt,
       }))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [ticket.statusHistory, ticket.timeline]);
 
   const slaProgress = getSlaProgress(ticket);
-  const slaTone = getSlaTone(slaProgress);
-  const priorityInfo = priorityLabels[ticket.priority] ?? priorityLabels.LOW;
-  const statusInfo =
-    statusLabels[ticket.status] ??
-    statusLabels.RECU ?? { label: ticket.status, color: "bg-[#f0f0f0] text-[#6b6b6b]" };
-  const type = resolveTicketType(ticket);
-  const typeLabel = type ? typeLabels[type] : "—";
+  const slaTone     = getSlaTone(slaProgress);
   const emitterName = resolveEmitterName(ticket);
-  const receivedByName = ticket.receivedBy
-    ? `${ticket.receivedBy.prenom ?? ""} ${ticket.receivedBy.nom ?? ""}`.trim() || "—"
-    : "—";
-  const assigneeName = resolveAssigneeName(ticket);
-  const commentsCount = (ticket.comments ?? []).length;
+  const type        = resolveTicketType(ticket);
+  const typeEmoji   = type === "INCIDENT" ? "🏢" : type === "DEMANDE" ? "🤝" : "";
+  const statusInfo  = statusLabels[ticket.status] ?? { label: ticket.status, color: "" };
 
-  const facts = [
-    { label: "Assigné à", value: assigneeName },
-    { label: "Catégorie", value: resolveTicketCategory(ticket) },
-    { label: "Émetteur", value: emitterName },
-    { label: "Reçu par", value: receivedByName },
-    { label: "Client", value: ticket.clientName ?? "—" },
-    {
-      label: "Produits",
-      value: ticket.products?.length ? ticket.products.join(", ") : ticket.product ?? "—",
-    },
-    { label: "Pièce jointe", value: ticket.attachmentName ?? "—" },
-    {
-      label: "Commentaires",
-      value: commentsCount
-        ? `${commentsCount} commentaire(s)`
-        : "Aucun commentaire",
-    },
-  ];
+  const existingComments = ticket.comments ?? [];
 
-  const dateFacts = [
-    { label: "Détecté le", value: formatDateTime(ticket.detectedAt) },
-    { label: "Reçu le", value: formatDateTime(ticket.receivedAt) },
-    { label: "Résolu le", value: formatDateTime(ticket.resolvedAt) },
-  ];
+  const handleSave = async () => {
+    let updated: Ticket = ticket;
+    let changed = false;
+    setIsSaving(true);
+
+    try {
+      if (isAdmin && localPriority !== ticket.priority) {
+        updated = await updateTicket(ticket.id, { priority: localPriority });
+        changed = true;
+      }
+
+      if (isAdmin && localStatus !== ticket.status) {
+        updated = await changeTicketStatus(ticket.id, {
+          status: localStatus,
+          resolutionComment: newComment.trim() || undefined,
+        });
+        changed = true;
+      }
+
+      if (newComment.trim() && localStatus === ticket.status) {
+        await createTicketComment(ticket.id, { content: newComment.trim() });
+        changed = true;
+      }
+
+      if (changed) {
+        onTicketUpdated?.(updated);
+        toast.success("Ticket #" + resolveTicketNumber(ticket) + " mis à jour.");
+      } else {
+        toast("Aucune modification.", { icon: "ℹ️" });
+      }
+    } catch (error) {
+      const msg = error instanceof ApiError ? error.message : "Impossible d'enregistrer les modifications.";
+      toast.error(msg);
+    } finally {
+      setIsSaving(false);
+      onClose();
+    }
+  };
 
   const handleAssign = async () => {
     if (!selectedResponsibleId) {
-      toast.error("Sélectionnez un responsable.");
+      toast.error("Veuillez sélectionner un responsable.");
       return;
     }
-
     setIsAssigning(true);
     try {
       const updated = await changeTicketStatus(ticket.id, {
@@ -206,381 +204,312 @@ export function TicketDetailModal({
         assignedResponsibleId: selectedResponsibleId,
       });
       onTicketUpdated?.(updated);
-      toast.success("Ticket assigné.");
+      toast.success("Ticket #" + resolveTicketNumber(ticket) + " assigné.");
+      onClose();
     } catch (error) {
-      const message =
-        error instanceof ApiError ? error.message : "Impossible d’assigner le ticket.";
-      toast.error(message);
+      const msg = error instanceof ApiError ? error.message : "Impossible d'assigner le ticket.";
+      toast.error(msg);
     } finally {
       setIsAssigning(false);
     }
   };
 
-  const handleMarkInProgress = async () => {
-    setIsUpdatingStatus(true);
-    try {
-      const updated = await changeTicketStatus(ticket.id, {
-        status: "IN_PROGRESS",
-      });
-      onTicketUpdated?.(updated);
-      toast.success("Ticket passé en cours.");
-    } catch (error) {
-      const message =
-        error instanceof ApiError ? error.message : "Impossible de mettre le ticket en cours.";
-      toast.error(message);
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-
-  const handleResolve = async () => {
-    if (!statusComment.trim()) {
-      toast.error("Le commentaire est requis.");
-      return;
-    }
-
-    setIsUpdatingStatus(true);
-    try {
-      const updated = await changeTicketStatus(ticket.id, {
-        status: "RESOLVED",
-        resolutionComment: statusComment.trim(),
-      });
-      onTicketUpdated?.(updated);
-      setStatusComment("");
-      toast.success("Ticket marqué comme résolu.");
-    } catch (error) {
-      const message =
-        error instanceof ApiError ? error.message : "Impossible de résoudre le ticket.";
-      toast.error(message);
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-
-  const handleMarkUnresolved = async () => {
-    if (!statusComment.trim()) {
-      toast.error("Le commentaire est requis.");
-      return;
-    }
-    setIsUpdatingStatus(true);
-    try {
-      const updated = await changeTicketStatus(ticket.id, {
-        status: "UNRESOLVED",
-        resolutionComment: statusComment.trim(),
-      });
-      onTicketUpdated?.(updated);
-      setStatusComment("");
-      toast.success("Ticket marqué comme non résolu.");
-    } catch (error) {
-      const message =
-        error instanceof ApiError ? error.message : "Impossible de marquer le ticket comme non résolu.";
-      toast.error(message);
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-
-  const handleUpdatePriority = async () => {
-    if (selectedPriority === ticket.priority) return;
-    setIsUpdatingPriority(true);
-    try {
-      const updated = await updateTicket(ticket.id, { priority: selectedPriority });
-      onTicketUpdated?.(updated);
-      toast.success("Priorité mise à jour.");
-    } catch (error) {
-      const message =
-        error instanceof ApiError ? error.message : "Impossible de modifier la priorité.";
-      toast.error(message);
-      setSelectedPriority(ticket.priority);
-    } finally {
-      setIsUpdatingPriority(false);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/40 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center p-4"
+      style={{ background: "rgba(80,30,5,0.28)", backdropFilter: "blur(2px)" }}
+      onClick={onClose}
+    >
       <div
-        className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-[32px] bg-white p-6 shadow-[0_30px_60px_rgba(15,23,42,0.25)]"
-        onClick={(event) => event.stopPropagation()}
+        className="relative w-full max-w-[700px] max-h-[88vh] overflow-y-auto rounded-[18px] bg-white border border-[#f5d8b8] p-6"
+        style={{ boxShadow: "0 4px 28px rgba(160,90,20,0.18)" }}
+        onClick={(e) => e.stopPropagation()}
       >
+        {/* Close */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-full border border-[#e6e6e6] p-2 text-[#2b1d10]"
+          className="absolute right-4 top-4 rounded-full border border-[#eee3d6] p-1.5 text-[#7b6655] hover:bg-[#fff3e6] transition"
         >
           <X className="h-4 w-4" />
         </button>
 
-        <header className="space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#b87731]">Ticket</span>
-            <span className="text-sm font-semibold text-[#7b6655]">{resolveTicketNumber(ticket)}</span>
-          </div>
-          <h2 className="text-2xl font-semibold text-[#23160c]">{resolveTicketTitle(ticket)}</h2>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusInfo.color}`}>
-              {statusInfo.label}
-            </span>
-            <span className="inline-flex rounded-full border border-[#e5e1db] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10]">
-              {typeLabel}
-            </span>
-            <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${priorityInfo.tone}`}>
-              {priorityInfo.label}
-            </span>
-          </div>
-        </header>
+        {/* Header */}
+        <div>
+          <h3 className="text-[17px] font-[800] text-[#3b1f08]">
+            Ticket #{resolveTicketNumber(ticket)}
+          </h3>
+          <p className="mt-[3px] text-[13px] text-[#6b4423]">
+            {resolveTicketCategory(ticket)} | {priorityLabels[ticket.priority]?.label ?? ticket.priority} | {statusInfo.label}
+          </p>
+        </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <div className="space-y-4">
-            {canChangePriority && (
-              <div className="rounded-2xl border border-[#eee3d6] bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#9c958a]">
-                  Priorité
-                </p>
-                <p className="mt-2 text-[12px] text-[#7b6655]">
-                  Ajustez la priorité si nécessaire.
-                </p>
-                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <select
-                    value={selectedPriority}
-                    onChange={(event) => setSelectedPriority(event.target.value as Ticket["priority"])}
-                    disabled={isUpdatingPriority}
-                    className="h-10 w-full rounded-[12px] border border-[#e7ddd2] bg-white px-3 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none sm:flex-1"
-                  >
-                    {(["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).map((priority) => (
-                      <option key={priority} value={priority}>
-                        {priorityLabels[priority].label} • {priority}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={handleUpdatePriority}
-                    disabled={isUpdatingPriority || selectedPriority === ticket.priority}
-                    className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition disabled:opacity-40"
-                  >
-                    {isUpdatingPriority ? "Mise à jour…" : "Enregistrer"}
-                  </button>
-                </div>
-              </div>
-            )}
+        {/* Separator */}
+        <div className="my-[11px] h-px bg-[#f5d8b8]" />
 
-            <div className="rounded-2xl border border-[#f1e5d7] bg-[#fffdfb] p-4">
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#9c958a]">Description</p>
-              <p className="mt-2 text-sm text-[#2b1d10] leading-relaxed">{ticket.description}</p>
-            </div>
-
-            {canAssign && (
-              <div
-                ref={assignSectionRef}
-                className="rounded-2xl border border-[#eee3d6] bg-white p-4"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#9c958a]">
-                  Assignation
-                </p>
-                <p className="mt-2 text-[12px] text-[#7b6655]">
-                  Choisissez un responsable puis validez l’assignation.
-                </p>
-                {!responsiblesLoading && responsibles.length === 0 ? (
-                  <div className="mt-3 rounded-[14px] border border-dashed border-[#e7e3db] bg-[#fffdf9] px-4 py-3 text-[12px] text-[#6b5446]">
-                    Aucun responsable actif. Ajoutez-en dans{" "}
-                    <Link href={configurationRoute} className="font-semibold text-[#b87731] underline">
-                      Configuration → Services assignataires
-                    </Link>
-                    .
-                  </div>
-                ) : null}
-                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <select
-                    value={selectedResponsibleId}
-                    onChange={(event) => setSelectedResponsibleId(event.target.value)}
-                    disabled={responsiblesLoading || isAssigning || !responsibles.length}
-                    className="h-10 w-full rounded-[12px] border border-[#e7ddd2] bg-white px-3 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none sm:flex-1"
-                  >
-                    {responsiblesLoading ? (
-                      <option value="">Chargement…</option>
-                    ) : responsibles.length ? (
-                      responsibles.map((responsible) => (
-                        <option key={responsible.id} value={responsible.id}>
-                          {responsible.firstName} {responsible.lastName}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="">Aucun responsable actif</option>
-                    )}
-                  </select>
-
-                  <button
-                    type="button"
-                    onClick={handleAssign}
-                    disabled={responsiblesLoading || isAssigning || !selectedResponsibleId}
-                    className="inline-flex h-10 items-center justify-center rounded-[12px] bg-[#f9b800] px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#352300] shadow-[0_10px_20px_rgba(249,184,0,0.18)] transition disabled:opacity-40"
-                  >
-                    {isAssigning ? "Assignation…" : "Assigner"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {canChangeStatus && (
-              <div className="rounded-2xl border border-[#eee3d6] bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#9c958a]">
-                  Statut
-                </p>
-                <p className="mt-2 text-[12px] text-[#7b6655]">
-                  Une fois l’intervention terminée, vous pouvez marquer le ticket comme résolu.
-                </p>
-
-                {ticket.status === "ASSIGNED" && (
-                  <button
-                    type="button"
-                    onClick={handleMarkInProgress}
-                    disabled={isUpdatingStatus}
-                    className="mt-3 inline-flex h-10 items-center justify-center rounded-[12px] border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition disabled:opacity-40"
-                  >
-                    {isUpdatingStatus ? "Mise à jour…" : "Passer en cours"}
-                  </button>
-                )}
-
-                <div className="mt-4 space-y-2">
-                  <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8b7765]">
-                    Commentaire <span className="text-[#d92d20]">*</span>
-                  </span>
-                  <textarea
-                    value={statusComment}
-                    onChange={(event) => setStatusComment(event.target.value)}
-                    placeholder="Expliquez la résolution ou pourquoi ce n’est pas résolu…"
-                    rows={3}
-                    className="w-full rounded-[12px] border border-[#e7ddd2] bg-white px-3 py-2 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none"
-                  />
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <button
-                      type="button"
-                      onClick={handleResolve}
-                      disabled={isUpdatingStatus || !statusComment.trim()}
-                      className="inline-flex h-10 flex-1 items-center justify-center rounded-[12px] bg-[#f9b800] px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#352300] shadow-[0_10px_20px_rgba(249,184,0,0.18)] transition disabled:opacity-40"
-                    >
-                      {isUpdatingStatus ? "Mise à jour…" : "Marquer résolu"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleMarkUnresolved}
-                      disabled={isUpdatingStatus || !statusComment.trim()}
-                      className="inline-flex h-10 flex-1 items-center justify-center rounded-[12px] border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition disabled:opacity-40"
-                    >
-                      {isUpdatingStatus ? "Mise à jour…" : "Marquer non résolu"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {canMarkUnresolved && (
-              <div className="rounded-2xl border border-[#eee3d6] bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#9c958a]">
-                  Non résolu
-                </p>
-                <p className="mt-2 text-[12px] text-[#7b6655]">
-                  Si la résolution est incorrecte, vous pouvez marquer le ticket comme non résolu.
-                </p>
-
-                <div className="mt-4 space-y-2">
-                  <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8b7765]">
-                    Commentaire <span className="text-[#d92d20]">*</span>
-                  </span>
-                  <textarea
-                    value={statusComment}
-                    onChange={(event) => setStatusComment(event.target.value)}
-                    placeholder="Expliquez pourquoi le ticket est non résolu…"
-                    rows={3}
-                    className="w-full rounded-[12px] border border-[#e7ddd2] bg-white px-3 py-2 text-sm text-[#2b1d10] focus:border-[#d29b55] focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleMarkUnresolved}
-                    disabled={isUpdatingStatus || !statusComment.trim()}
-                    className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#dcccbc] bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] transition disabled:opacity-40"
-                  >
-                    {isUpdatingStatus ? "Mise à jour…" : "Marquer non résolu"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="rounded-2xl border border-[#eee3d6] bg-white p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#9c958a]">Timeline</p>
-                <span className="text-xs font-semibold text-[#b87731]">{timelineEntries.length} étape(s)</span>
-              </div>
-
-              <div className="mt-3 space-y-3">
-                {timelineEntries.length === 0 ? (
-                  <p className="text-sm text-[#7b6655]">Aucun événement enregistré.</p>
-                ) : (
-                  timelineEntries.map((event) => (
-                    <div
-                      key={event.id}
-                      className="flex flex-col gap-1 rounded-2xl border border-[#f1e5d7] bg-[#fffaf5] px-3 py-2 text-sm text-[#2b1d10] lg:flex-row lg:items-center lg:justify-between"
-                    >
-                      <div>
-                        <p className="font-semibold text-[#23160c]">{event.label}</p>
-                        {event.meta ? (
-                          <p className="text-[12px] text-[#7b6655]">{event.meta}</p>
-                        ) : null}
-                        {event.comment ? (
-                          <p className="text-[12px] text-[#7b6655]">{event.comment}</p>
-                        ) : null}
-                      </div>
-                      <span className="text-[12px] text-[#8a8176]">
-                        {formatDateTime(event.createdAt)}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-[#f1e5d7] bg-[#fffaf5] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#9c958a]">Informations clés</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {facts.map((fact) => (
-                  <div
-                    key={fact.label}
-                    className="rounded-xl border border-[#f1e5d7] bg-white px-3 py-2 text-[12px] text-[#5f4d3f]"
-                  >
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-[#9c958a]">{fact.label}</p>
-                    <p className="mt-1 font-semibold text-[#23160c]">{fact.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-[#f1e5d7] bg-white p-4">
-              <div className="flex flex-col gap-2 text-[12px] text-[#5f4d3f]">
-                {dateFacts.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-[#9c958a]">{item.label}</span>
-                    <span className="font-semibold text-[#23160c]">{item.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-[#eee3d6] bg-[#fffaf5] p-4">
-              <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.24em] text-[#b87731]">
-                <span>SLA actif</span>
-                <span className={slaTone.text}>{formatDuration(ticket.waitMinutes ?? ticket.slaMaxMinutes)}</span>
-              </div>
-              <div className={`mt-3 h-1.5 overflow-hidden rounded-full ${slaTone.track}`}>
+        {/* SLA */}
+        {(ticket.waitMinutes ?? 0) > 0 && (
+          <div className="mb-[13px] rounded-[10px] border border-[#fed7aa] bg-[#fff7ed] px-[13px] py-[10px]">
+            <p className="mb-[5px] text-[10px] font-[700] uppercase tracking-[.7px] text-[#9a3412]">
+              ⏱ SLA
+            </p>
+            <div className="flex items-center gap-[7px]">
+              <div className={`h-[6px] flex-1 overflow-hidden rounded-[3px] ${slaTone.track}`}>
                 <div
-                  className={`h-full rounded-full bg-gradient-to-r ${slaTone.bar}`}
+                  className={`h-full rounded-[3px] bg-gradient-to-r ${slaTone.bar}`}
                   style={{ width: `${slaProgress}%` }}
                 />
               </div>
+              <span className={`whitespace-nowrap font-mono text-[11px] font-[600] ${slaTone.text}`}>
+                {formatDuration(ticket.waitMinutes ?? ticket.slaMaxMinutes)}
+                {slaProgress >= 100 && (
+                  <span className="ml-1 inline-flex animate-pulse rounded-full bg-[#fee2e2] px-[7px] py-[2px] text-[10px] font-[700] text-[#dc2626]">
+                    🔴
+                  </span>
+                )}
+              </span>
             </div>
           </div>
+        )}
+
+        {/* Info grid */}
+        <div className="mb-[14px] grid grid-cols-2 gap-[13px]">
+          <div>
+            <p className="text-[10px] font-[700] uppercase tracking-[.7px] text-[#b89070]">Émetteur</p>
+            <p className="mt-[3px] text-[13px] font-[600] text-[#3b1f08]">{emitterName}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-[700] uppercase tracking-[.7px] text-[#b89070]">Date Création</p>
+            <p className="mt-[3px] text-[13px] font-[600] text-[#3b1f08]">{formatDateTime(ticket.createdAt)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-[700] uppercase tracking-[.7px] text-[#b89070]">Catégorie</p>
+            <p className="mt-[3px] text-[13px] font-[600] text-[#3b1f08]">
+              {typeEmoji && <span className="mr-1">{typeEmoji}</span>}
+              {resolveTicketCategory(ticket)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-[700] uppercase tracking-[.7px] text-[#b89070]">Date Détection</p>
+            <p className="mt-[3px] text-[13px] font-[600] text-[#3b1f08]">{formatDateTime(ticket.detectedAt ?? ticket.createdAt)}</p>
+          </div>
+          {ticket.clientName && (
+            <div>
+              <p className="text-[10px] font-[700] uppercase tracking-[.7px] text-[#b89070]">Client</p>
+              <p className="mt-[3px] text-[13px] font-[600] text-[#3b1f08]">{ticket.clientName}</p>
+            </div>
+          )}
+          {ticket.product && (
+            <div>
+              <p className="text-[10px] font-[700] uppercase tracking-[.7px] text-[#b89070]">Produit</p>
+              <p className="mt-[3px] text-[13px] font-[600] text-[#3b1f08]">{ticket.product}</p>
+            </div>
+          )}
+          <div className="col-span-2">
+            <p className="text-[10px] font-[700] uppercase tracking-[.7px] text-[#b89070]">Description</p>
+            <p className="mt-[3px] whitespace-pre-wrap text-[13px] leading-[1.5] text-[#3b1f08]">
+              {ticket.description}
+            </p>
+          </div>
+        </div>
+
+        {/* Admin controls */}
+        {canEdit && (
+          <>
+            <div className="my-[15px] h-px bg-[#f5d8b8]" />
+
+            {/* Priority */}
+            <div className="mb-[13px]">
+              <div className="mb-[6px] flex items-center gap-[8px]">
+                <p className="text-[10px] font-[700] uppercase tracking-[.7px] text-[#6b4423]">Priorité</p>
+                <span className="inline-flex items-center rounded-full bg-[#fff0dc] px-[9px] py-[2px] text-[9px] font-[700] uppercase tracking-[.7px] text-[#e07b1a]">
+                  Admin
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-[9px]">
+                {PRIORITY_ORDER.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setLocalPriority(p)}
+                    className={`cursor-pointer rounded-[20px] border-2 px-[16px] py-[7px] text-[12px] font-[700] transition ${
+                      localPriority === p ? PRIO_ACTIVE[p] : PRIO_INACTIVE[p]
+                    }`}
+                  >
+                    {priorityLabels[p].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Assignment — only shown when ticket awaits assignment */}
+            {canAssign && (
+              <div className="mb-[13px] rounded-[12px] border border-[#f5d8b8] bg-[#fffaf5] px-[14px] py-[14px]">
+                <div className="mb-[8px] flex items-center gap-[8px]">
+                  <p className="text-[10px] font-[700] uppercase tracking-[.7px] text-[#6b4423]">Assigner le responsable</p>
+                  <span className="inline-flex items-center rounded-full bg-[#fff0dc] px-[9px] py-[2px] text-[9px] font-[700] uppercase tracking-[.7px] text-[#e07b1a]">
+                    Admin
+                  </span>
+                </div>
+                {responsiblesLoading ? (
+                  <p className="text-[13px] text-[#b89070]">Chargement des responsables…</p>
+                ) : (
+                  <>
+                    <select
+                      value={selectedResponsibleId}
+                      onChange={(e) => setSelectedResponsibleId(e.target.value)}
+                      className="w-full cursor-pointer rounded-[10px] border border-[#f5d8b8] bg-white px-[13px] py-[10px] text-[13px] text-[#3b1f08] outline-none transition focus:border-[#e07b1a]"
+                    >
+                      <option value="">— Sélectionner un responsable —</option>
+                      {responsibles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.firstName} {r.lastName}
+                          {r.role ? ` · ${r.role}` : ""}
+                          {r.isExternal ? " (Externe)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleAssign}
+                      disabled={isAssigning || !selectedResponsibleId}
+                      className="mt-[10px] cursor-pointer rounded-[9px] border-none bg-[#f9b800] px-[18px] py-[8px] text-[13px] font-[600] text-[#352300] shadow-[0_4px_12px_rgba(249,184,0,0.25)] transition hover:bg-[#f2aa00] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isAssigning ? "Assignation…" : "✅ Assigner"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Service assigné */}
+            <div className="mb-[13px]">
+              <div className="mb-[6px] flex items-center gap-[8px]">
+                <p className="text-[10px] font-[700] uppercase tracking-[.7px] text-[#6b4423]">Service Assigné</p>
+                <span className="inline-flex items-center rounded-full bg-[#fff0dc] px-[9px] py-[2px] text-[9px] font-[700] uppercase tracking-[.7px] text-[#e07b1a]">
+                  Admin
+                </span>
+              </div>
+              <select
+                disabled
+                defaultValue={ticket.assignedService ?? ""}
+                className="w-full cursor-not-allowed rounded-[10px] border border-[#f5d8b8] bg-[#fffaf5] px-[13px] py-[10px] text-[13px] text-[#3b1f08] opacity-80 outline-none"
+              >
+                <option value="">{ticket.assignedService ?? "— Non assigné —"}</option>
+              </select>
+            </div>
+
+            {/* Statut */}
+            <div className="mb-[13px]">
+              <div className="mb-[6px] flex items-center gap-[8px]">
+                <p className="text-[10px] font-[700] uppercase tracking-[.7px] text-[#6b4423]">Statut</p>
+                <span className="inline-flex items-center rounded-full bg-[#fff0dc] px-[9px] py-[2px] text-[9px] font-[700] uppercase tracking-[.7px] text-[#e07b1a]">
+                  Admin
+                </span>
+              </div>
+              <select
+                value={localStatus}
+                onChange={(e) => setLocalStatus(e.target.value as TicketStatus)}
+                className="w-full cursor-pointer rounded-[10px] border border-[#f5d8b8] bg-[#fffaf5] px-[13px] py-[10px] text-[13px] text-[#3b1f08] outline-none transition focus:border-[#e07b1a]"
+              >
+                {ALL_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {statusLabels[s]?.label ?? s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+
+        {/* Separator */}
+        <div className="my-[15px] h-px bg-[#f5d8b8]" />
+
+        {/* Timeline */}
+        <p className="mb-[9px] text-[10px] font-[700] uppercase tracking-[.9px] text-[#b89070]">
+          📋 Historique & Traçabilité
+        </p>
+        <div className="border-l-2 border-[#f5d8b8] pl-[13px]">
+          {timelineEntries.length === 0 ? (
+            <p className="text-[13px] text-[#b89070]">Aucun événement enregistré.</p>
+          ) : (
+            timelineEntries.map((event) => (
+              <div key={event.id} className="relative pb-[13px] pl-[13px]">
+                <span
+                  className={`absolute left-[-6px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-white ${dotColor(event.label)}`}
+                  style={{ boxShadow: dotShadow(event.label) }}
+                />
+                <p className="font-mono text-[10px] text-[#b89070]">{formatDateTime(event.createdAt)}</p>
+                <p className="mt-[2px] text-[12px] leading-[1.4] text-[#3b1f08]">{event.label}</p>
+                {event.meta && <p className="mt-[1px] text-[10px] text-[#b89070]">{event.meta}</p>}
+                {event.comment && <p className="mt-[1px] text-[11px] italic text-[#7b6655]">{event.comment}</p>}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Separator */}
+        <div className="my-[15px] h-px bg-[#f5d8b8]" />
+
+        {/* Comments */}
+        <p className="mb-[9px] text-[10px] font-[700] uppercase tracking-[.9px] text-[#b89070]">
+          💬 Commentaires
+        </p>
+        {existingComments.length === 0 ? (
+          <p className="mb-[9px] text-[13px] text-[#b89070]">Aucun commentaire.</p>
+        ) : (
+          existingComments.map((c, i) => (
+            <div
+              key={i}
+              className="mb-[9px] rounded-[10px] border border-[#f5d8b8] bg-[#fff3e6] px-[13px] py-[11px]"
+            >
+              <div className="mb-[4px] flex justify-between text-[11px] text-[#b89070]">
+                <span>{(c as any).author ?? (c as any).by ?? "—"}</span>
+                <span>{formatDateTime((c as any).createdAt ?? (c as any).at)}</span>
+              </div>
+              <p className="text-[13px] text-[#3b1f08]">{(c as any).content ?? (c as any).txt}</p>
+            </div>
+          ))
+        )}
+
+        {canComment ? (
+          <textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Ajouter un commentaire ou note de suivi…"
+            rows={3}
+            className="mt-[10px] w-full resize-y rounded-[10px] border border-[#f5d8b8] bg-[#fffaf5] px-[13px] py-[10px] font-[inherit] text-[13px] text-[#3b1f08] outline-none transition focus:border-[#e07b1a]"
+          />
+        ) : isClosed ? (
+          <p className="mt-[8px] rounded-[10px] border border-[#f5d8b8] bg-[#fff3e6] px-[13px] py-[10px] text-[12px] text-[#b89070]">
+            🔒 Les commentaires sont désactivés — ticket {statusInfo.label.toLowerCase()}.
+          </p>
+        ) : null}
+
+        {/* Footer */}
+        {isClosed && (
+          <p className="mt-[12px] rounded-[10px] border border-[#f5d8b8] bg-[#fff3e6] px-[13px] py-[10px] text-[12px] text-[#b89070]">
+            🔒 Ce ticket est <strong>{statusInfo.label.toLowerCase()}</strong> — aucune modification n'est possible.
+          </p>
+        )}
+        <div className="mt-[16px] flex justify-end gap-[9px]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="cursor-pointer rounded-[9px] border border-[#f5d8b8] bg-transparent px-[18px] py-[8px] text-[13px] font-[600] text-[#6b4423] transition hover:border-[#e07b1a] hover:text-[#e07b1a]"
+          >
+            Fermer
+          </button>
+          {!isClosed && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="cursor-pointer rounded-[9px] border-none bg-[#f9b800] px-[18px] py-[8px] text-[13px] font-[600] text-[#352300] shadow-[0_8px_16px_rgba(249,184,0,0.25)] transition hover:bg-[#f2aa00] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSaving ? "Enregistrement…" : "💾 Enregistrer"}
+            </button>
+          )}
         </div>
       </div>
     </div>
