@@ -305,6 +305,16 @@ async function main() {
     hashedPassword,
   });
 
+  await ensureUser({
+    nom: 'Lecteur',
+    prenom: 'Global',
+    email: 'reader@example.com',
+    matricule: 'READER-0001',
+    role: UserRole.READER,
+    departmentId: informatique.id,
+    hashedPassword,
+  });
+
   const slaPolicies = [
     {
       label: 'P1',
