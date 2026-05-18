@@ -35,9 +35,10 @@ function getStatusBadgeClass(isActive: boolean) {
 
 interface CategoryManagementPanelProps {
   showCreateForm?: boolean;
+  readOnly?: boolean;
 }
 
-export function CategoryManagementPanel({ showCreateForm = true }: CategoryManagementPanelProps) {
+export function CategoryManagementPanel({ showCreateForm = true, readOnly = false }: CategoryManagementPanelProps) {
   const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -359,26 +360,28 @@ export function CategoryManagementPanel({ showCreateForm = true }: CategoryManag
                         </p>
                       </div>
 
-                      <div className="flex shrink-0 flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => startEditing(category)}
-                          className="rounded-[10px] border border-[#d9d3ca] bg-white px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#2b1d10] transition hover:bg-[#faf8f5]"
-                        >
-                          Modifier
-                        </button>
-
-                        {category.isActive && (
+                      {!readOnly && (
+                        <div className="flex shrink-0 flex-wrap gap-2">
                           <button
                             type="button"
-                            disabled={isActing}
-                            onClick={() => openDisableModal(category)}
-                            className="rounded-[10px] border border-[#efc9c6] bg-[#fff3f2] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#be3d33] transition hover:bg-[#ffeae8] disabled:opacity-50"
+                            onClick={() => startEditing(category)}
+                            className="rounded-[10px] border border-[#d9d3ca] bg-white px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#2b1d10] transition hover:bg-[#faf8f5]"
                           >
-                            Désactiver
+                            Modifier
                           </button>
-                        )}
-                      </div>
+
+                          {category.isActive && (
+                            <button
+                              type="button"
+                              disabled={isActing}
+                              onClick={() => openDisableModal(category)}
+                              className="rounded-[10px] border border-[#efc9c6] bg-[#fff3f2] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#be3d33] transition hover:bg-[#ffeae8] disabled:opacity-50"
+                            >
+                              Désactiver
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </article>

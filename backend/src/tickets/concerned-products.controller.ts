@@ -26,7 +26,7 @@ export class ConcernedProductsController {
   constructor(private readonly ticketsService: TicketsService) {}
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.READER)
   list() {
     return this.ticketsService.listConcernedProducts();
   }

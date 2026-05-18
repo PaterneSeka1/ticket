@@ -59,23 +59,25 @@ const roleRoutes: Record<
     myTickets: "/dashboard/employe/mes-tickets",
   },
   READER: {
-    root: "/dashboard/employe",
-    tickets: "/dashboard/employe/mes-tickets",
-    newTicket: "/dashboard/employe/nouveau-ticket",
-    myTickets: "/dashboard/employe/mes-tickets",
+    root: "/dashboard/reader",
+    tickets: "/dashboard/reader/tickets",
+    newTicket: "/dashboard/reader/tickets",
+    myTickets: "/dashboard/reader/tickets",
+    journal: "/dashboard/reader/journal",
   },
 };
 
 const buildNavSections = (
   routes: { root: string; tickets: string; newTicket: string; myTickets: string; journal?: string },
   includeAllTicketsLink: boolean,
+  readOnly = false,
 ) => {
   const principal: NavSection = {
     heading: "Principal",
     items: [
       { label: "Tableau de bord", href: routes.root, icon: <Activity className="h-4 w-4" /> },
-      { label: "Nouveau ticket", href: routes.newTicket, icon: <PlusCircle className="h-4 w-4" /> },
-      { label: "Mes tickets", href: routes.myTickets, icon: <List className="h-4 w-4" /> },
+      !readOnly ? { label: "Nouveau ticket", href: routes.newTicket, icon: <PlusCircle className="h-4 w-4" /> } : null,
+      !readOnly ? { label: "Mes tickets", href: routes.myTickets, icon: <List className="h-4 w-4" /> } : null,
       includeAllTicketsLink
         ? { label: "Tous les tickets", href: routes.tickets, icon: <Layers className="h-4 w-4" /> }
         : null,
@@ -118,7 +120,25 @@ const buildNavSections = (
     items: [{ label: "Rapports", href: "/dashboard/super-admin/rapports", icon: <BarChart2 className="h-4 w-4" /> }],
   };
 
-  return { principal, administration, superAdmin: superAdminSection, analyse: analyseSection, analyseAdmin: analyseSectionAdmin };
+  const readerSection: NavSection = {
+    heading: "Aperçu global",
+    roles: ["READER"],
+    items: [
+      { label: "Tous les tickets", href: "/dashboard/reader/tickets", icon: <Layers className="h-4 w-4" /> },
+      { label: "Utilisateurs", href: "/dashboard/reader/users", icon: <Users className="h-4 w-4" /> },
+      { label: "Catégories", href: "/dashboard/reader/categories", icon: <Tag className="h-4 w-4" /> },
+      { label: "Configuration", href: "/dashboard/reader/configuration", icon: <Settings className="h-4 w-4" /> },
+      routes.journal ? { label: "Journal d'activité", href: routes.journal, icon: <List className="h-4 w-4" /> } : null,
+    ].filter(Boolean) as NavSection["items"],
+  };
+
+  const analyseSectionReader: NavSection = {
+    heading: "Analyse",
+    roles: ["READER"],
+    items: [{ label: "Rapports", href: "/dashboard/reader/rapports", icon: <BarChart2 className="h-4 w-4" /> }],
+  };
+
+  return { principal, administration, superAdmin: superAdminSection, analyse: analyseSection, analyseAdmin: analyseSectionAdmin, reader: readerSection, analyseReader: analyseSectionReader };
 };
 
 const HEADER_HEIGHT = 50;
@@ -149,12 +169,15 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const currentRole = (user?.role as UserRole) ?? "EMPLOYE";
   const currentSections = useMemo(() => {
     const includeAllTicketsLink = currentRole !== "EMPLOYE" && currentRole !== "READER";
-    const sections = buildNavSections(roleRoutes[currentRole], includeAllTicketsLink);
+    const sections = buildNavSections(roleRoutes[currentRole], includeAllTicketsLink, currentRole === "READER");
     if (currentRole === "SUPER_ADMIN") {
       return [sections.principal, sections.superAdmin, sections.analyse];
     }
     if (currentRole === "ADMIN") {
       return [sections.principal, sections.administration, sections.analyseAdmin];
+    }
+    if (currentRole === "READER") {
+      return [sections.principal, sections.reader, sections.analyseReader];
     }
     return [sections.principal];
   }, [currentRole]);

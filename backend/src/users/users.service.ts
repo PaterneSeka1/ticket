@@ -69,7 +69,7 @@ export class UsersService {
   async findAll(actor?: AuthenticatedUserDto): Promise<UserDto[]> {
     let where: Prisma.UserWhereInput | undefined;
 
-    if (actor?.role === UserRole.SUPER_ADMIN) {
+    if (actor?.role === UserRole.SUPER_ADMIN || actor?.role === UserRole.READER) {
       where = {};
     } else if (actor?.role === UserRole.ADMIN) {
       where = { role: { notIn: [UserRole.SUPER_ADMIN, UserRole.ADMIN] } };

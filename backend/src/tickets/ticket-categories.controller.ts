@@ -21,22 +21,24 @@ import { CreateTicketCategoryDto } from './dto/create-ticket-category.dto.js';
 import { UpdateTicketCategoryDto } from './dto/update-ticket-category.dto.js';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @Controller('tickets/categories')
 export class TicketCategoriesController {
   constructor(private readonly ticketsService: TicketsService) {}
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.READER)
   list() {
     return this.ticketsService.listCategories();
   }
 
   @Get('incident-types')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.READER)
   listIncidentTypes() {
     return this.ticketsService.listIncidentTypes();
   }
 
   @Post()
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() dto: CreateTicketCategoryDto,
@@ -46,6 +48,7 @@ export class TicketCategoriesController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   update(
     @Param('id') id: string,
     @Body() dto: UpdateTicketCategoryDto,
@@ -55,6 +58,7 @@ export class TicketCategoriesController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUserDto) {
     return this.ticketsService.deleteCategory(id, user);

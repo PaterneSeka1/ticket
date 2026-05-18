@@ -21,12 +21,12 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UsersService } from './users.service.js';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() dto: CreateUserDto,
@@ -36,16 +36,19 @@ export class UsersController {
   }
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.READER)
   findAll(@CurrentUser() user: AuthenticatedUserDto) {
     return this.usersService.findAll(user);
   }
 
   @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.READER)
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
@@ -55,17 +58,20 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUserDto) {
     return this.usersService.remove(id, user);
   }
 
   @Patch(':id/activate')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   activate(@Param('id') id: string, @CurrentUser() user: AuthenticatedUserDto) {
     return this.usersService.activate(id, user);
   }
 
   @Patch(':id/deactivate')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   deactivate(
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUserDto,
@@ -74,6 +80,7 @@ export class UsersController {
   }
 
   @Patch(':id/reset-password')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   resetPassword(
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUserDto,
@@ -82,6 +89,7 @@ export class UsersController {
   }
 
   @Get(':id/password')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   getPassword(@Param('id') id: string) {
     return this.usersService.getPassword(id);
   }

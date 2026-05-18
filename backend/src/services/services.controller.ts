@@ -17,17 +17,18 @@ import { CreateServiceDto } from './dto/create-service.dto.js';
 import { ServicesService } from './services.service.js';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @Controller('services')
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.READER)
   findAll() {
     return this.servicesService.list();
   }
 
   @Post()
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() dto: CreateServiceDto,

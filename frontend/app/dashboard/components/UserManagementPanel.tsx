@@ -189,7 +189,7 @@ export function UserManagementPanel() {
   const visibleUsers = useMemo(() => {
     if (!currentUser) return users;
     const filtered = users.filter((item) => item.id !== currentUser.id);
-    if (currentUser.role === "SUPER_ADMIN") {
+    if (currentUser.role === "SUPER_ADMIN" || currentUser.role === "READER") {
       return filtered;
     }
     return filtered.filter((item) => item.role === "EMPLOYE" || item.role === "READER");
@@ -361,33 +361,35 @@ export function UserManagementPanel() {
                             )}
                           </td>
 
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingUserId(user.id);
-                                  setIsEditModalOpen(true);
-                                }}
-                                className="rounded-md border border-[#d0d5dd] px-3 py-1.5 text-xs font-medium text-[#344054] hover:bg-[#f9fafb]"
-                              >
-                                Éditer
-                              </button>
+                          {currentUser?.role !== "READER" && (
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingUserId(user.id);
+                                    setIsEditModalOpen(true);
+                                  }}
+                                  className="rounded-md border border-[#d0d5dd] px-3 py-1.5 text-xs font-medium text-[#344054] hover:bg-[#f9fafb]"
+                                >
+                                  Éditer
+                                </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleToggleActive(user)}
-                                disabled={isActing}
-                                className={`rounded-md px-3 py-1.5 text-xs font-medium ${
-                                  user.isActive
-                                    ? "border border-[#fecdca] text-[#b42318] hover:bg-[#fef3f2]"
-                                    : "border border-[#abefc6] text-[#067647] hover:bg-[#ecfdf3]"
-                                }`}
-                              >
-                                {user.isActive ? "Désactiver" : "Activer"}
-                              </button>
-                            </div>
-                          </td>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleActive(user)}
+                                  disabled={isActing}
+                                  className={`rounded-md px-3 py-1.5 text-xs font-medium ${
+                                    user.isActive
+                                      ? "border border-[#fecdca] text-[#b42318] hover:bg-[#fef3f2]"
+                                      : "border border-[#abefc6] text-[#067647] hover:bg-[#ecfdf3]"
+                                  }`}
+                                >
+                                  {user.isActive ? "Désactiver" : "Activer"}
+                                </button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       );
                     })

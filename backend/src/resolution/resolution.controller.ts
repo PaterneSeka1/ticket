@@ -21,7 +21,6 @@ import { UpdateResolutionResponsibleDto } from './dto/update-resolution-responsi
 import { ResolutionResponsibleService } from './resolution.service.js';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @Controller('resolution-responsibles')
 export class ResolutionResponsibleController {
   constructor(
@@ -29,11 +28,13 @@ export class ResolutionResponsibleController {
   ) {}
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.READER)
   findAll() {
     return this.resolutionService.list();
   }
 
   @Post()
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() dto: CreateResolutionResponsibleDto,
@@ -43,6 +44,7 @@ export class ResolutionResponsibleController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   update(
     @Param('id') id: string,
     @Body() dto: UpdateResolutionResponsibleDto,
@@ -52,6 +54,7 @@ export class ResolutionResponsibleController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUserDto) {
     return this.resolutionService.remove(id, user);

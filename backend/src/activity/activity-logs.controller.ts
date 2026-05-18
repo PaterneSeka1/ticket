@@ -13,7 +13,7 @@ import { UserRole } from '../prisma/enums.js';
 import { ActivityLogService } from './activity-log.service.js';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.SUPER_ADMIN)
+@Roles(UserRole.SUPER_ADMIN, UserRole.READER)
 @Controller('activity/logs')
 export class ActivityLogsController {
   constructor(private readonly activity: ActivityLogService) {}

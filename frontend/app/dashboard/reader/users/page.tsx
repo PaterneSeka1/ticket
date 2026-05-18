@@ -1,0 +1,40 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { DashboardShell } from "../../components/DashboardShell";
+import { getRedirectRouteForRole } from "../../lib/api";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
+import { UserManagementPanel } from "../../components/UserManagementPanel";
+
+export default function ReaderUsersPage() {
+  const router = useRouter();
+  const { user, status } = useCurrentUser();
+
+  useEffect(() => {
+    if (status !== "ready" || !user) return;
+    if (user.role !== "READER") {
+      router.replace(getRedirectRouteForRole(user.role));
+    }
+  }, [router, status, user]);
+
+  if (status !== "ready" || !user) {
+    return (
+      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
+        <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
+          <p className="text-sm text-[var(--vdm-muted)]">Préparation des utilisateurs…</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <DashboardShell
+      user={user}
+      title="Utilisateurs"
+      subtitle="Aperçu global des profils — lecture seule"
+    >
+      <UserManagementPanel />
+    </DashboardShell>
+  );
+}

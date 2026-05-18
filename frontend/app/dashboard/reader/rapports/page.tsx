@@ -193,10 +193,7 @@ function downloadCSV(content: string, filename: string) {
   a.style.display = "none";
   document.body.appendChild(a);
   a.click();
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 200);
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
 }
 
 function buildPrintHTML(tickets: Ticket[], periodLabel: string, from: Date, to: Date): string {
@@ -249,9 +246,7 @@ function buildPrintHTML(tickets: Ticket[], periodLabel: string, from: Date, to: 
       <h1>Rapport Tickets — Veilleur des Médias</h1>
       <p>Période : ${periodLabel} &nbsp;|&nbsp; Du ${fmtDate(from.toISOString())} au ${fmtDate(to.toISOString())}</p>
     </div>
-    <div style="text-align:right;font-size:0.7rem;color:#8a7e6e">
-      Généré le ${fmtDate(new Date().toISOString())}
-    </div>
+    <div style="text-align:right;font-size:0.7rem;color:#8a7e6e">Généré le ${fmtDate(new Date().toISOString())}</div>
   </div>
   <div class="kpis">
     <div class="kpi"><div class="label">Total</div><div class="value" style="color:#3b82f6">${tickets.length}</div></div>
@@ -276,16 +271,9 @@ function buildPrintHTML(tickets: Ticket[], periodLabel: string, from: Date, to: 
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function KpiCard({
-  title, value, detail, accentColor, icon,
-}: {
-  title: string; value: string | number; detail: string; accentColor: string; icon: string;
-}) {
+function KpiCard({ title, value, detail, accentColor, icon }: { title: string; value: string | number; detail: string; accentColor: string; icon: string }) {
   return (
-    <div
-      className="relative overflow-hidden rounded-[18px] border border-[#e8e0d4] bg-white px-5 py-5 shadow-[0_4px_18px_rgba(0,0,0,0.06)]"
-      style={{ borderTop: `3px solid ${accentColor}` }}
-    >
+    <div className="relative overflow-hidden rounded-[18px] border border-[#e8e0d4] bg-white px-5 py-5 shadow-[0_4px_18px_rgba(0,0,0,0.06)]" style={{ borderTop: `3px solid ${accentColor}` }}>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-[#a89880]">{title}</p>
         <span className="text-lg">{icon}</span>
@@ -305,37 +293,18 @@ function SectionHeader({ title, sub }: { title: string; sub?: string }) {
   );
 }
 
-// ─── Download Modal ───────────────────────────────────────────────────────────
-
-function DownloadModal({
-  tickets,
-  onClose,
-}: {
-  tickets: Ticket[];
-  onClose: () => void;
-}) {
-  const [period,     setPeriod]     = useState<DownloadPeriod>("30j");
+function DownloadModal({ tickets, onClose }: { tickets: Ticket[]; onClose: () => void }) {
+  const [period, setPeriod] = useState<DownloadPeriod>("30j");
   const [customFrom, setCustomFrom] = useState("");
-  const [customTo,   setCustomTo]   = useState("");
+  const [customTo, setCustomTo] = useState("");
 
-  const [from, to] = useMemo(
-    () => resolveDownloadRange(period, customFrom, customTo),
-    [period, customFrom, customTo],
-  );
-
-  const rangeTickets = useMemo(
-    () => tickets.filter((t) => {
-      const d = new Date(t.createdAt);
-      return d >= from && d <= to;
-    }),
-    [tickets, from, to],
-  );
-
+  const [from, to] = useMemo(() => resolveDownloadRange(period, customFrom, customTo), [period, customFrom, customTo]);
+  const rangeTickets = useMemo(() => tickets.filter((t) => { const d = new Date(t.createdAt); return d >= from && d <= to; }), [tickets, from, to]);
   const periodLabel = DOWNLOAD_PERIOD_OPTIONS.find((o) => o.key === period)?.label ?? period;
 
   function handleCSV() {
-    const content  = buildCSV(rangeTickets, periodLabel, from, to);
-    const slug     = periodLabel.toLowerCase().replace(/\s+/g, "-");
+    const content = buildCSV(rangeTickets, periodLabel, from, to);
+    const slug = periodLabel.toLowerCase().replace(/\s+/g, "-");
     const dateSlug = new Date().toISOString().slice(0, 10);
     downloadCSV(content, `rapport-tickets-vdm-${slug}-${dateSlug}.csv`);
     onClose();
@@ -344,15 +313,10 @@ function DownloadModal({
   function handlePDF() {
     const html = buildPrintHTML(rangeTickets, periodLabel, from, to);
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
-    a.target   = "_blank";
-    a.rel      = "noopener noreferrer";
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.style.display = "none";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 120_000);
     onClose();
   }
@@ -360,89 +324,46 @@ function DownloadModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
       <div className="w-full max-w-md rounded-[20px] border border-[#e8e0d4] bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
-        {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <div>
             <p className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-[#a89880]">Téléchargement</p>
             <h2 className="mt-0.5 text-base font-bold text-[#1f1508]">Générer un rapport</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e8e0d4] text-[#a89880] transition hover:bg-[#f0ece4] hover:text-[#2b1d10]"
-          >
-            ✕
-          </button>
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e8e0d4] text-[#a89880] transition hover:bg-[#f0ece4] hover:text-[#2b1d10]">✕</button>
         </div>
-
-        {/* Period picker */}
-        <p className="mb-2.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#a89880]">
-          Période à inclure
-        </p>
+        <p className="mb-2.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#a89880]">Période à inclure</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {DOWNLOAD_PERIOD_OPTIONS.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => setPeriod(opt.key)}
-              className={`rounded-full border px-3 py-1.5 text-[0.72rem] font-semibold transition ${
-                period === opt.key
-                  ? "border-[#f0a31c] bg-[#fef3d6] text-[#7a4e00]"
-                  : "border-[#e8e0d4] bg-[#faf6f0] text-[#5a4e40] hover:border-[#ddd3c4]"
-              }`}
-            >
+            <button key={opt.key} onClick={() => setPeriod(opt.key)}
+              className={`rounded-full border px-3 py-1.5 text-[0.72rem] font-semibold transition ${period === opt.key ? "border-[#f0a31c] bg-[#fef3d6] text-[#7a4e00]" : "border-[#e8e0d4] bg-[#faf6f0] text-[#5a4e40] hover:border-[#ddd3c4]"}`}>
               {opt.label}
             </button>
           ))}
         </div>
-
-        {/* Custom date range */}
         {period === "custom" && (
           <div className="mb-4 flex gap-3">
             <label className="flex flex-1 flex-col gap-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#a89880]">
-              Du
-              <input
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] text-[#2b1d10] outline-none focus:border-[#f0a31c]"
-              />
+              Du <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] text-[#2b1d10] outline-none focus:border-[#f0a31c]" />
             </label>
             <label className="flex flex-1 flex-col gap-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#a89880]">
-              Au
-              <input
-                type="date"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] text-[#2b1d10] outline-none focus:border-[#f0a31c]"
-              />
+              Au <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] text-[#2b1d10] outline-none focus:border-[#f0a31c]" />
             </label>
           </div>
         )}
-
-        {/* Preview count */}
         <div className="mb-5 rounded-[10px] border border-[#e8e0d4] bg-[#faf6f0] px-4 py-3">
           <div className="flex items-center justify-between">
             <span className="text-[0.75rem] text-[#5a4e40]">Tickets dans la période</span>
             <span className="text-lg font-bold text-[#1f1508]">{rangeTickets.length}</span>
           </div>
-          <p className="mt-0.5 text-[0.68rem] text-[#a89880]">
-            {fmtDate(from.toISOString())} → {fmtDate(to.toISOString())}
-          </p>
+          <p className="mt-0.5 text-[0.68rem] text-[#a89880]">{fmtDate(from.toISOString())} → {fmtDate(to.toISOString())}</p>
         </div>
-
-        {/* Actions */}
         <div className="flex gap-3">
-          <button
-            onClick={handleCSV}
-            disabled={rangeTickets.length === 0}
-            className="flex flex-1 items-center justify-center gap-2 rounded-[12px] border border-[#e8e0d4] bg-white py-2.5 text-[0.78rem] font-semibold text-[#2b1d10] transition hover:bg-[#f0ece4] disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <button onClick={handleCSV} disabled={rangeTickets.length === 0}
+            className="flex flex-1 items-center justify-center gap-2 rounded-[12px] border border-[#e8e0d4] bg-white py-2.5 text-[0.78rem] font-semibold text-[#2b1d10] transition hover:bg-[#f0ece4] disabled:cursor-not-allowed disabled:opacity-40">
             <span>⬇</span> CSV
           </button>
-          <button
-            onClick={handlePDF}
-            disabled={rangeTickets.length === 0}
-            className="flex flex-1 items-center justify-center gap-2 rounded-[12px] bg-[#f9b800] py-2.5 text-[0.78rem] font-semibold text-[#352300] shadow-[0_4px_12px_rgba(249,184,0,0.3)] transition hover:bg-[#f2aa00] disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <button onClick={handlePDF} disabled={rangeTickets.length === 0}
+            className="flex flex-1 items-center justify-center gap-2 rounded-[12px] bg-[#f9b800] py-2.5 text-[0.78rem] font-semibold text-[#352300] shadow-[0_4px_12px_rgba(249,184,0,0.3)] transition hover:bg-[#f2aa00] disabled:cursor-not-allowed disabled:opacity-40">
             <span>🖨</span> PDF / Imprimer
           </button>
         </div>
@@ -453,7 +374,7 @@ function DownloadModal({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function SuperAdminRapportsPage() {
+export default function ReaderRapportsPage() {
   const router = useRouter();
   const { user, status } = useCurrentUser();
   const { tickets, loading } = useTickets(status === "ready");
@@ -466,245 +387,112 @@ export default function SuperAdminRapportsPage() {
 
   useEffect(() => {
     if (status !== "ready" || !user) return;
-    if (user.role !== "SUPER_ADMIN") { router.replace(getRedirectRouteForRole(user.role)); return; }
-    if (user.accessReport === false)  router.replace(getRedirectRouteForRole(user.role));
+    if (user.role !== "READER") { router.replace(getRedirectRouteForRole(user.role)); return; }
   }, [router, status, user]);
 
-  // ── Service options ────────────────────────────────────────────────────────
   const serviceOptions = useMemo(() => {
     const services = new Set<string>();
     let hasUnassigned = false;
-    tickets.forEach((t) => {
-      if (t.assignedService) services.add(t.assignedService);
-      else hasUnassigned = true;
-    });
-    return [
-      SERVICE_FILTER_ALL,
-      ...(hasUnassigned ? [DEFAULT_SERVICE_LABEL] : []),
-      ...Array.from(services).sort((a, b) => a.localeCompare(b)),
-    ];
+    tickets.forEach((t) => { if (t.assignedService) services.add(t.assignedService); else hasUnassigned = true; });
+    return [SERVICE_FILTER_ALL, ...(hasUnassigned ? [DEFAULT_SERVICE_LABEL] : []), ...Array.from(services).sort((a, b) => a.localeCompare(b))];
   }, [tickets]);
 
-  useEffect(() => {
-    if (!serviceOptions.includes(selectedService)) setSelectedService(SERVICE_FILTER_ALL);
-  }, [selectedService, serviceOptions]);
+  useEffect(() => { if (!serviceOptions.includes(selectedService)) setSelectedService(SERVICE_FILTER_ALL); }, [selectedService, serviceOptions]);
 
   const periodStart = useMemo(() => resolvePeriodStart(selectedPeriod), [selectedPeriod]);
 
-  // ── Filtered tickets ───────────────────────────────────────────────────────
   const filteredTickets = useMemo(() => {
     return tickets.filter((t) => {
-      const svc           = t.assignedService ?? DEFAULT_SERVICE_LABEL;
-      const serviceMatch  = selectedService  === SERVICE_FILTER_ALL || svc === selectedService;
-      const priorityMatch =
-        selectedPriority === PRIORITY_FILTER_ALL ||
-        resolvePriorityMeta(t.priority).short === selectedPriority;
-      const periodMatch = periodStart ? new Date(t.createdAt) >= periodStart : true;
+      const svc          = t.assignedService ?? DEFAULT_SERVICE_LABEL;
+      const serviceMatch = selectedService  === SERVICE_FILTER_ALL || svc === selectedService;
+      const priorityMatch = selectedPriority === PRIORITY_FILTER_ALL || resolvePriorityMeta(t.priority).short === selectedPriority;
+      const periodMatch  = periodStart ? new Date(t.createdAt) >= periodStart : true;
       return serviceMatch && priorityMatch && periodMatch;
     });
   }, [tickets, selectedService, selectedPriority, periodStart]);
 
-  // ── KPI counts ─────────────────────────────────────────────────────────────
-  const totalTickets  = filteredTickets.length;
-  const criticalCount = filteredTickets.filter((t) => t.priority === "CRITICAL").length;
-  const majorCount    = filteredTickets.filter((t) => t.priority === "HIGH").length;
-  const minorCount    = filteredTickets.filter((t) => t.priority === "MEDIUM").length;
-  const resolvedCount = filteredTickets.filter((t) => RESOLVED_SET.has(t.status)).length;
-  const pendingCount  = filteredTickets.filter((t) => PENDING_SET.has(t.status)).length;
+  const totalTickets   = filteredTickets.length;
+  const criticalCount  = filteredTickets.filter((t) => t.priority === "CRITICAL").length;
+  const majorCount     = filteredTickets.filter((t) => t.priority === "HIGH").length;
+  const minorCount     = filteredTickets.filter((t) => t.priority === "MEDIUM").length;
+  const resolvedCount  = filteredTickets.filter((t) => RESOLVED_SET.has(t.status)).length;
+  const pendingCount   = filteredTickets.filter((t) => PENDING_SET.has(t.status)).length;
   const resolutionRate = totalTickets ? Math.round((resolvedCount / totalTickets) * 100) : 0;
 
-  // ── Chart data ─────────────────────────────────────────────────────────────
   const statusData = useMemo(
-    () =>
-      Object.entries(statusPalette)
-        .filter(([, m]) => Boolean(m))
-        .map(([key, m]) => ({
-          name:  m!.label,
-          value: filteredTickets.filter((t) => t.status === key).length,
-          color: m!.color,
-        }))
-        .filter((d) => d.value > 0),
+    () => Object.entries(statusPalette).filter(([, m]) => Boolean(m))
+      .map(([key, m]) => ({ name: m!.label, value: filteredTickets.filter((t) => t.status === key).length, color: m!.color }))
+      .filter((d) => d.value > 0),
     [filteredTickets],
   );
 
   const priorityData = useMemo(
-    () =>
-      (["CRITICAL", "HIGH", "MEDIUM"] as TicketPriority[]).map((p) => ({
-        name:  priorityPalette[p].label,
-        value: filteredTickets.filter((t) => t.priority === p).length,
-        fill:  priorityPalette[p].color,
-        bg:    priorityPalette[p].bg,
-        pct:   totalTickets
-          ? Math.round((filteredTickets.filter((t) => t.priority === p).length / totalTickets) * 100)
-          : 0,
-      })),
+    () => (["CRITICAL", "HIGH", "MEDIUM"] as TicketPriority[]).map((p) => ({
+      name:  priorityPalette[p].label,
+      value: filteredTickets.filter((t) => t.priority === p).length,
+      fill:  priorityPalette[p].color,
+      bg:    priorityPalette[p].bg,
+      pct:   totalTickets ? Math.round((filteredTickets.filter((t) => t.priority === p).length / totalTickets) * 100) : 0,
+    })),
     [filteredTickets, totalTickets],
   );
 
   const serviceData = useMemo(() => {
     const map = new Map<string, number>();
-    filteredTickets.forEach((t) => {
-      const k = resolveServiceLabel(t.assignedService);
-      map.set(k, (map.get(k) ?? 0) + 1);
-    });
-    return Array.from(map.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
+    filteredTickets.forEach((t) => { const k = resolveServiceLabel(t.assignedService); map.set(k, (map.get(k) ?? 0) + 1); });
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [filteredTickets]);
 
   const monthlyTrend = useMemo(() => {
     const bucket = new Map<string, { label: string; yearMonth: string; opened: number; resolved: number }>();
     filteredTickets.forEach((t) => {
-      const d   = new Date(t.createdAt);
+      const d = new Date(t.createdAt);
       const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
       const lbl = new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(d);
       if (!bucket.has(key)) bucket.set(key, { label: lbl, yearMonth: key, opened: 0, resolved: 0 });
       bucket.get(key)!.opened += 1;
       if (t.resolvedAt) {
-        const r    = new Date(t.resolvedAt);
+        const r = new Date(t.resolvedAt);
         const rKey = `${r.getFullYear()}-${(r.getMonth() + 1).toString().padStart(2, "0")}`;
-        if (!bucket.has(rKey))
-          bucket.set(rKey, { label: new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(r), yearMonth: rKey, opened: 0, resolved: 0 });
+        if (!bucket.has(rKey)) bucket.set(rKey, { label: new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(r), yearMonth: rKey, opened: 0, resolved: 0 });
         bucket.get(rKey)!.resolved += 1;
       }
     });
     const sorted = Array.from(bucket.values()).sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
-    if (!sorted.length) {
-      return [{ label: new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(new Date()), ouvert: 0, resolu: 0 }];
-    }
+    if (!sorted.length) return [{ label: new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(new Date()), ouvert: 0, resolu: 0 }];
     return sorted.map((e) => ({ label: e.label, ouvert: e.opened, resolu: e.resolved }));
   }, [filteredTickets]);
 
-  // ── Table ──────────────────────────────────────────────────────────────────
   const tableData = useMemo(() => {
     const q = tableSearch.toLowerCase().trim();
     if (!q) return filteredTickets;
-    return filteredTickets.filter(
-      (t) =>
-        (t.code ?? "").toLowerCase().includes(q) ||
-        (t.title ?? "").toLowerCase().includes(q) ||
-        (t.category?.libelle ?? "").toLowerCase().includes(q) ||
-        (t.emitter?.nom ?? "").toLowerCase().includes(q) ||
-        (t.clientName ?? "").toLowerCase().includes(q) ||
-        (t.assignedService ?? "").toLowerCase().includes(q),
+    return filteredTickets.filter((t) =>
+      (t.code ?? "").toLowerCase().includes(q) ||
+      (t.title ?? "").toLowerCase().includes(q) ||
+      (t.category?.libelle ?? "").toLowerCase().includes(q) ||
+      (t.emitter?.nom ?? "").toLowerCase().includes(q) ||
+      (t.clientName ?? "").toLowerCase().includes(q) ||
+      (t.assignedService ?? "").toLowerCase().includes(q),
     );
   }, [filteredTickets, tableSearch]);
 
-  const columns = useMemo<ColumnDef<Ticket>[]>(
-    () => [
-      {
-        accessorKey: "code",
-        header: "Réf.",
-        cell: ({ getValue }) => (
-          <span className="font-mono text-[0.72rem] font-semibold tracking-wider text-[#7a6542]">
-            {getValue<string>()}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "title",
-        header: "Titre",
-        cell: ({ row }) => {
-          const title = row.original.title ?? row.original.description ?? "—";
-          return (
-            <span className="block max-w-[220px] truncate text-[0.8rem] font-medium text-[#1f1508]" title={title}>
-              {title}
-            </span>
-          );
-        },
-      },
-      {
-        accessorKey: "category.libelle",
-        header: "Catégorie",
-        cell: ({ getValue }) => (
-          <span className="text-[0.75rem] text-[#4a3b28]">{getValue<string>()}</span>
-        ),
-      },
-      {
-        accessorKey: "priority",
-        header: "Priorité",
-        cell: ({ getValue }) => {
-          const meta = resolvePriorityMeta(getValue<TicketPriority>());
-          return (
-            <span
-              className="rounded-full px-2.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.18em]"
-              style={{ backgroundColor: meta.bg, color: meta.color }}
-            >
-              {meta.short}
-            </span>
-          );
-        },
-      },
-      {
-        accessorKey: "status",
-        header: "Statut",
-        cell: ({ getValue }) => {
-          const meta = resolveStatusMeta(getValue<TicketStatus>());
-          return (
-            <span className="inline-flex items-center gap-1.5 text-[0.75rem] font-medium text-[#2b1d10]">
-              <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: meta.color }} />
-              {meta.label}
-            </span>
-          );
-        },
-      },
-      {
-        accessorKey: "assignedService",
-        header: "Service",
-        cell: ({ getValue }) => (
-          <span className="text-[0.75rem] text-[#5a4e40]">
-            {resolveServiceLabel(getValue<string>() ?? null)}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "emitter",
-        header: "Émetteur",
-        cell: ({ getValue }) => {
-          const emitter = getValue<Ticket["emitter"]>();
-          return (
-            <span className="text-[0.75rem] text-[#5a4e40]">
-              {emitter ? `${emitter.prenom} ${emitter.nom}` : "—"}
-            </span>
-          );
-        },
-      },
-      {
-        accessorKey: "createdAt",
-        header: "Créé le",
-        cell: ({ getValue }) => (
-          <span className="text-[0.72rem] tabular-nums text-[#8a7e6e]">{fmtDate(getValue<string>())}</span>
-        ),
-      },
-      {
-        accessorKey: "resolvedAt",
-        header: "Résolu le",
-        cell: ({ getValue }) => {
-          const v = getValue<string | null>();
-          return (
-            <span className="text-[0.72rem] tabular-nums text-[#8a7e6e]">
-              {v ? fmtDate(v) : <span className="text-[#c9bfb0]">—</span>}
-            </span>
-          );
-        },
-      },
-    ],
-    [],
-  );
+  const columns = useMemo<ColumnDef<Ticket>[]>(() => [
+    { accessorKey: "code", header: "Réf.", cell: ({ getValue }) => <span className="font-mono text-[0.72rem] font-semibold tracking-wider text-[#7a6542]">{getValue<string>()}</span> },
+    { accessorKey: "title", header: "Titre", cell: ({ row }) => { const title = row.original.title ?? row.original.description ?? "—"; return <span className="block max-w-[220px] truncate text-[0.8rem] font-medium text-[#1f1508]" title={title}>{title}</span>; } },
+    { accessorKey: "category.libelle", header: "Catégorie", cell: ({ getValue }) => <span className="text-[0.75rem] text-[#4a3b28]">{getValue<string>()}</span> },
+    { accessorKey: "priority", header: "Priorité", cell: ({ getValue }) => { const meta = resolvePriorityMeta(getValue<TicketPriority>()); return <span className="rounded-full px-2.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.18em]" style={{ backgroundColor: meta.bg, color: meta.color }}>{meta.short}</span>; } },
+    { accessorKey: "status", header: "Statut", cell: ({ getValue }) => { const meta = resolveStatusMeta(getValue<TicketStatus>()); return <span className="inline-flex items-center gap-1.5 text-[0.75rem] font-medium text-[#2b1d10]"><span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: meta.color }} />{meta.label}</span>; } },
+    { accessorKey: "assignedService", header: "Service", cell: ({ getValue }) => <span className="text-[0.75rem] text-[#5a4e40]">{resolveServiceLabel(getValue<string>() ?? null)}</span> },
+    { accessorKey: "emitter", header: "Émetteur", cell: ({ getValue }) => { const e = getValue<Ticket["emitter"]>(); return <span className="text-[0.75rem] text-[#5a4e40]">{e ? `${e.prenom} ${e.nom}` : "—"}</span>; } },
+    { accessorKey: "createdAt", header: "Créé le", cell: ({ getValue }) => <span className="text-[0.72rem] tabular-nums text-[#8a7e6e]">{fmtDate(getValue<string>())}</span> },
+    { accessorKey: "resolvedAt", header: "Résolu le", cell: ({ getValue }) => { const v = getValue<string | null>(); return <span className="text-[0.72rem] tabular-nums text-[#8a7e6e]">{v ? fmtDate(v) : <span className="text-[#c9bfb0]">—</span>}</span>; } },
+  ], []);
 
   // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
-    data: tableData,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 15, pageIndex: 0 } },
-  });
+  const table = useReactTable({ data: tableData, columns, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize: 15, pageIndex: 0 } } });
 
-  // Reset to first page whenever data changes
   useEffect(() => { table.setPageIndex(0); }, [tableData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Auth guard ─────────────────────────────────────────────────────────────
   if (status !== "ready" || !user) {
     return (
       <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
@@ -715,90 +503,50 @@ export default function SuperAdminRapportsPage() {
     );
   }
 
-  const canExport = user.exportReport !== false;
-
   return (
-    <DashboardShell
-      user={user}
-      title="Rapports & Analyses"
-      subtitle={loading ? "Chargement…" : `${totalTickets} ticket(s) sur la période · ${tickets.length} au total`}
-    >
-      {/* Download modal */}
-      {downloadOpen && (
-        <DownloadModal
-          tickets={tickets}
-          onClose={() => setDownloadOpen(false)}
-        />
-      )}
-
+    <DashboardShell user={user} title="Rapports & Analyses" subtitle={loading ? "Chargement…" : `${totalTickets} ticket(s) sur la période · ${tickets.length} au total`}>
+      {downloadOpen && <DownloadModal tickets={tickets} onClose={() => setDownloadOpen(false)} />}
       <div className="space-y-6">
 
-        {/* ── Filter bar ────────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-end gap-3 rounded-[16px] border border-[#e8e0d4] bg-white px-5 py-4 shadow-[0_4px_18px_rgba(0,0,0,0.05)]">
           <label className="flex flex-col gap-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-[#a89880]">
             Période
-            <select
-              value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value as PeriodLabel)}
-              className="min-w-[160px] rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] font-medium text-[#2b1d10] outline-none transition focus:border-[#f0a31c] focus:ring-2 focus:ring-[#f0a31c]/20"
-            >
+            <select value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value as PeriodLabel)} className="min-w-[160px] rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] font-medium text-[#2b1d10] outline-none transition focus:border-[#f0a31c] focus:ring-2 focus:ring-[#f0a31c]/20">
               {PERIOD_LABELS.map((o) => <option key={o} value={o}>{o}</option>)}
             </select>
           </label>
-
           <label className="flex flex-col gap-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-[#a89880]">
             Service
-            <select
-              value={selectedService}
-              onChange={(e) => setSelectedService(e.target.value)}
-              className="min-w-[160px] rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] font-medium text-[#2b1d10] outline-none transition focus:border-[#f0a31c] focus:ring-2 focus:ring-[#f0a31c]/20"
-            >
+            <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="min-w-[160px] rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] font-medium text-[#2b1d10] outline-none transition focus:border-[#f0a31c] focus:ring-2 focus:ring-[#f0a31c]/20">
               {serviceOptions.map((o) => <option key={o} value={o}>{resolveServiceLabel(o)}</option>)}
             </select>
           </label>
-
           <label className="flex flex-col gap-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-[#a89880]">
             Priorité
-            <select
-              value={selectedPriority}
-              onChange={(e) => setSelectedPriority(e.target.value as typeof PRIORITY_FILTER_OPTIONS[number])}
-              className="min-w-[160px] rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] font-medium text-[#2b1d10] outline-none transition focus:border-[#f0a31c] focus:ring-2 focus:ring-[#f0a31c]/20"
-            >
+            <select value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value as typeof PRIORITY_FILTER_OPTIONS[number])} className="min-w-[160px] rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] font-medium text-[#2b1d10] outline-none transition focus:border-[#f0a31c] focus:ring-2 focus:ring-[#f0a31c]/20">
               {PRIORITY_FILTER_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
             </select>
           </label>
-
           <div className="ml-auto flex items-end gap-3">
             <div className="text-right">
               <p className="text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-[#a89880]">En attente</p>
               <p className="mt-0.5 text-2xl font-bold text-[#d97706]">{pendingCount}</p>
             </div>
-
-            {canExport && (
-              <button
-                onClick={() => setDownloadOpen(true)}
-                className="flex items-center gap-2 rounded-[12px] bg-[#f9b800] px-4 py-2.5 text-[0.78rem] font-semibold text-[#352300] shadow-[0_4px_12px_rgba(249,184,0,0.3)] transition hover:bg-[#f2aa00] hover:shadow-[0_6px_16px_rgba(249,184,0,0.35)]"
-              >
-                <span>⬇</span>
-                Télécharger un rapport
-              </button>
-            )}
+            <button onClick={() => setDownloadOpen(true)} className="flex items-center gap-2 rounded-[12px] bg-[#f9b800] px-4 py-2.5 text-[0.78rem] font-semibold text-[#352300] shadow-[0_4px_12px_rgba(249,184,0,0.3)] transition hover:bg-[#f2aa00] hover:shadow-[0_6px_16px_rgba(249,184,0,0.35)]">
+              <span>⬇</span> Télécharger un rapport
+            </button>
           </div>
         </div>
 
-        {/* ── KPI cards ─────────────────────────────────────────────────────── */}
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-          <KpiCard title="Total tickets"   value={totalTickets}        detail="sur la période"                                                                     accentColor="#3b82f6" icon="🎫" />
-          <KpiCard title="P1 Critiques"    value={criticalCount}       detail={`${totalTickets ? Math.round(criticalCount / totalTickets * 100) : 0}% du total`}   accentColor="#d63b35" icon="🔴" />
-          <KpiCard title="P2 Majeurs"      value={majorCount}          detail={`${totalTickets ? Math.round(majorCount / totalTickets * 100) : 0}% du total`}      accentColor="#f4a300" icon="🟠" />
-          <KpiCard title="P3 Mineurs"      value={minorCount}          detail={`${totalTickets ? Math.round(minorCount / totalTickets * 100) : 0}% du total`}      accentColor="#20b16a" icon="🟢" />
-          <KpiCard title="Taux résolution" value={`${resolutionRate}%`} detail={`${resolvedCount} résolu(s)`}                                                      accentColor="#7552d4" icon="✅" />
+          <KpiCard title="Total tickets"   value={totalTickets}        detail="sur la période"                                                                    accentColor="#3b82f6" icon="🎫" />
+          <KpiCard title="P1 Critiques"    value={criticalCount}       detail={`${totalTickets ? Math.round(criticalCount / totalTickets * 100) : 0}% du total`}  accentColor="#d63b35" icon="🔴" />
+          <KpiCard title="P2 Majeurs"      value={majorCount}          detail={`${totalTickets ? Math.round(majorCount / totalTickets * 100) : 0}% du total`}     accentColor="#f4a300" icon="🟠" />
+          <KpiCard title="P3 Mineurs"      value={minorCount}          detail={`${totalTickets ? Math.round(minorCount / totalTickets * 100) : 0}% du total`}     accentColor="#20b16a" icon="🟢" />
+          <KpiCard title="Taux résolution" value={`${resolutionRate}%`} detail={`${resolvedCount} résolu(s)`}                                                     accentColor="#7552d4" icon="✅" />
         </div>
 
-        {/* ── Charts row ────────────────────────────────────────────────────── */}
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
-
-          {/* Status donut + legend */}
           <section className="rounded-[20px] border border-[#e8e0d4] bg-white p-5 shadow-[0_4px_18px_rgba(0,0,0,0.06)]">
             <SectionHeader title="Répartition par statut" sub="Distribution actuelle des tickets" />
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -830,7 +578,6 @@ export default function SuperAdminRapportsPage() {
             </div>
           </section>
 
-          {/* Priority bars + service list */}
           <section className="rounded-[20px] border border-[#e8e0d4] bg-white p-5 shadow-[0_4px_18px_rgba(0,0,0,0.06)]">
             <SectionHeader title="Répartition par priorité" sub="Tickets par niveau d'urgence" />
             <div className="flex flex-col gap-4">
@@ -838,9 +585,7 @@ export default function SuperAdminRapportsPage() {
                 <div key={p.name}>
                   <div className="mb-1.5 flex items-center justify-between">
                     <span className="text-[0.75rem] font-semibold text-[#2b1d10]">{p.name}</span>
-                    <span className="text-[0.75rem] font-bold" style={{ color: p.fill }}>
-                      {p.value} ({p.pct}%)
-                    </span>
+                    <span className="text-[0.75rem] font-bold" style={{ color: p.fill }}>{p.value} ({p.pct}%)</span>
                   </div>
                   <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#f0ece4]">
                     <div className="h-full rounded-full transition-all duration-500" style={{ width: `${p.pct}%`, backgroundColor: p.fill }} />
@@ -848,7 +593,6 @@ export default function SuperAdminRapportsPage() {
                 </div>
               ))}
             </div>
-
             {serviceData.length > 0 && (
               <div className="mt-6">
                 <p className="mb-2 text-[0.62rem] font-semibold uppercase tracking-[0.28em] text-[#a89880]">Par service</p>
@@ -865,13 +609,10 @@ export default function SuperAdminRapportsPage() {
           </section>
         </div>
 
-        {/* ── Monthly trend ──────────────────────────────────────────────────── */}
         <section className="rounded-[20px] border border-[#e8e0d4] bg-white p-5 shadow-[0_4px_18px_rgba(0,0,0,0.06)]">
           <div className="mb-4 flex items-start justify-between">
             <SectionHeader title="Évolution mensuelle" sub="Tickets ouverts vs résolus par mois" />
-            <span className="mt-0.5 rounded-full border border-[#e8e0d4] bg-[#faf6f0] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-[#7a6542]">
-              {loading ? "…" : `${monthlyTrend.length} mois`}
-            </span>
+            <span className="mt-0.5 rounded-full border border-[#e8e0d4] bg-[#faf6f0] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-[#7a6542]">{loading ? "…" : `${monthlyTrend.length} mois`}</span>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -879,19 +620,8 @@ export default function SuperAdminRapportsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0ece4" />
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#a89880" }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#a89880" }} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 10, border: "1px solid #e8e0d4", fontSize: "0.75rem" }}
-                  labelStyle={{ fontWeight: 700, color: "#2b1d10" }}
-                />
-                <Legend
-                  verticalAlign="top"
-                  height={32}
-                  formatter={(v) => (
-                    <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#4a3b28" }}>
-                      {v === "ouvert" ? "Ouverts" : "Résolus"}
-                    </span>
-                  )}
-                />
+                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e8e0d4", fontSize: "0.75rem" }} labelStyle={{ fontWeight: 700, color: "#2b1d10" }} />
+                <Legend verticalAlign="top" height={32} formatter={(v) => <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#4a3b28" }}>{v === "ouvert" ? "Ouverts" : "Résolus"}</span>} />
                 <Line type="monotone" dataKey="ouvert" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4, fill: "#3b82f6", strokeWidth: 0 }} activeDot={{ r: 6 }} />
                 <Line type="monotone" dataKey="resolu" stroke="#20b16a" strokeWidth={2.5} dot={{ r: 4, fill: "#20b16a", strokeWidth: 0 }} activeDot={{ r: 6 }} />
               </LineChart>
@@ -899,34 +629,21 @@ export default function SuperAdminRapportsPage() {
           </div>
         </section>
 
-        {/* ── Ticket table ───────────────────────────────────────────────────── */}
         <section className="rounded-[20px] border border-[#e8e0d4] bg-white p-5 shadow-[0_4px_18px_rgba(0,0,0,0.06)]">
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <div className="flex-1">
-              <SectionHeader
-                title="Détail des tickets"
-                sub={`${tableData.length} ticket(s)${tableSearch ? " correspondant à la recherche" : " dans la sélection"}`}
-              />
+              <SectionHeader title="Détail des tickets" sub={`${tableData.length} ticket(s)${tableSearch ? " correspondant à la recherche" : " dans la sélection"}`} />
             </div>
-            <input
-              type="text"
-              placeholder="Rechercher…"
-              value={tableSearch}
-              onChange={(e) => setTableSearch(e.target.value)}
-              className="w-48 rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] text-[#2b1d10] placeholder:text-[#c0b09c] outline-none transition focus:border-[#f0a31c] focus:ring-2 focus:ring-[#f0a31c]/20"
-            />
+            <input type="text" placeholder="Rechercher…" value={tableSearch} onChange={(e) => setTableSearch(e.target.value)}
+              className="w-48 rounded-[10px] border border-[#ddd3c4] bg-[#fffaf5] px-3 py-2 text-[0.8rem] text-[#2b1d10] placeholder:text-[#c0b09c] outline-none transition focus:border-[#f0a31c] focus:ring-2 focus:ring-[#f0a31c]/20" />
           </div>
-
           <div className="overflow-x-auto">
             <table className="min-w-full border-separate border-spacing-0">
               <thead>
                 {table.getHeaderGroups().map((hg) => (
                   <tr key={hg.id}>
                     {hg.headers.map((h) => (
-                      <th
-                        key={h.id}
-                        className="border-b-2 border-[#ede8df] bg-[#faf6f0] px-4 py-2.5 text-left text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-[#a89880]"
-                      >
+                      <th key={h.id} className="border-b-2 border-[#ede8df] bg-[#faf6f0] px-4 py-2.5 text-left text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-[#a89880]">
                         {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                       </th>
                     ))}
@@ -935,18 +652,12 @@ export default function SuperAdminRapportsPage() {
               </thead>
               <tbody>
                 {table.getRowModel().rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={columns.length} className="py-12 text-center text-[0.8rem] text-[#b0a08c]">
-                      Aucun ticket ne correspond aux filtres sélectionnés.
-                    </td>
-                  </tr>
+                  <tr><td colSpan={columns.length} className="py-12 text-center text-[0.8rem] text-[#b0a08c]">Aucun ticket ne correspond aux filtres sélectionnés.</td></tr>
                 ) : (
                   table.getRowModel().rows.map((row, i) => (
                     <tr key={row.id} className={`transition hover:bg-[#faf6f0] ${i % 2 === 0 ? "bg-white" : "bg-[#fdfaf6]"}`}>
                       {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="border-b border-[#f0ece4] px-4 py-3">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
+                        <td key={cell.id} className="border-b border-[#f0ece4] px-4 py-3">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
                       ))}
                     </tr>
                   ))
@@ -954,73 +665,25 @@ export default function SuperAdminRapportsPage() {
               </tbody>
             </table>
           </div>
-
-          {/* Pagination */}
           {table.getPageCount() > 1 && (
             <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#f0ece4] pt-4">
               <p className="text-[0.68rem] text-[#a89880]">
-                Page <span className="font-semibold text-[#2b1d10]">{table.getState().pagination.pageIndex + 1}</span> sur{" "}
-                <span className="font-semibold text-[#2b1d10]">{table.getPageCount()}</span>
-                {" · "}
-                <span className="font-semibold text-[#2b1d10]">{tableData.length}</span> entrée(s)
+                Page <span className="font-semibold text-[#2b1d10]">{table.getState().pagination.pageIndex + 1}</span> sur <span className="font-semibold text-[#2b1d10]">{table.getPageCount()}</span> · <span className="font-semibold text-[#2b1d10]">{tableData.length}</span> entrée(s)
               </p>
-
               <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => table.setPageIndex(0)}
-                  disabled={!table.getCanPreviousPage()}
-                  className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e8e0d4] text-[0.75rem] text-[#5a4e40] transition hover:bg-[#f0ece4] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  «
-                </button>
-                <button
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
-                  className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e8e0d4] text-[0.75rem] text-[#5a4e40] transition hover:bg-[#f0ece4] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  ‹
-                </button>
-
-                {/* Page number pills */}
-                {Array.from({ length: table.getPageCount() }, (_, i) => i)
-                  .filter((i) => Math.abs(i - table.getState().pagination.pageIndex) <= 2)
-                  .map((i) => (
-                    <button
-                      key={i}
-                      onClick={() => table.setPageIndex(i)}
-                      className={`flex h-8 min-w-[2rem] items-center justify-center rounded-[8px] border px-2 text-[0.72rem] font-semibold transition ${
-                        i === table.getState().pagination.pageIndex
-                          ? "border-[#f0a31c] bg-[#fef3d6] text-[#7a4e00]"
-                          : "border-[#e8e0d4] text-[#5a4e40] hover:bg-[#f0ece4]"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-
-                <button
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
-                  className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e8e0d4] text-[0.75rem] text-[#5a4e40] transition hover:bg-[#f0ece4] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  ›
-                </button>
-                <button
-                  onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                  disabled={!table.getCanNextPage()}
-                  className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e8e0d4] text-[0.75rem] text-[#5a4e40] transition hover:bg-[#f0ece4] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  »
-                </button>
-
-                <select
-                  value={table.getState().pagination.pageSize}
-                  onChange={(e) => table.setPageSize(Number(e.target.value))}
-                  className="ml-2 rounded-[8px] border border-[#ddd3c4] bg-[#fffaf5] px-2 py-1.5 text-[0.72rem] font-medium text-[#2b1d10] outline-none focus:border-[#f0a31c]"
-                >
-                  {[10, 15, 25, 50].map((s) => (
-                    <option key={s} value={s}>{s} / page</option>
-                  ))}
+                <button onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()} className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e8e0d4] text-[0.75rem] text-[#5a4e40] transition hover:bg-[#f0ece4] disabled:cursor-not-allowed disabled:opacity-30">«</button>
+                <button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e8e0d4] text-[0.75rem] text-[#5a4e40] transition hover:bg-[#f0ece4] disabled:cursor-not-allowed disabled:opacity-30">‹</button>
+                {Array.from({ length: table.getPageCount() }, (_, i) => i).filter((i) => Math.abs(i - table.getState().pagination.pageIndex) <= 2).map((i) => (
+                  <button key={i} onClick={() => table.setPageIndex(i)}
+                    className={`flex h-8 min-w-[2rem] items-center justify-center rounded-[8px] border px-2 text-[0.72rem] font-semibold transition ${i === table.getState().pagination.pageIndex ? "border-[#f0a31c] bg-[#fef3d6] text-[#7a4e00]" : "border-[#e8e0d4] text-[#5a4e40] hover:bg-[#f0ece4]"}`}>
+                    {i + 1}
+                  </button>
+                ))}
+                <button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e8e0d4] text-[0.75rem] text-[#5a4e40] transition hover:bg-[#f0ece4] disabled:cursor-not-allowed disabled:opacity-30">›</button>
+                <button onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()} className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e8e0d4] text-[0.75rem] text-[#5a4e40] transition hover:bg-[#f0ece4] disabled:cursor-not-allowed disabled:opacity-30">»</button>
+                <select value={table.getState().pagination.pageSize} onChange={(e) => table.setPageSize(Number(e.target.value))}
+                  className="ml-2 rounded-[8px] border border-[#ddd3c4] bg-[#fffaf5] px-2 py-1.5 text-[0.72rem] font-medium text-[#2b1d10] outline-none focus:border-[#f0a31c]">
+                  {[10, 15, 25, 50].map((s) => <option key={s} value={s}>{s} / page</option>)}
                 </select>
               </div>
             </div>

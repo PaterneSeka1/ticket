@@ -17,7 +17,6 @@ import { SlaService } from './sla.service.js';
 import { UpdateSlaPolicyDto } from './dto/update-sla-policy.dto.js';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @Controller('sla')
 export class SlaController {
   static readonly ALIASES: Record<string, TicketPriority> = {
@@ -35,11 +34,13 @@ export class SlaController {
   constructor(private readonly slaService: SlaService) {}
 
   @Get('priorities')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.READER)
   listPolicies() {
     return this.slaService.listPolicies();
   }
 
   @Patch('priorities/:priority')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   updatePolicy(
     @Param('priority') priority: string,
     @Body() dto: UpdateSlaPolicyDto,

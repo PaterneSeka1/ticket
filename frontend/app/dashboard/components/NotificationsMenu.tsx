@@ -84,7 +84,9 @@ export function NotificationsMenu() {
   const resolveTicketAssignUrl = (notification: UserNotification) => {
     if (!notification.ticketId) return null;
     const base =
-      user?.role === "SUPER_ADMIN" ? "/dashboard/super-admin/tickets" : "/dashboard/admin/tickets";
+      user?.role === "SUPER_ADMIN" ? "/dashboard/super-admin/tickets"
+      : user?.role === "READER" ? "/dashboard/reader/tickets"
+      : "/dashboard/admin/tickets";
     const query = new URLSearchParams({
       ticketId: notification.ticketId,
       focus: "assign",
@@ -95,6 +97,7 @@ export function NotificationsMenu() {
   const resolveMyTicketsUrl = () => {
     if (user?.role === "SUPER_ADMIN") return "/dashboard/super-admin/mes-tickets";
     if (user?.role === "ADMIN") return "/dashboard/admin/mes-tickets";
+    if (user?.role === "READER") return "/dashboard/reader/tickets";
     return "/dashboard/employe/mes-tickets";
   };
 
