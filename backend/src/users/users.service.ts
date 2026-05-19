@@ -13,9 +13,12 @@ import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UserDto } from './dto/user.dto.js';
 import { toUserDto } from './users.mapper.js';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { UserRole } from '../prisma/enums.js';
+import {
+  isPrismaKnownRequestError,
+  type PrismaKnownRequestErrorLike,
+} from '../prisma/prisma-errors.js';
 
 const PASSWORD_SALT_ROUNDS = 10;
 const TEMPORARY_PASSWORD_LENGTH = 12;
@@ -317,21 +320,29 @@ export class UsersService {
   }
 
   private handleConflict(error: unknown): void {
-    if (
-      error instanceof PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
+    if (isPrismaKnownRequestError(error, 'P2002')) {
+      const target = this.getPrismaErrorTarget(error);
+      if (target.includes('matricule')) {
+        throw new ConflictException(
+          'Un utilisateur avec ce matricule existe déjà.',
+        );
+      }
       throw new ConflictException('Un utilisateur avec cet email existe déjà.');
     }
   }
 
   private handleNotFound(id: string, error: unknown): void {
-    if (
-      error instanceof PrismaClientKnownRequestError &&
-      error.code === 'P2025'
-    ) {
+    if (isPrismaKnownRequestError(error, 'P2025')) {
       throw new NotFoundException(`Utilisateur ${id} introuvable.`);
     }
+  }
+
+  private getPrismaErrorTarget(error: PrismaKnownRequestErrorLike): string {
+    const target = error.meta?.target;
+    if (Array.isArray(target)) {
+      return target.join(' ');
+    }
+    return typeof target === 'string' ? target : '';
   }
 
   private async logActivity({

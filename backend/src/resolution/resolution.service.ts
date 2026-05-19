@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ActivityLogService } from '../activity/activity-log.service.js';
+import { isPrismaKnownRequestError } from '../prisma/prisma-errors.js';
 import type { AuthenticatedUserDto } from '../auth/dto/authenticated-user.dto.js';
 import { CreateResolutionResponsibleDto } from './dto/create-resolution-responsible.dto.js';
 import { UpdateResolutionResponsibleDto } from './dto/update-resolution-responsible.dto.js';
@@ -85,10 +86,7 @@ export class ResolutionResponsibleService {
         data,
       });
     } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (isPrismaKnownRequestError(error, 'P2002')) {
         throw new BadRequestException('Cet email est déjà utilisé.');
       }
       throw error;
@@ -102,6 +100,7 @@ export class ResolutionResponsibleService {
       role: actor.role,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return updated;
   }
 

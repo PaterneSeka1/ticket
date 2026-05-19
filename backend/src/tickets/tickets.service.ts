@@ -4,11 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ActivityLogService } from '../activity/activity-log.service.js';
 import { AuthenticatedUserDto } from '../auth/dto/authenticated-user.dto.js';
 import { NotificationService } from '../notifications/notification.service.js';
+import { isPrismaKnownRequestError } from '../prisma/prisma-errors.js';
 import { CreateTicketDto } from './dto/create-ticket.dto.js';
 import { CreateConcernedProductDto } from './dto/create-concerned-product.dto.js';
 import { CreateTicketCategoryDto } from './dto/create-ticket-category.dto.js';
@@ -773,10 +773,7 @@ export class TicketsService {
       );
       return this.mapCategory(category);
     } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (isPrismaKnownRequestError(error, 'P2002')) {
         throw new BadRequestException('Une catégorie identique existe déjà.');
       }
       throw error;
@@ -906,10 +903,7 @@ export class TicketsService {
       );
       return product;
     } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (isPrismaKnownRequestError(error, 'P2002')) {
         throw new BadRequestException('Ce produit concerné existe déjà.');
       }
       throw error;
@@ -953,16 +947,10 @@ export class TicketsService {
       );
       return product;
     } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (isPrismaKnownRequestError(error, 'P2002')) {
         throw new BadRequestException('Ce produit concerné existe déjà.');
       }
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
+      if (isPrismaKnownRequestError(error, 'P2025')) {
         throw new NotFoundException('Produit concerné introuvable.');
       }
       throw error;
@@ -981,10 +969,7 @@ export class TicketsService {
         actor,
       );
     } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
+      if (isPrismaKnownRequestError(error, 'P2025')) {
         throw new NotFoundException('Produit concerné introuvable.');
       }
       throw error;
