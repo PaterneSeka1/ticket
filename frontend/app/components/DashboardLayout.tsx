@@ -100,9 +100,7 @@ const buildNavSections = (
     roles: ["SUPER_ADMIN"],
     items: [
       { label: "Catégories", href: "/dashboard/super-admin/categories", icon: <Shield className="h-4 w-4" /> },
-      { label: "Créer une catégorie", href: "/dashboard/super-admin/categories/create", icon: <Tag className="h-4 w-4" /> },
       { label: "Utilisateurs", href: "/dashboard/super-admin/users", icon: <Users className="h-4 w-4" /> },
-      { label: "Créer un utilisateur", href: "/dashboard/super-admin/users/create", icon: <UserPlus className="h-4 w-4" /> },
       { label: "Configuration", href: "/dashboard/super-admin/configuration", icon: <Settings className="h-4 w-4" /> },
       routes.journal ? { label: "Journal d'activité", href: routes.journal, icon: <List className="h-4 w-4" /> } : null,
     ].filter(Boolean) as NavSection["items"],

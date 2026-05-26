@@ -688,27 +688,41 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <label>
+          <div>
             <span className={labelClass}>
               Mot de passe <span className="text-[#d92d20]">*</span>
             </span>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={formState.password}
-                onChange={(e) => setFormState({ ...formState, password: e.target.value })}
-                placeholder="Min. 8 car. — maj, min, chiffre, symbole"
-                className={cn(inputClass, "pr-12")}
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={formState.password}
+                  onChange={(e) => setFormState({ ...formState, password: e.target.value })}
+                  placeholder="Min. 8 car. — maj, min, chiffre, symbole"
+                  className={cn(inputClass, "pr-12")}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9aa1ac]"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9aa1ac]"
+                onClick={() => {
+                  const pwd = generateRandomPassword();
+                  setFormState((s) => ({ ...s, password: pwd, confirmPassword: pwd }));
+                  setShowPassword(true);
+                }}
+                className="inline-flex h-11 items-center gap-1.5 rounded-[8px] border border-[#e5e7eb] bg-white px-3 text-[11px] font-semibold text-[#5f5449] hover:bg-[#faf6f1] transition whitespace-nowrap"
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                <RefreshCw className="h-3.5 w-3.5" />
+                Générer
               </button>
             </div>
-          </label>
+          </div>
           <label>
             <span className={labelClass}>
               Confirmer le mot de passe <span className="text-[#d92d20]">*</span>
@@ -738,11 +752,11 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
               type="checkbox"
               checked={formState.accessReport}
               onChange={(e) => setFormState({ ...formState, accessReport: e.target.checked })}
-              className="h-4 w-4 rounded border-[#c6b6a9]"
+              className="h-4 w-4 rounded border-[#c6b6a9] hidden"
             />
             Accès aux rapports
           </label>
-          <label className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10]">
+          <label className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2b1d10] hidden">
             <input
               type="checkbox"
               checked={formState.exportReport}
@@ -756,7 +770,7 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
         <div className="flex flex-wrap justify-end gap-3 border-t border-[#eef0f2] pt-4">
           <button
             type="button"
-            onClick={handleReset}
+            onClick={() => { if (onCancel) { onCancel(); } else { handleReset(); } }}
             className="inline-flex h-10 items-center rounded-[8px] border border-[#d8dce2] bg-white px-4 text-[11px] font-semibold text-[#2b1d10] transition hover:bg-[#fafafa]"
           >
             Annuler
