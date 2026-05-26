@@ -109,6 +109,7 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
   const [expandComments, setExpandComments] = useState(false);
 
   const isEditMode = Boolean(initialUser);
+  const initialUserId = initialUser?.id;
 
   const labelClass =
     "mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f5449]";
@@ -148,13 +149,13 @@ export function UserForm({ initialUser, onCancel, onSuccess }: UserFormProps) {
 
   // Fetch current password in edit mode
   useEffect(() => {
-    if (!isEditMode || !initialUser) return;
+    if (!initialUserId) return;
     setPasswordLoading(true);
-    getUserPassword(initialUser.id)
+    getUserPassword(initialUserId)
       .then(({ password }) => setCurrentPassword(password))
       .catch(() => setCurrentPassword(null))
       .finally(() => setPasswordLoading(false));
-  }, [isEditMode, initialUser?.id]);
+  }, [initialUserId]);
 
   useEffect(() => {
     let isMounted = true;
