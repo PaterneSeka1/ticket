@@ -12,7 +12,7 @@ export class TicketFiltersDto {
 
   @IsOptional()
   @IsMongoId()
-  incidentTypeId?: string;
+  serviceTypeId?: string;
 
   @IsOptional()
   @IsMongoId()

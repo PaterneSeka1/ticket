@@ -19,7 +19,7 @@ export class UpdateTicketDto {
 
   @IsOptional()
   @IsMongoId()
-  incidentTypeId?: string;
+  serviceTypeId?: string;
 
   @IsOptional()
   @IsMongoId()

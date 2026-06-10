@@ -11,7 +11,7 @@ import type {
 export interface CreateTicketPayload {
   title: string;
   description: string;
-  incidentTypeId: string;
+  serviceTypeId: string;
   categoryId: string;
   priority?: TicketPriority;
   clientName?: string;
@@ -39,7 +39,7 @@ export interface CreateTicketTimelinePayload {
   actorName: string;
 }
 
-export interface IncidentTypeSummary {
+export interface ServiceTypeSummary {
   id: string;
   name: string;
   scope: "INTERNE" | "EXTERNE";
@@ -51,7 +51,7 @@ export interface IncidentTypeSummary {
 
 export interface CreateCategoryPayload {
   name: string;
-  incidentTypeId: string;
+  serviceTypeId: string;
   description?: string;
   isActive?: boolean;
 }
@@ -146,6 +146,6 @@ export function deleteCategory(id: string) {
   });
 }
 
-export function fetchIncidentTypes() {
-  return apiRequest<IncidentTypeSummary[]>("/tickets/categories/incident-types");
+export function fetchServiceTypes() {
+  return apiRequest<ServiceTypeSummary[]>("/tickets/categories/service-types");
 }

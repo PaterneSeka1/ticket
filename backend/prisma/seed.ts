@@ -1,13 +1,68 @@
-import 'dotenv/config';
 import { hash } from 'bcryptjs';
+import 'dotenv/config';
 import { PrismaClient } from '../generated/prisma/client.js';
-import {
-  UserRole,
-  IncidentScope,
-  TicketPriority,
-} from '../generated/prisma/index.js';
 
-const prisma = new PrismaClient();
+type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'READER' | 'EMPLOYE';
+type TicketPriority = 'MEDIUM' | 'HIGH' | 'CRITICAL';
+type ServiceScope = 'INTERNE' | 'EXTERNE';
+
+type Department = {
+  id: string;
+  name: string;
+};
+
+type Service = {
+  id: string;
+};
+
+type ServiceType = {
+  id: string;
+};
+
+type Category = {
+  id: string;
+};
+
+type ResolutionResponsible = {
+  id: string;
+};
+
+type SlaPolicy = {
+  id: string;
+};
+
+type PrismaArgs = Record<string, unknown>;
+
+type SeedPrismaClient = {
+  department: {
+    upsert(args: PrismaArgs): Promise<Department>;
+  };
+  service: {
+    upsert(args: PrismaArgs): Promise<Service>;
+  };
+  user: {
+    upsert(args: PrismaArgs): Promise<unknown>;
+  };
+  serviceType: {
+    upsert(args: PrismaArgs): Promise<ServiceType>;
+  };
+  category: {
+    upsert(args: PrismaArgs): Promise<Category>;
+  };
+  resolutionResponsible: {
+    findUnique(args: PrismaArgs): Promise<ResolutionResponsible | null>;
+    findFirst(args: PrismaArgs): Promise<ResolutionResponsible | null>;
+    update(args: PrismaArgs): Promise<ResolutionResponsible>;
+    create(args: PrismaArgs): Promise<ResolutionResponsible>;
+  };
+  slaPolicy: {
+    upsert(args: PrismaArgs): Promise<SlaPolicy>;
+  };
+  $connect(): Promise<void>;
+  $disconnect(): Promise<void>;
+};
+
+const prisma = new (PrismaClient as new () => SeedPrismaClient)();
 const BASE_PASSWORD = 'ChangeMe123!';
 
 const log = (message: string) => {
@@ -29,9 +84,9 @@ type UserDetails = {
 async function ensureDepartment(details: {
   name: string;
   description?: string;
-}) {
+}): Promise<Department> {
   const now = new Date();
-  return prisma.department.upsert({
+  const department: Department = await prisma.department.upsert({
     where: { name: details.name },
     update: {
       description: details.description ?? undefined,
@@ -45,15 +100,16 @@ async function ensureDepartment(details: {
       updatedAt: now,
     },
   });
+  return department;
 }
 
 async function ensureService(details: {
   name: string;
   description?: string;
   departmentId: string;
-}) {
+}): Promise<Service> {
   const now = new Date();
-  return prisma.service.upsert({
+  const service: Service = await prisma.service.upsert({
     where: { name: details.name },
     update: {
       description: details.description ?? undefined,
@@ -69,6 +125,7 @@ async function ensureService(details: {
       updatedAt: now,
     },
   });
+  return service;
 }
 
 async function ensureUser(details: UserDetails) {
@@ -107,13 +164,13 @@ async function ensureUser(details: UserDetails) {
   });
 }
 
-async function ensureIncidentType(details: {
+async function ensureServiceType(details: {
   name: string;
-  scope: IncidentScope;
+  scope: ServiceScope;
   description?: string;
-}) {
+}): Promise<ServiceType> {
   const now = new Date();
-  return prisma.incidentType.upsert({
+  const serviceType: ServiceType = await prisma.serviceType.upsert({
     where: { name: details.name },
     update: {
       scope: details.scope,
@@ -130,18 +187,19 @@ async function ensureIncidentType(details: {
       updatedAt: now,
     },
   });
+  return serviceType;
 }
 
 async function ensureCategory(details: {
   name: string;
-  incidentTypeId: string;
+  serviceTypeId: string;
   description?: string;
-}) {
+}): Promise<Category> {
   const now = new Date();
-  return prisma.category.upsert({
+  const category: Category = await prisma.category.upsert({
     where: {
-      incidentTypeId_name: {
-        incidentTypeId: details.incidentTypeId,
+      serviceTypeId_name: {
+        serviceTypeId: details.serviceTypeId,
         name: details.name,
       },
     },
@@ -152,13 +210,14 @@ async function ensureCategory(details: {
     },
     create: {
       name: details.name,
-      incidentTypeId: details.incidentTypeId,
+      serviceTypeId: details.serviceTypeId,
       description: details.description,
       isActive: true,
       createdAt: now,
       updatedAt: now,
     },
   });
+  return category;
 }
 
 async function ensureResolutionResponsible(details: {
@@ -169,7 +228,7 @@ async function ensureResolutionResponsible(details: {
   role?: string;
   department?: string;
   isExternal?: boolean;
-}) {
+}): Promise<ResolutionResponsible> {
   const now = new Date();
   const existing = details.email
     ? await prisma.resolutionResponsible.findUnique({
@@ -184,33 +243,37 @@ async function ensureResolutionResponsible(details: {
       });
 
   if (existing) {
-    return prisma.resolutionResponsible.update({
-      where: { id: existing.id },
+    const responsible: ResolutionResponsible =
+      await prisma.resolutionResponsible.update({
+        where: { id: existing.id },
+        data: {
+          phone: details.phone ?? undefined,
+          role: details.role ?? undefined,
+          department: details.department ?? undefined,
+          isExternal: details.isExternal ?? false,
+          isActive: true,
+          updatedAt: now,
+        },
+      });
+    return responsible;
+  }
+
+  const responsible: ResolutionResponsible =
+    await prisma.resolutionResponsible.create({
       data: {
-        phone: details.phone ?? undefined,
-        role: details.role ?? undefined,
-        department: details.department ?? undefined,
+        firstName: details.firstName,
+        lastName: details.lastName,
+        email: details.email,
+        phone: details.phone,
+        role: details.role,
+        department: details.department,
         isExternal: details.isExternal ?? false,
         isActive: true,
+        createdAt: now,
         updatedAt: now,
       },
     });
-  }
-
-  return prisma.resolutionResponsible.create({
-    data: {
-      firstName: details.firstName,
-      lastName: details.lastName,
-      email: details.email,
-      phone: details.phone,
-      role: details.role,
-      department: details.department,
-      isExternal: details.isExternal ?? false,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-    },
-  });
+  return responsible;
 }
 
 async function ensureSlaPolicy(details: {
@@ -218,9 +281,9 @@ async function ensureSlaPolicy(details: {
   responseMinutes: number;
   resolutionMinutes: number;
   isActive?: boolean;
-}) {
+}): Promise<SlaPolicy> {
   const now = new Date();
-  return prisma.slaPolicy.upsert({
+  const slaPolicy: SlaPolicy = await prisma.slaPolicy.upsert({
     where: { priority: details.priority },
     update: {
       responseMinutes: details.responseMinutes,
@@ -237,6 +300,7 @@ async function ensureSlaPolicy(details: {
       updatedAt: now,
     },
   });
+  return slaPolicy;
 }
 
 async function main() {
@@ -300,7 +364,7 @@ async function main() {
     prenom: 'Admin',
     email: 'superadmin@example.com',
     matricule: 'SUPER-0001',
-    role: UserRole.SUPER_ADMIN,
+    role: 'SUPER_ADMIN',
     departmentId: informatique.id,
     hashedPassword,
   });
@@ -310,7 +374,7 @@ async function main() {
     prenom: 'Global',
     email: 'reader@example.com',
     matricule: 'READER-0001',
-    role: UserRole.READER,
+    role: 'READER',
     departmentId: informatique.id,
     hashedPassword,
   });
@@ -318,19 +382,19 @@ async function main() {
   const slaPolicies = [
     {
       label: 'P1',
-      priority: TicketPriority.CRITICAL,
+      priority: 'CRITICAL' as const,
       responseMinutes: 5,
       resolutionMinutes: 30,
     },
     {
       label: 'P2',
-      priority: TicketPriority.HIGH,
+      priority: 'HIGH' as const,
       responseMinutes: 15,
       resolutionMinutes: 120,
     },
     {
       label: 'P3',
-      priority: TicketPriority.MEDIUM,
+      priority: 'MEDIUM' as const,
       responseMinutes: 30,
       resolutionMinutes: 360,
     },
@@ -350,15 +414,15 @@ async function main() {
   );
 
   const [interne, externe] = await Promise.all([
-    ensureIncidentType({
+    ensureServiceType({
       name: 'Incident Interne',
-      scope: IncidentScope.INTERNE,
+      scope: 'INTERNE',
       description:
         'Dysfonctionnement ou panne affectant uniquement les équipes internes',
     }),
-    ensureIncidentType({
+    ensureServiceType({
       name: 'Incident Externe',
-      scope: IncidentScope.EXTERNE,
+      scope: 'EXTERNE',
       description:
         'Incident impliquant des entités extérieures (clients, fournisseurs)',
     }),
@@ -366,14 +430,14 @@ async function main() {
 
   await ensureCategory({
     name: 'Panne réseau',
-    incidentTypeId: interne.id,
+    serviceTypeId: interne.id,
     description:
       'Interruption ou perte de connectivité sur les infrastructures internes',
   });
 
   await ensureCategory({
     name: 'Incident client critique',
-    incidentTypeId: externe.id,
+    serviceTypeId: externe.id,
     description:
       'Incident signalé par un client majeur impactant un service payant',
   });

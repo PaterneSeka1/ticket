@@ -41,7 +41,7 @@ export class CreateTicketDto {
   description!: string;
 
   @IsMongoId()
-  incidentTypeId!: string;
+  serviceTypeId!: string;
 
   @IsMongoId()
   categoryId!: string;

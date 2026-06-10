@@ -43,7 +43,7 @@ export type DsiTicketRole = "RESPONSABLE" | "CO_RESPONSABLE";
 
 export type UserResponsibility = "RESPONSABLE" | "EMPLOYE";
 
-export type TicketType = "INCIDENT" | "DEMANDE";
+export type TicketType = "INTERNE" | "DEMANDE";
 
 export type TicketStatus =
   | "RECU"
@@ -96,8 +96,8 @@ export interface TicketCategory {
   type: TicketType;
   description?: string | null;
   isActive: boolean;
-  incidentTypeId: string;
-  incidentType: {
+  serviceTypeId: string;
+  serviceType: {
     id: string;
     name: string;
     scope: "INTERNE" | "EXTERNE";
@@ -127,9 +127,9 @@ export interface TicketActor {
 
 export interface TicketCategoryRef extends TicketCategorySummary {
   name?: string;
-  incidentTypeId?: string;
+  serviceTypeId?: string;
   isActive?: boolean;
-  incidentType?: TicketCategory["incidentType"];
+  serviceType?: TicketCategory["serviceType"];
 }
 
 export interface TicketTimeline {

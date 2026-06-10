@@ -12,7 +12,7 @@ export class CreateTicketCategoryDto {
   name!: string;
 
   @IsMongoId()
-  incidentTypeId!: string;
+  serviceTypeId!: string;
 
   @IsOptional()
   @IsString()

@@ -31,10 +31,10 @@ export class TicketCategoriesController {
     return this.ticketsService.listCategories();
   }
 
-  @Get('incident-types')
+  @Get('service-types')
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.READER)
-  listIncidentTypes() {
-    return this.ticketsService.listIncidentTypes();
+  listServiceTypes() {
+    return this.ticketsService.listServiceTypes();
   }
 
   @Post()

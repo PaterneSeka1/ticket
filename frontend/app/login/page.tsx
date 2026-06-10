@@ -81,7 +81,7 @@ function LoginContent() {
               </div>
               <div className="uppercase text-lg font-bold">TICKETING VEDEM V1.01</div>
               <p className="text-sm leading-relaxed text-[#3b3025]">
-                Plateforme centralisée de ticketing — suivi, priorisation et résolution des incidents avec
+                Plateforme centralisée de service après-vente — suivi, priorisation et résolution des demandes avec
                 transparence.
               </p>
             </div>
@@ -98,7 +98,7 @@ function LoginContent() {
                 <p className="font-bold uppercase text-[#2b1d10] text-2xl text-center">
                   Connexion
                 </p>
-                <p className="text-sm text-gray-500">Accédez à votre espace de gestion des incidents.</p>
+                <p className="text-sm text-gray-500">Accédez à votre espace de service après-vente.</p>
               </div>
               <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
                 <div>

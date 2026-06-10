@@ -22,7 +22,7 @@ enum TicketPriority {
 }
 
 enum TicketType {
-  INCIDENT
+  INTERNE
   DEMANDE
 }
 
@@ -37,7 +37,7 @@ enum TicketStatus {
   CANCELLED
 }
 
-enum IncidentScope {
+enum ServiceScope {
   INTERNE
   EXTERNE
 }
@@ -144,36 +144,37 @@ model ResolutionResponsible {
   @@index([isActive])
 }
 
-model IncidentType {
-  id          String        @id @default(auto()) @map("_id") @db.ObjectId
-  name        String        @unique
-  scope       IncidentScope
+model ServiceType {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  name        String       @unique
+  scope       ServiceScope
   description String?
-  isActive    Boolean       @default(true)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   categories Category[]
   tickets    Ticket[]
 
   @@index([scope])
   @@index([isActive])
+  @@map("IncidentType")
 }
 
 model Category {
   id             String   @id @default(auto()) @map("_id") @db.ObjectId
   name           String
-  incidentTypeId String   @db.ObjectId
+  serviceTypeId  String   @db.ObjectId @map("incidentTypeId")
   description    String?
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  incidentType IncidentType @relation(fields: [incidentTypeId], references: [id], onDelete: Cascade)
-  tickets      Ticket[]
+  serviceType ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+  tickets     Ticket[]
 
-  @@unique([incidentTypeId, name])
-  @@index([incidentTypeId])
+  @@unique([serviceTypeId, name])
+  @@index([serviceTypeId])
   @@index([isActive])
 }
 
@@ -194,7 +195,7 @@ model Ticket {
   ticketNumber          String         @unique
   title                 String
   description           String
-  incidentTypeId        String         @db.ObjectId
+  serviceTypeId         String         @db.ObjectId @map("incidentTypeId")
   categoryId            String         @db.ObjectId
   priority              TicketPriority @default(MEDIUM)
   status                TicketStatus   @default(PENDING_ASSIGNMENT)
@@ -212,7 +213,7 @@ model Ticket {
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
 
-  incidentType        IncidentType           @relation(fields: [incidentTypeId], references: [id], onDelete: Restrict)
+  serviceType         ServiceType            @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
   category            Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   createdBy           User                   @relation("TicketCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   assignedResponsible ResolutionResponsible? @relation(fields: [assignedResponsibleId], references: [id], onDelete: SetNull)
@@ -225,7 +226,7 @@ model Ticket {
   @@index([status])
   @@index([priority])
   @@index([createdAt])
-  @@index([incidentTypeId])
+  @@index([serviceTypeId])
   @@index([categoryId])
   @@index([assignedResponsibleId])
   @@index([createdById])

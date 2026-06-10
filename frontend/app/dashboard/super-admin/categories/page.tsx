@@ -9,13 +9,13 @@ import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { CategoryManagementPanel } from "../../components/CategoryManagementPanel";
 import { createCategory } from "@/api/tickets";
 import type { TicketType } from "@/api/types";
-import { useIncidentTypes } from "@/app/dashboard/hooks/useIncidentTypes";
+import { useServiceTypes } from "@/app/dashboard/hooks/useServiceTypes";
 
 const ticketTypes: Array<{ id: TicketType; label: string; description: string }> = [
   {
-    id: "INCIDENT",
-    label: "Incident",
-    description: "Catégorie liée aux incidents internes et technologiques.",
+    id: "INTERNE",
+    label: "Demande interne",
+    description: "Catégorie liée aux demandes internes et opérationnelles.",
   },
   {
     id: "DEMANDE",
@@ -35,25 +35,25 @@ export default function SuperAdminCategoriesPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [name, setName] = useState("");
-  const [type, setType] = useState<TicketType>("INCIDENT");
+  const [type, setType] = useState<TicketType>("INTERNE");
   const [description, setDescription] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedIncidentTypeId, setSelectedIncidentTypeId] = useState("");
+  const [selectedServiceTypeId, setSelectedServiceTypeId] = useState("");
   const {
-    incidentTypes,
-    loading: loadingIncidentTypes,
-    error: incidentTypesError,
-  } = useIncidentTypes();
+    serviceTypes,
+    loading: loadingServiceTypes,
+    error: serviceTypesError,
+  } = useServiceTypes();
 
-  const findIncidentTypeId = useCallback(
+  const findServiceTypeId = useCallback(
     (ticketType: TicketType) => {
-      const incidentType = incidentTypes.find((item) =>
-        ticketType === "INCIDENT" ? item.scope === "INTERNE" : item.scope === "EXTERNE",
+      const serviceType = serviceTypes.find((item) =>
+        ticketType === "INTERNE" ? item.scope === "INTERNE" : item.scope === "EXTERNE",
       );
-      return incidentType?.id ?? "";
+      return serviceType?.id ?? "";
     },
-    [incidentTypes],
+    [serviceTypes],
   );
 
   useEffect(() => {
@@ -64,18 +64,18 @@ export default function SuperAdminCategoriesPage() {
   }, [router, status, user]);
 
   useEffect(() => {
-    if (!selectedIncidentTypeId) {
-      setSelectedIncidentTypeId(findIncidentTypeId(type));
+    if (!selectedServiceTypeId) {
+      setSelectedServiceTypeId(findServiceTypeId(type));
     }
-  }, [findIncidentTypeId, selectedIncidentTypeId, type]);
+  }, [findServiceTypeId, selectedServiceTypeId, type]);
 
   const resetForm = useCallback(() => {
     setName("");
     setDescription("");
-    setType("INCIDENT");
+    setType("INTERNE");
     setIsActive(true);
-    setSelectedIncidentTypeId(findIncidentTypeId("INCIDENT"));
-  }, [findIncidentTypeId]);
+    setSelectedServiceTypeId(findServiceTypeId("INTERNE"));
+  }, [findServiceTypeId]);
 
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
@@ -83,7 +83,7 @@ export default function SuperAdminCategoriesPage() {
   }, [resetForm]);
 
   const isSubmitDisabled =
-    isSubmitting || !name.trim() || !selectedIncidentTypeId || loadingIncidentTypes;
+    isSubmitting || !name.trim() || !selectedServiceTypeId || loadingServiceTypes;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -92,7 +92,7 @@ export default function SuperAdminCategoriesPage() {
     try {
       await createCategory({
         name: name.trim(),
-        incidentTypeId: selectedIncidentTypeId,
+        serviceTypeId: selectedServiceTypeId,
         description: description.trim() || undefined,
         isActive,
       });
@@ -189,7 +189,7 @@ export default function SuperAdminCategoriesPage() {
                         key={option.id}
                         onClick={() => {
                           setType(option.id);
-                          setSelectedIncidentTypeId(findIncidentTypeId(option.id));
+                          setSelectedServiceTypeId(findServiceTypeId(option.id));
                         }}
                         className={cn(
                           "inline-flex h-9 items-center rounded-[8px] border px-4 text-[11px] font-semibold uppercase tracking-[0.04em] transition",
@@ -203,8 +203,8 @@ export default function SuperAdminCategoriesPage() {
                     );
                   })}
                 </div>
-                {incidentTypesError && (
-                  <p className="mt-2 text-xs text-[#c42d1f]">{incidentTypesError}</p>
+                {serviceTypesError && (
+                  <p className="mt-2 text-xs text-[#c42d1f]">{serviceTypesError}</p>
                 )}
               </div>
 

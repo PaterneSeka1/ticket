@@ -33,9 +33,9 @@ const resolveEmitterName = (t: Ticket) => {
 };
 const resolveTicketType = (t: Ticket) => {
   if (t.type) return t.type;
-  const scope = t.category?.incidentType?.scope;
+  const scope = t.category?.serviceType?.scope;
   if (scope === "EXTERNE") return "DEMANDE";
-  if (scope === "INTERNE") return "INCIDENT";
+  if (scope === "INTERNE") return "INTERNE";
   return undefined;
 };
 
@@ -148,7 +148,7 @@ export function TicketDetailModal({
   const slaTone     = getSlaTone(slaProgress);
   const emitterName = resolveEmitterName(ticket);
   const type        = resolveTicketType(ticket);
-  const typeEmoji   = type === "INCIDENT" ? "🏢" : type === "DEMANDE" ? "🤝" : "";
+  const typeEmoji   = type === "INTERNE" ? "🏢" : type === "DEMANDE" ? "🤝" : "";
   const statusInfo  = statusLabels[ticket.status] ?? { label: ticket.status, color: "" };
 
   const existingComments = ticket.comments ?? [];

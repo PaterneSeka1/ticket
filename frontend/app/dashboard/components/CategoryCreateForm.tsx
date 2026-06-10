@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 import { createCategory } from "@/api/tickets";
 import type { CreateCategoryPayload } from "@/api/tickets";
-import { useIncidentTypes } from "@/app/dashboard/hooks/useIncidentTypes";
+import { useServiceTypes } from "@/app/dashboard/hooks/useServiceTypes";
 
 interface CategoryCreateFormProps {
   onSuccess?: () => void;
@@ -15,10 +15,10 @@ export function CategoryCreateForm({ onSuccess }: CategoryCreateFormProps) {
   const [description, setDescription] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [selectedIncidentTypeId, setSelectedIncidentTypeId] = useState("");
-  const { incidentTypes, loading: loadingIncidentTypes, error: incidentTypesError } =
-    useIncidentTypes();
-  const currentIncidentTypeId = selectedIncidentTypeId || incidentTypes[0]?.id || "";
+  const [selectedServiceTypeId, setSelectedServiceTypeId] = useState("");
+  const { serviceTypes, loading: loadingServiceTypes, error: serviceTypesError } =
+    useServiceTypes();
+  const currentServiceTypeId = selectedServiceTypeId || serviceTypes[0]?.id || "";
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -27,7 +27,7 @@ export function CategoryCreateForm({ onSuccess }: CategoryCreateFormProps) {
 
     const payload: CreateCategoryPayload = {
       name: libelle.trim(),
-      incidentTypeId: currentIncidentTypeId,
+      serviceTypeId: currentServiceTypeId,
       description: description.trim() || undefined,
       isActive,
     };
@@ -68,25 +68,25 @@ export function CategoryCreateForm({ onSuccess }: CategoryCreateFormProps) {
           />
         </label>
         <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6b5446]">
-          Type d’incident *
+          Domaine de service *
           <select
-            value={currentIncidentTypeId}
-            onChange={(event) => setSelectedIncidentTypeId(event.target.value)}
-            disabled={loadingIncidentTypes}
+            value={currentServiceTypeId}
+            onChange={(event) => setSelectedServiceTypeId(event.target.value)}
+            disabled={loadingServiceTypes}
             className="rounded-[16px] border border-[#e2dbd1] bg-white px-4 py-3 text-sm text-[#2b1d10]"
             required
           >
             <option value="" disabled>
-              {loadingIncidentTypes ? "Chargement..." : "Sélectionnez un type"}
+              {loadingServiceTypes ? "Chargement..." : "Sélectionnez un domaine"}
             </option>
-            {incidentTypes.map((incidentType) => (
-              <option key={incidentType.id} value={incidentType.id}>
-                {incidentType.name}
+            {serviceTypes.map((serviceType) => (
+              <option key={serviceType.id} value={serviceType.id}>
+                {serviceType.name}
               </option>
             ))}
           </select>
-          {incidentTypesError && (
-            <p className="text-[0.6rem] text-[#c42d1f]">{incidentTypesError}</p>
+          {serviceTypesError && (
+            <p className="text-[0.6rem] text-[#c42d1f]">{serviceTypesError}</p>
           )}
         </label>
       </div>
@@ -115,8 +115,8 @@ export function CategoryCreateForm({ onSuccess }: CategoryCreateFormProps) {
         type="submit"
         disabled={
           status === "loading" ||
-          loadingIncidentTypes ||
-          !currentIncidentTypeId
+          loadingServiceTypes ||
+          !currentServiceTypeId
         }
         className="rounded-full bg-gradient-to-r from-[#d9731d] to-[#bb5b0f] px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white shadow-[0_15px_40px_rgba(217,115,29,0.35)] disabled:opacity-60"
       >

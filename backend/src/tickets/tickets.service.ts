@@ -20,7 +20,7 @@ import { UpdateTicketCategoryDto } from './dto/update-ticket-category.dto.js';
 import { UpdateTicketDto } from './dto/update-ticket.dto.js';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto.js';
 import {
-  IncidentScope,
+  ServiceScope,
   NotificationChannel,
   NotificationType,
   TicketPriority,
@@ -30,7 +30,7 @@ import {
 } from '../prisma/enums.js';
 import type {
   Category,
-  IncidentType,
+  ServiceType,
   Prisma,
 } from '../../generated/prisma/client.js';
 
@@ -52,8 +52,8 @@ const userSelect = {
 
 const ticketInclude: Prisma.TicketInclude = {
   attachments: true,
-  category: { include: { incidentType: true } },
-  incidentType: true,
+  category: { include: { serviceType: true } },
+  serviceType: true,
   assignedResponsible: true,
   createdBy: { select: userSelect },
   statusHistory: {
@@ -279,8 +279,8 @@ export class TicketsService {
     dto: CreateTicketDto,
     emitter: AuthenticatedUserDto,
   ): Promise<TicketWithRelations> {
-    await this.ensureCategory(dto.categoryId, dto.incidentTypeId);
-    const incidentType = await this.ensureIncidentType(dto.incidentTypeId);
+    await this.ensureCategory(dto.categoryId, dto.serviceTypeId);
+    const serviceType = await this.ensureServiceType(dto.serviceTypeId);
     const ticketNumber = await this.generateTicketNumber();
     const attachments = dto.attachments?.map((attachment) => ({
       filename: attachment.filename,
@@ -299,7 +299,7 @@ export class TicketsService {
       );
     }
 
-    if (incidentType.scope === IncidentScope.EXTERNE) {
+    if (serviceType.scope === ServiceScope.EXTERNE) {
       if (!clientName) {
         throw new BadRequestException('Le nom du client est requis.');
       }
@@ -316,7 +316,7 @@ export class TicketsService {
         ticketNumber,
         title: dto.title.trim(),
         description: dto.description.trim(),
-        incidentTypeId: dto.incidentTypeId,
+        serviceTypeId: dto.serviceTypeId,
         categoryId: dto.categoryId,
         priority: dto.priority ?? TicketPriority.MEDIUM,
         status: TicketStatus.PENDING_ASSIGNMENT,
@@ -376,8 +376,8 @@ export class TicketsService {
     if (filters.priority) {
       where.priority = filters.priority;
     }
-    if (filters.incidentTypeId) {
-      where.incidentTypeId = filters.incidentTypeId;
+    if (filters.serviceTypeId) {
+      where.serviceTypeId = filters.serviceTypeId;
     }
     if (filters.categoryId) {
       where.categoryId = filters.categoryId;
@@ -470,15 +470,15 @@ export class TicketsService {
     if (dto.description) {
       data.description = dto.description.trim();
     }
-    if (dto.incidentTypeId) {
-      await this.ensureIncidentType(dto.incidentTypeId);
-      data.incidentTypeId = dto.incidentTypeId;
+    if (dto.serviceTypeId) {
+      await this.ensureServiceType(dto.serviceTypeId);
+      data.serviceTypeId = dto.serviceTypeId;
     }
     if (dto.categoryId) {
-      if (!dto.incidentTypeId) {
-        await this.ensureCategory(dto.categoryId, ticket.incidentTypeId);
+      if (!dto.serviceTypeId) {
+        await this.ensureCategory(dto.categoryId, ticket.serviceTypeId);
       } else {
-        await this.ensureCategory(dto.categoryId, dto.incidentTypeId);
+        await this.ensureCategory(dto.categoryId, dto.serviceTypeId);
       }
       data.categoryId = dto.categoryId;
     }
@@ -743,7 +743,7 @@ export class TicketsService {
   listCategories() {
     return this.prisma.client.category
       .findMany({
-        include: { incidentType: true },
+        include: { serviceType: true },
         orderBy: { name: 'asc' },
       })
       .then((categories) =>
@@ -755,16 +755,16 @@ export class TicketsService {
     dto: CreateTicketCategoryDto,
     actor: AuthenticatedUserDto,
   ) {
-    await this.ensureIncidentType(dto.incidentTypeId);
+    await this.ensureServiceType(dto.serviceTypeId);
     try {
       const category = await this.prisma.client.category.create({
         data: {
           name: dto.name.trim(),
-          incidentTypeId: dto.incidentTypeId,
+          serviceTypeId: dto.serviceTypeId,
           description: dto.description,
           isActive: dto.isActive ?? true,
         },
-        include: { incidentType: true },
+        include: { serviceType: true },
       });
       await this.logActivity(
         'ticket.category.created',
@@ -785,18 +785,18 @@ export class TicketsService {
     dto: UpdateTicketCategoryDto,
     actor: AuthenticatedUserDto,
   ) {
-    if (dto.incidentTypeId) {
-      await this.ensureIncidentType(dto.incidentTypeId);
+    if (dto.serviceTypeId) {
+      await this.ensureServiceType(dto.serviceTypeId);
     }
     const category = await this.prisma.client.category.update({
       where: { id },
       data: {
         name: dto.name?.trim(),
-        incidentTypeId: dto.incidentTypeId,
+        serviceTypeId: dto.serviceTypeId,
         description: dto.description,
         isActive: dto.isActive,
       },
-      include: { incidentType: true },
+      include: { serviceType: true },
     });
     await this.logActivity(
       'ticket.category.updated',
@@ -818,18 +818,18 @@ export class TicketsService {
     );
   }
 
-  private mapCategory(category: Category & { incidentType: IncidentType }): {
+  private mapCategory(category: Category & { serviceType: ServiceType }): {
     id: string;
     libelle: string;
     name: string;
     type: TicketType;
     description: string | null;
     isActive: boolean;
-    incidentTypeId: string;
-    incidentType: {
+    serviceTypeId: string;
+    serviceType: {
       id: string;
       name: string;
-      scope: IncidentScope;
+      scope: ServiceScope;
       description?: string | null;
       isActive: boolean;
       createdAt: Date;
@@ -839,9 +839,9 @@ export class TicketsService {
     updatedAt: Date;
   } {
     const type =
-      category.incidentType.scope === IncidentScope.EXTERNE
+      category.serviceType.scope === ServiceScope.EXTERNE
         ? TicketType.DEMANDE
-        : TicketType.INCIDENT;
+        : TicketType.INTERNE;
     return {
       id: category.id,
       libelle: category.name,
@@ -849,23 +849,23 @@ export class TicketsService {
       type,
       description: category.description ?? null,
       isActive: category.isActive,
-      incidentTypeId: category.incidentTypeId,
-      incidentType: {
-        id: category.incidentType.id,
-        name: category.incidentType.name,
-        scope: category.incidentType.scope,
-        description: category.incidentType.description ?? null,
-        isActive: category.incidentType.isActive,
-        createdAt: category.incidentType.createdAt,
-        updatedAt: category.incidentType.updatedAt,
+      serviceTypeId: category.serviceTypeId,
+      serviceType: {
+        id: category.serviceType.id,
+        name: category.serviceType.name,
+        scope: category.serviceType.scope,
+        description: category.serviceType.description ?? null,
+        isActive: category.serviceType.isActive,
+        createdAt: category.serviceType.createdAt,
+        updatedAt: category.serviceType.updatedAt,
       },
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
     };
   }
 
-  listIncidentTypes() {
-    return this.prisma.client.incidentType.findMany({
+  listServiceTypes() {
+    return this.prisma.client.serviceType.findMany({
       where: { isActive: true },
       orderBy: { name: 'asc' },
     });
@@ -976,7 +976,7 @@ export class TicketsService {
     }
   }
 
-  private async ensureCategory(categoryId: string, incidentTypeId: string) {
+  private async ensureCategory(categoryId: string, serviceTypeId: string) {
     const category = await this.prisma.client.category.findUnique({
       where: { id: categoryId },
     });
@@ -986,25 +986,25 @@ export class TicketsService {
     if (!category.isActive) {
       throw new BadRequestException('La catégorie est désactivée.');
     }
-    if (category.incidentTypeId !== incidentTypeId) {
+    if (category.serviceTypeId !== serviceTypeId) {
       throw new BadRequestException(
-        'La catégorie n’est pas rattachée au type d’incident sélectionné.',
+        'La catégorie n’est pas rattachée au domaine de service sélectionné.',
       );
     }
     return category;
   }
 
-  private async ensureIncidentType(incidentTypeId: string) {
-    const incidentType = await this.prisma.client.incidentType.findUnique({
-      where: { id: incidentTypeId },
+  private async ensureServiceType(serviceTypeId: string) {
+    const serviceType = await this.prisma.client.serviceType.findUnique({
+      where: { id: serviceTypeId },
     });
-    if (!incidentType) {
-      throw new NotFoundException('Type d’incident introuvable.');
+    if (!serviceType) {
+      throw new NotFoundException('Domaine de service introuvable.');
     }
-    if (!incidentType.isActive) {
-      throw new BadRequestException('Le type d’incident est désactivé.');
+    if (!serviceType.isActive) {
+      throw new BadRequestException('Ce domaine de service est désactivé.');
     }
-    return incidentType;
+    return serviceType;
   }
 
   private async createStatusLog(

@@ -1,5 +1,5 @@
 import type {
-  IncidentScope as PrismaIncidentScope,
+  ServiceScope as PrismaServiceScope,
   NotificationChannel as PrismaNotificationChannel,
   NotificationType as PrismaNotificationType,
   TicketPriority as PrismaTicketPriority,
@@ -18,7 +18,7 @@ export const {
   UserRole,
   TicketPriority,
   TicketStatus,
-  IncidentScope,
+  ServiceScope,
   NotificationChannel,
   NotificationType,
   TicketType,
@@ -27,7 +27,7 @@ export const {
 export type UserRole = PrismaUserRole;
 export type TicketPriority = PrismaTicketPriority;
 export type TicketStatus = PrismaTicketStatus;
-export type IncidentScope = PrismaIncidentScope;
+export type ServiceScope = PrismaServiceScope;
 export type NotificationChannel = PrismaNotificationChannel;
 export type NotificationType = PrismaNotificationType;
 export type TicketType = PrismaTicketType;

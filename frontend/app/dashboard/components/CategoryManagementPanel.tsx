@@ -5,11 +5,11 @@ import toast from "react-hot-toast";
 import { CategoryCreateForm } from "./CategoryCreateForm";
 import { fetchCategories, updateCategory } from "@/api/tickets";
 import type { TicketCategory, TicketType } from "@/api/types";
-import { useIncidentTypes } from "@/app/dashboard/hooks/useIncidentTypes";
+import { useServiceTypes } from "@/app/dashboard/hooks/useServiceTypes";
 
 type EditableCategoryFields = {
   libelle: string;
-  incidentTypeId: string;
+  serviceTypeId: string;
   description: string;
   isActive: boolean;
 };
@@ -18,11 +18,11 @@ const cn = (...classes: Array<string | false | null | undefined>) =>
   classes.filter(Boolean).join(" ");
 
 function getTypeLabel(type: TicketType) {
-  return type === "INCIDENT" ? "Incident interne" : "Réclamation client";
+  return type === "INTERNE" ? "Demande interne" : "Réclamation client";
 }
 
 function getTypeBadgeClass(type: TicketType) {
-  return type === "INCIDENT"
+  return type === "INTERNE"
     ? "bg-[#fff2df] text-[#b96d12]"
     : "bg-[#eaf6f0] text-[#1f7a58]";
 }
@@ -46,10 +46,10 @@ export function CategoryManagementPanel({ showCreateForm = true, readOnly = fals
   const [isActing, setIsActing] = useState(false);
   const [categoryToDisable, setCategoryToDisable] = useState<TicketCategory | null>(null);
   const {
-    incidentTypes,
-    loading: loadingIncidentTypes,
-    error: incidentTypesError,
-  } = useIncidentTypes();
+    serviceTypes,
+    loading: loadingServiceTypes,
+    error: serviceTypesError,
+  } = useServiceTypes();
 
   const loadCategories = async () => {
     setLoading(true);
@@ -75,7 +75,7 @@ export function CategoryManagementPanel({ showCreateForm = true, readOnly = fals
     setEditingId(category.id);
     setEditValues({
       libelle: category.libelle,
-      incidentTypeId: category.incidentTypeId,
+      serviceTypeId: category.serviceTypeId,
       description: category.description ?? "",
       isActive: category.isActive,
     });
@@ -93,7 +93,7 @@ export function CategoryManagementPanel({ showCreateForm = true, readOnly = fals
     try {
       await updateCategory(editingId, {
         name: editValues.libelle.trim(),
-        incidentTypeId: editValues.incidentTypeId,
+        serviceTypeId: editValues.serviceTypeId,
         description: editValues.description.trim() || undefined,
         isActive: editValues.isActive,
       });
@@ -126,7 +126,7 @@ export function CategoryManagementPanel({ showCreateForm = true, readOnly = fals
     try {
       await updateCategory(categoryToDisable.id, {
         name: categoryToDisable.libelle.trim(),
-        incidentTypeId: categoryToDisable.incidentTypeId,
+        serviceTypeId: categoryToDisable.serviceTypeId,
         description: categoryToDisable.description?.trim() || undefined,
         isActive: false,
       });
@@ -228,30 +228,30 @@ export function CategoryManagementPanel({ showCreateForm = true, readOnly = fals
 
                         <label className="space-y-2">
                           <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8f8b85]">
-                            Type d’incident
+                            Domaine de service
                           </span>
                           <select
-                            value={editValues.incidentTypeId}
+                            value={editValues.serviceTypeId}
                             onChange={(event) =>
                               setEditValues({
                                 ...editValues,
-                                incidentTypeId: event.target.value,
+                                serviceTypeId: event.target.value,
                               })
                             }
-                            disabled={loadingIncidentTypes}
+                            disabled={loadingServiceTypes}
                             className="w-full rounded-[10px] border border-[#ded8d0] bg-white px-3 py-2.5 text-sm text-[#241d16] outline-none transition focus:border-[#e1b24f]"
                           >
                             <option value="" disabled>
-                              {loadingIncidentTypes ? "Chargement..." : "Choisissez un type"}
+                              {loadingServiceTypes ? "Chargement..." : "Choisissez un domaine"}
                             </option>
-                            {incidentTypes.map((incidentType) => (
-                              <option key={incidentType.id} value={incidentType.id}>
-                                {incidentType.name}
+                            {serviceTypes.map((serviceType) => (
+                              <option key={serviceType.id} value={serviceType.id}>
+                                {serviceType.name}
                               </option>
                             ))}
                           </select>
-                          {incidentTypesError && (
-                            <p className="text-[0.6rem] text-[#c42d1f]">{incidentTypesError}</p>
+                          {serviceTypesError && (
+                            <p className="text-[0.6rem] text-[#c42d1f]">{serviceTypesError}</p>
                           )}
                         </label>
                       </div>

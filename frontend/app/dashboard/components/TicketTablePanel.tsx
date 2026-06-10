@@ -44,9 +44,9 @@ const resolveTicketCategory = (ticket: Ticket) => ticket.category?.name ?? ticke
 const resolveTicketTitle = (ticket: Ticket) => ticket.title ?? resolveTicketCategory(ticket);
 const resolveTicketType = (ticket: Ticket) => {
   if (ticket.type) return ticket.type;
-  const scope = ticket.category?.incidentType?.scope;
+  const scope = ticket.category?.serviceType?.scope;
   if (scope === "EXTERNE") return "DEMANDE";
-  if (scope === "INTERNE") return "INCIDENT";
+  if (scope === "INTERNE") return "INTERNE";
   return undefined;
 };
 const resolveEmitterName = (ticket: Ticket) => {

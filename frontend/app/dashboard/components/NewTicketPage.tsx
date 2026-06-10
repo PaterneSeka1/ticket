@@ -11,10 +11,10 @@ import type { ConcernedProduct, TicketCategory, TicketPriority, TicketType } fro
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { usePathname, useRouter } from "next/navigation";
 
-type IncidentSelection = "INTERNE" | "CLIENT";
+type RequestSelection = "INTERNE" | "CLIENT";
 
-const incidentTypes: Array<{ id: IncidentSelection; label: string }> = [
-  { id: "INTERNE", label: "Incident interne" },
+const requestTypes: Array<{ id: RequestSelection; label: string }> = [
+  { id: "INTERNE", label: "Demande interne" },
   { id: "CLIENT", label: "Réclamation client" },
 ];
 
@@ -39,8 +39,8 @@ const priorityLevels = [
   },
 ] as const;
 
-const incidentTypeMap: Record<IncidentSelection, TicketType> = {
-  INTERNE: "INCIDENT",
+const requestTypeMap: Record<RequestSelection, TicketType> = {
+  INTERNE: "INTERNE",
   CLIENT: "DEMANDE",
 };
 
@@ -78,7 +78,7 @@ export default function NewTicketPage() {
   const pathname = usePathname();
   const myTicketsRoute = pathname?.replace(/\/nouveau-ticket$/, "/mes-tickets") ?? "/dashboard/employe/mes-tickets";
 
-  const [selectedIncidentType, setSelectedIncidentType] = useState<IncidentSelection>("INTERNE");
+  const [selectedRequestType, setSelectedRequestType] = useState<RequestSelection>("INTERNE");
   const [selectedPriority, setSelectedPriority] = useState("P2");
 
   const [detectionDate, setDetectionDate] = useState(() => getLocalDateValue());
@@ -152,8 +152,8 @@ export default function NewTicketPage() {
     };
   }, [canSelectConcernedProducts, status]);
 
-  const incidentCategories = useMemo(
-    () => categories.filter((category) => category.type === "INCIDENT" && category.isActive),
+  const internalCategories = useMemo(
+    () => categories.filter((category) => category.type === "INTERNE" && category.isActive),
     [categories],
   );
 
@@ -163,10 +163,10 @@ export default function NewTicketPage() {
   );
 
   useEffect(() => {
-    if (incidentCategories.length && !selectedInternalCategoryId) {
-      setSelectedInternalCategoryId(incidentCategories[0].id);
+    if (internalCategories.length && !selectedInternalCategoryId) {
+      setSelectedInternalCategoryId(internalCategories[0].id);
     }
-  }, [incidentCategories, selectedInternalCategoryId]);
+  }, [internalCategories, selectedInternalCategoryId]);
 
   useEffect(() => {
     if (reclamationCategories.length && !selectedReclamationCategoryId) {
@@ -175,11 +175,11 @@ export default function NewTicketPage() {
   }, [reclamationCategories, selectedReclamationCategoryId]);
 
   useEffect(() => {
-    if (selectedIncidentType === "INTERNE") {
+    if (selectedRequestType === "INTERNE") {
       setClientName("");
       setProducts([]);
     }
-  }, [selectedIncidentType]);
+  }, [selectedRequestType]);
 
   useEffect(() => {
     const availableProductNames = new Set(configuredProducts.map((item) => item.name));
@@ -194,11 +194,11 @@ export default function NewTicketPage() {
     return `TK-${datePart}-XXX`;
   }, []);
 
-  const ticketType = incidentTypeMap[selectedIncidentType];
+  const ticketType = requestTypeMap[selectedRequestType];
   const selectedCategoryId =
-    ticketType === "INCIDENT" ? selectedInternalCategoryId : selectedReclamationCategoryId;
+    ticketType === "INTERNE" ? selectedInternalCategoryId : selectedReclamationCategoryId;
 
-  const requiresClientFields = selectedIncidentType === "CLIENT";
+  const requiresClientFields = selectedRequestType === "CLIENT";
 
   const isSubmitDisabled =
     isSubmitting ||
@@ -213,7 +213,7 @@ export default function NewTicketPage() {
         (canSelectConcernedProducts && products.length === 0)));
 
   const handleReset = () => {
-    setSelectedIncidentType("INTERNE");
+    setSelectedRequestType("INTERNE");
     setSelectedPriority("P2");
     setDetectionDate(getLocalDateValue());
     setDetectionTime(getLocalTimeValue());
@@ -223,8 +223,8 @@ export default function NewTicketPage() {
     setProducts([]);
     setAttachment(null);
 
-    if (incidentCategories.length) {
-      setSelectedInternalCategoryId(incidentCategories[0].id);
+    if (internalCategories.length) {
+      setSelectedInternalCategoryId(internalCategories[0].id);
     }
 
     if (reclamationCategories.length) {
@@ -290,7 +290,7 @@ export default function NewTicketPage() {
         description: description.trim(),
         priority: priorityMap[selectedPriority],
         categoryId: selectedCategoryId,
-        incidentTypeId: category.incidentTypeId,
+        serviceTypeId: category.serviceTypeId,
         detectedAt: buildDetectedAtValue(detectionDate, detectionTime),
         attachmentName: attachment?.name,
         ...(requiresClientFields
@@ -347,14 +347,14 @@ export default function NewTicketPage() {
             Nouveau Ticket
           </h1>
           <p className="mt-1 text-sm text-[#7a695a]">
-            Déclarez un incident ou une réclamation client.
+            Déclarez une demande interne ou une réclamation client.
           </p>
         </div>
 
         <section className="overflow-hidden rounded-[14px] border border-[#e8e1d8] bg-white shadow-[0_12px_30px_rgba(24,24,24,0.05)]">
           <div className="border-b border-[#e9ecef] bg-[#f3f5f8] px-5 py-4">
             <p className="text-[12px] font-semibold text-[#2f2f33]">
-              Formulaire de déclaration d&apos;incident
+              Formulaire de déclaration de demande
             </p>
           </div>
 
@@ -406,17 +406,17 @@ export default function NewTicketPage() {
 
             <div>
               <p className={labelClass}>
-                Type d&apos;incident <span className="text-[#d92d20]">*</span>
+                Type de demande <span className="text-[#d92d20]">*</span>
               </p>
               <div className="flex flex-wrap gap-2">
-                {incidentTypes.map((type) => {
-                  const selected = selectedIncidentType === type.id;
+                {requestTypes.map((type) => {
+                  const selected = selectedRequestType === type.id;
 
                   return (
                     <button
                       type="button"
                       key={type.id}
-                      onClick={() => setSelectedIncidentType(type.id)}
+                      onClick={() => setSelectedRequestType(type.id)}
                       className={cn(
                         "inline-flex h-9 items-center rounded-[8px] border px-4 text-[11px] font-semibold uppercase tracking-[0.04em] transition",
                         selected
@@ -431,7 +431,7 @@ export default function NewTicketPage() {
               </div>
             </div>
 
-            {selectedIncidentType === "INTERNE" ? (
+            {selectedRequestType === "INTERNE" ? (
               <div className="grid gap-4">
                 <label>
                   <span className={labelClass}>
@@ -440,7 +440,7 @@ export default function NewTicketPage() {
                   <select
                     value={selectedInternalCategoryId ?? ""}
                     onChange={(event) => setSelectedInternalCategoryId(event.target.value)}
-                    disabled={categoryStatus !== "idle" || incidentCategories.length === 0}
+                    disabled={categoryStatus !== "idle" || internalCategories.length === 0}
                     className={inputClass}
                   >
                     <option value="" disabled>
@@ -448,12 +448,12 @@ export default function NewTicketPage() {
                         ? "Chargement…"
                         : categoryStatus === "error"
                           ? "Impossible de charger les catégories"
-                          : incidentCategories.length
+                          : internalCategories.length
                             ? "-- Sélectionner --"
                             : "Aucune catégorie disponible"}
                     </option>
 
-                    {incidentCategories.map((category) => (
+                    {internalCategories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.libelle}
                       </option>
@@ -599,7 +599,7 @@ export default function NewTicketPage() {
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 rows={5}
-                placeholder="Décrivez l’incident. Incluez messages d’erreur, logs, étapes de reproduction…"
+                placeholder="Décrivez la demande. Incluez les détails pertinents, les messages d’erreur, les étapes de reproduction…"
                 className="w-full rounded-[8px] border border-[#e5e7eb] bg-white px-3 py-3 text-sm text-[#2b1d10] outline-none transition placeholder:text-[#a89b8e] focus:border-[#d5a15c]"
               />
             </label>

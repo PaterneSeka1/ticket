@@ -29,7 +29,7 @@ export const priorityLabels: Record<TicketPriority, { label: string; tone: strin
 };
 
 export const typeLabels: Record<NonNullable<Ticket["type"]>, string> = {
-  INCIDENT: "Interne",
+  INTERNE: "Interne",
   DEMANDE: "Client",
 };
 
