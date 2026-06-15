@@ -11,6 +11,8 @@ export class UserDto {
   serviceId?: string | null;
   isActive!: boolean;
   receiveEmails!: boolean;
+  phone?: string | null;
+  receiveWhatsapp!: boolean;
   createdAt!: Date;
   updatedAt!: Date;
   createdById?: string | null;

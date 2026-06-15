@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { EmailService } from '../email/email.service.js';
+import { WhatsappService } from '../whatsapp/whatsapp.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationChannel, NotificationType } from '../prisma/enums.js';
 import type { Notification } from '../../generated/prisma/client.js';
@@ -9,6 +11,7 @@ type NotificationPayload = {
   title: string;
   message: string;
   channel?: NotificationChannel;
+  ticketNumber?: string;
 };
 
 type ListOptions = {
@@ -18,15 +21,19 @@ type ListOptions = {
 
 @Injectable()
 export class NotificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly email: EmailService,
+    private readonly whatsapp: WhatsappService,
+  ) {}
 
   async notifyUsers(userIds: string[], payload: NotificationPayload) {
     const channel = payload.channel ?? NotificationChannel.IN_APP;
     const recipients = Array.from(new Set(userIds));
-    if (!recipients.length) {
-      return;
-    }
-    const jobs = recipients.map((userId) =>
+    if (!recipients.length) return;
+
+    // Persist in-app notifications
+    const dbJobs = recipients.map((userId) =>
       this.prisma.client.notification.create({
         data: {
           userId,
@@ -38,7 +45,50 @@ export class NotificationService {
         },
       }),
     );
-    await Promise.all(jobs);
+
+    // Fetch users with their notification preferences
+    const users = await this.prisma.client.user.findMany({
+      where: { id: { in: recipients } },
+      select: {
+        id: true,
+        email: true,
+        nom: true,
+        prenom: true,
+        receiveEmails: true,
+        phone: true,
+        receiveWhatsapp: true,
+      },
+    });
+
+    const emailJobs = users
+      .filter((u) => u.receiveEmails && u.email)
+      .map((u) =>
+        this.email.sendNotification({
+          to: u.email,
+          name: `${u.prenom} ${u.nom}`.trim() || u.email,
+          notificationType: payload.type,
+          title: payload.title,
+          message: payload.message,
+          ticketNumber: payload.ticketNumber,
+          ticketId: payload.ticketId,
+        }),
+      );
+
+    const whatsappJobs = users
+      .filter((u) => u.receiveWhatsapp && u.phone)
+      .map((u) =>
+        this.whatsapp.send({
+          to: u.phone!,
+          name: `${u.prenom} ${u.nom}`.trim() || u.phone!,
+          notificationType: payload.type,
+          title: payload.title,
+          message: payload.message,
+          ticketNumber: payload.ticketNumber,
+          ticketId: payload.ticketId,
+        }),
+      );
+
+    await Promise.all([...dbJobs, ...emailJobs, ...whatsappJobs]);
   }
 
   listForUser(userId: string, options: ListOptions): Promise<Notification[]> {

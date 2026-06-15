@@ -272,6 +272,7 @@ export class TicketsService {
       title: `SLA dépassé (${kind})`,
       message: `Le ticket ${ticket.ticketNumber} a dépassé le SLA ${kind} (${payload.waited}m > ${payload.max}m).`,
       channel: NotificationChannel.IN_APP,
+      ticketNumber: ticket.ticketNumber,
     });
   }
 
@@ -362,6 +363,7 @@ export class TicketsService {
       message:
         'Votre demande a bien été enregistrée. Vous serez notifié des changements de statut.',
       channel: NotificationChannel.IN_APP,
+      ticketNumber: ticket.ticketNumber,
     });
 
     const policies = await this.getActiveSlaPoliciesByPriority();
@@ -695,6 +697,7 @@ export class TicketsService {
         title: `Nouveau commentaire — ${ticket.ticketNumber}`,
         message: `${authorName} : ${snippet}`,
         channel: NotificationChannel.IN_APP,
+        ticketNumber: ticket.ticketNumber,
       });
     }
 
@@ -1139,6 +1142,7 @@ export class TicketsService {
       title: payload.title,
       message: payload.message,
       channel: NotificationChannel.IN_APP,
+      ticketNumber: after.ticketNumber,
     });
   }
 
@@ -1182,6 +1186,7 @@ export class TicketsService {
       title: `Nouveau ticket ${ticket.ticketNumber}`,
       message: `${ticket.title} attend d’être assigné.`,
       channel: NotificationChannel.IN_APP,
+      ticketNumber: ticket.ticketNumber,
     });
   }
 

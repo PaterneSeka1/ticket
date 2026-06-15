@@ -231,6 +231,8 @@ export class UsersService {
       serviceId: dto.serviceId ?? null,
       isActive: dto.isActive ?? true,
       receiveEmails: dto.receiveEmails ?? true,
+      phone: dto.phone?.trim() ?? null,
+      receiveWhatsapp: dto.receiveWhatsapp ?? false,
       createdById: dto.createdById ?? null,
     };
   }
@@ -271,6 +273,12 @@ export class UsersService {
     }
     if (typeof dto.receiveEmails === 'boolean') {
       payload.receiveEmails = dto.receiveEmails;
+    }
+    if (dto.phone !== undefined) {
+      payload.phone = dto.phone?.trim() || null;
+    }
+    if (typeof dto.receiveWhatsapp === 'boolean') {
+      payload.receiveWhatsapp = dto.receiveWhatsapp;
     }
     if (dto.createdById !== undefined) {
       payload.createdById = dto.createdById ?? null;

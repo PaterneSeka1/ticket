@@ -71,9 +71,11 @@ model User {
   role          UserRole @default(EMPLOYE)
   departmentId  String?  @db.ObjectId
   serviceId     String?  @db.ObjectId
-  isActive      Boolean  @default(true)
-  receiveEmails Boolean  @default(true)
-  createdById   String?  @db.ObjectId
+  isActive         Boolean  @default(true)
+  receiveEmails    Boolean  @default(true)
+  phone            String?
+  receiveWhatsapp  Boolean  @default(false)
+  createdById      String?  @db.ObjectId
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

@@ -53,6 +53,14 @@ export class CreateUserDto {
   receiveEmails?: boolean;
 
   @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  receiveWhatsapp?: boolean;
+
+  @IsOptional()
   @IsMongoId()
   createdById?: string;
 }

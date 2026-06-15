@@ -65,7 +65,7 @@ export async function apiRequest<T = unknown>(
   const data = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && auth) {
       clearToken();
       if (typeof window !== "undefined") {
         window.location.href = "/login";
