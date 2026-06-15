@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/app/dashboard/components/DashboardShell";
+import { PageSkeleton } from "../../components/PageSkeleton";
 import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { fetchSlaPolicies, type SlaPolicy } from "@/api/sla";
@@ -63,13 +64,7 @@ export default function ReaderConfigurationPage() {
   }, [status, user]);
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
-        <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Préparation de la configuration…</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Préparation de la configuration…" />;
   }
 
   return (

@@ -6,6 +6,7 @@ import { DashboardShell } from "../../components/DashboardShell";
 import { getRedirectRouteForRole } from "../../lib/api";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { UserManagementPanel } from "../../components/UserManagementPanel";
+import { PageSkeleton } from "../../components/PageSkeleton";
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -19,15 +20,7 @@ export default function AdminUsersPage() {
   }, [router, status, user]);
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="w-full max-w-sm rounded-3xl border border-[#eee7df] bg-white p-8 text-center shadow-sm">
-          <p className="text-sm text-[#7f6d60]">
-            Préparation de la gestion des utilisateurs…
-          </p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Préparation de la gestion des utilisateurs…" />;
   }
 
   return (

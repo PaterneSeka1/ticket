@@ -295,7 +295,17 @@ export default function ReaderJournalPage() {
             </div>
 
             {loading ? (
-              <div className="rounded-[16px] border border-dashed border-[#eee3d6] py-12 text-center text-[13px] text-[#b89070]">Chargement du journal…</div>
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-start gap-3 rounded-[14px] border border-[#f1e6da] bg-[#fffdfb] p-4 animate-pulse">
+                    <div className="mt-1 h-3 w-3 shrink-0 rounded-full bg-[#e8d9c8]" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-1/3 rounded bg-[#e8d9c8]" />
+                      <div className="h-2 w-2/3 rounded bg-[#f1e6da]" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : filteredEvents.length === 0 ? (
               <div className="rounded-[16px] border border-dashed border-[#eee3d6] py-12 text-center">
                 <p className="text-[28px]">🗂️</p>

@@ -32,19 +32,18 @@ export class NotificationService {
     const recipients = Array.from(new Set(userIds));
     if (!recipients.length) return;
 
-    // Persist in-app notifications
-    const dbJobs = recipients.map((userId) =>
-      this.prisma.client.notification.create({
-        data: {
-          userId,
-          ticketId: payload.ticketId ?? null,
-          type: payload.type,
-          channel,
-          title: payload.title,
-          message: payload.message,
-        },
-      }),
-    );
+    // Guarantee DB persistence first with a single batch write
+    await this.prisma.client.notification.createMany({
+      data: recipients.map((userId) => ({
+        userId,
+        ticketId: payload.ticketId ?? null,
+        type: payload.type,
+        channel,
+        title: payload.title,
+        message: payload.message,
+      })),
+      skipDuplicates: true,
+    });
 
     // Fetch users with their notification preferences
     const users = await this.prisma.client.user.findMany({
@@ -88,7 +87,8 @@ export class NotificationService {
         }),
       );
 
-    await Promise.all([...dbJobs, ...emailJobs, ...whatsappJobs]);
+    // Fire-and-forget: failures in email/WhatsApp never block the caller
+    void Promise.allSettled([...emailJobs, ...whatsappJobs]);
   }
 
   listForUser(userId: string, options: ListOptions): Promise<Notification[]> {

@@ -1,10 +1,27 @@
 import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import compression from 'compression';
+import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 
+const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET'];
+
+function validateEnv() {
+  const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+  if (missing.length) {
+    throw new Error(`Variables d'environnement manquantes : ${missing.join(', ')}`);
+  }
+}
+
 async function bootstrap() {
+  validateEnv();
+
   const app = await NestFactory.create(AppModule);
+
+  app.use(helmet());
+  app.use(compression());
+
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
     credentials: true,
@@ -16,7 +33,6 @@ async function bootstrap() {
       const hasAuth = Boolean(req.headers?.authorization);
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const origin = req.headers?.origin ?? '-';
-
       console.log(
         `[HTTP] ${req.method} ${req.url} auth=${hasAuth ? 'yes' : 'no'} origin=${origin}`,
       );
@@ -34,7 +50,6 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT ?? 4000);
   const host = process.env.HOST ?? '127.0.0.1';
-  console.log(`Server is running on ${host}:${port}`);
 
   if (process.env.LOG_ROUTES === 'true') {
     const instance = app.getHttpAdapter().getInstance();
@@ -54,6 +69,7 @@ async function bootstrap() {
   }
 
   await app.listen(port, host);
+  console.log(`Server running on ${host}:${port}`);
 }
 
 void bootstrap();

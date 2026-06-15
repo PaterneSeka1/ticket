@@ -26,6 +26,7 @@ import {
 import { DashboardShell } from "../components/DashboardShell";
 import { getRedirectRouteForRole } from "../lib/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { PageSkeleton } from "./components/PageSkeleton";
 import { useTickets } from "../hooks/useTickets";
 import type { Ticket, TicketPriority, TicketStatus } from "@/api/types";
 import {
@@ -39,8 +40,6 @@ import {
 const PRIMARY_ACTION_BUTTON_CLASS =
   "inline-flex items-center justify-center rounded-full bg-[#f9b800] px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#352300] shadow-[0_8px_16px_rgba(249,184,0,0.18)] transition hover:bg-[#f2aa00] hover:shadow-[0_10px_20px_rgba(249,184,0,0.26)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9b800]/40 focus-visible:ring-offset-2 active:translate-y-px";
 
-// const SOLID_BUTTON_CLASS =
-//   "rounded-md px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white transition enabled:cursor-pointer disabled:cursor-not-allowed enabled:hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b1d10]/15 focus-visible:ring-offset-2 active:translate-y-px";
 
 const OUTLINE_PAGINATION_BUTTON_CLASS =
   "w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 enabled:hover:border-[#d29b55] enabled:hover:bg-[#fff5ec] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d29b55]/30 focus-visible:ring-offset-2 lg:w-auto";
@@ -187,13 +186,7 @@ export default function AdminDashboardPage() {
   }, [router, status, user]);
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
-        <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Préparation du tableau de bord…</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Préparation du tableau de bord…" />;
   }
 
   return (
@@ -236,7 +229,7 @@ function MobileTicketCard({ ticket, detailsHref }: { ticket: Ticket; detailsHref
 }
 
 export function AdminDashboardContent() {
-  const { tickets, loading } = useTickets(true);
+  const { tickets, loading, error, page, totalPages, total, limit, goToPage } = useTickets(true);
   const pathname = usePathname();
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 6 });
   const ticketListRoute = resolveTicketListRoute(pathname);
@@ -550,7 +543,7 @@ export function AdminDashboardContent() {
               Tickets actifs — SLA
             </p>
             <p className="mt-1 text-[11px] text-[#8a8176]">
-              {loading ? "Chargement des tickets…" : `${tickets.length} ticket(s)`}
+              {loading ? "Chargement des tickets…" : `${total} ticket(s)`}
             </p>
           </div>
 
@@ -587,7 +580,13 @@ export function AdminDashboardContent() {
             </thead>
 
             <tbody>
-              {loading && !paginatedRows.length ? (
+              {error ? (
+                <tr>
+                  <td colSpan={totalColumns} className="px-4 py-8 text-center text-sm text-red-600">
+                    {error}
+                  </td>
+                </tr>
+              ) : loading && !paginatedRows.length ? (
                 <tr>
                   <td colSpan={totalColumns} className="px-4 py-8 text-center text-sm text-[#6b5446]">
                     Chargement en cours…
@@ -618,37 +617,25 @@ export function AdminDashboardContent() {
         </div>
         <div className="mt-3 flex flex-col gap-3 rounded-[14px] border border-[#f1e6da] bg-[#fffdfb] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7b6655]">
-            {tickets.length} ticket(s) • page {table.getState().pagination.pageIndex + 1} /{" "}
-            {table.getPageCount() || 1}
+            {total} ticket(s) • page {page} / {totalPages || 1}
           </div>
           <div className="flex flex-col items-stretch gap-2 lg:flex-row lg:items-center lg:gap-2">
             <button
               type="button"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
               className={OUTLINE_PAGINATION_BUTTON_CLASS}
             >
               Précédent
             </button>
             <button
               type="button"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
               className={OUTLINE_PAGINATION_BUTTON_CLASS}
             >
               Suivant
             </button>
-            <select
-              value={table.getState().pagination.pageSize}
-              onChange={(event) => table.setPageSize(Number(event.target.value))}
-              className="h-8 w-full rounded-[10px] border border-[#e7ddd2] bg-white px-2 text-[11px] text-[#2b1d10] focus:border-[#d29b55] focus:outline-none lg:w-auto"
-            >
-              {[6, 12, 24].map((size) => (
-                <option key={size} value={size}>
-                  {size} / page
-                </option>
-              ))}
-            </select>
           </div>
         </div>
         <div className="space-y-3 lg:hidden">

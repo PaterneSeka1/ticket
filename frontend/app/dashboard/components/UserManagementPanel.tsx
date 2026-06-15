@@ -66,6 +66,7 @@ export function UserManagementPanel() {
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, string | null>>({});
   const [visiblePasswordIds, setVisiblePasswordIds] = useState<Set<string>>(() => new Set());
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
+  const [confirmToggleUser, setConfirmToggleUser] = useState<AuthenticatedUser | null>(null);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -103,6 +104,7 @@ export function UserManagementPanel() {
   }, [closeEditModal, loadUsers]);
 
   const handleToggleActive = async (user: AuthenticatedUser) => {
+    setConfirmToggleUser(null);
     setIsActing(true);
     try {
       const updated = user.isActive
@@ -377,7 +379,7 @@ export function UserManagementPanel() {
 
                                 <button
                                   type="button"
-                                  onClick={() => handleToggleActive(user)}
+                                  onClick={() => user.isActive ? setConfirmToggleUser(user) : handleToggleActive(user)}
                                   disabled={isActing}
                                   className={`rounded-md px-3 py-1.5 text-xs font-medium ${
                                     user.isActive
@@ -462,6 +464,42 @@ export function UserManagementPanel() {
               onCancel={closeEditModal}
               onSuccess={handleEditSuccess}
             />
+          </div>
+        </div>
+      )}
+
+      {confirmToggleUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.45)" }}
+          onClick={() => setConfirmToggleUser(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-[24px] bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-[#2b1d10]">Désactiver cet utilisateur ?</h3>
+            <p className="mt-2 text-sm text-[#7b6655]">
+              <span className="font-semibold">{confirmToggleUser.prenom} {confirmToggleUser.nom}</span> ne pourra plus se connecter.
+              Ses tickets existants restent intacts.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmToggleUser(null)}
+                className="rounded-md border border-[#d0d5dd] px-4 py-2 text-xs font-medium text-[#344054] hover:bg-[#f9fafb]"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleActive(confirmToggleUser)}
+                disabled={isActing}
+                className="rounded-md bg-[#b42318] px-4 py-2 text-xs font-semibold text-white hover:bg-[#932012] disabled:opacity-60"
+              >
+                Désactiver
+              </button>
+            </div>
           </div>
         </div>
       )}

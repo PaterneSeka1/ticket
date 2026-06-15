@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DashboardShell } from "../components/DashboardShell";
 import { getRedirectRouteForRole } from "../lib/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { PageSkeleton } from "../components/PageSkeleton";
 import { useTickets } from "@/app/dashboard/hooks/useTickets";
 import type { Ticket, TicketStatus } from "@/api/types";
 import {
@@ -124,13 +125,7 @@ export default function EmployeDashboardPage() {
   }, [personalTickets]);
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
-        <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Préparation de votre espace collaborateur…</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Préparation de votre espace collaborateur…" />;
   }
 
   const axisTickStyle = { fontSize: 12, fill: "#3c2f1e" };

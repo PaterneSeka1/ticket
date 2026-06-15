@@ -1,5 +1,13 @@
 export type UserRole = "SUPER_ADMIN" | "ADMIN" | "READER" | "EMPLOYE";
 
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export type NotificationType =
   | "TICKET_CREATED"
   | "TICKET_ASSIGNED"

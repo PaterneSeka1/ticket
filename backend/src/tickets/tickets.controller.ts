@@ -13,7 +13,10 @@ import {
 } from '@nestjs/common';
 import { AuthenticatedUserDto } from '../auth/dto/authenticated-user.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../auth/guards/roles.guard.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import { UserRole } from '../prisma/enums.js';
 import { TicketsService } from './tickets.service.js';
 import { CreateTicketDto } from './dto/create-ticket.dto.js';
 import { CreateTicketCommentDto } from './dto/create-ticket-comment.dto.js';
@@ -94,7 +97,12 @@ export class TicketsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) {
-    return this.ticketsService.remove(id);
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUserDto,
+  ) {
+    return this.ticketsService.remove(id, user);
   }
 }

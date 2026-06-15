@@ -1,4 +1,5 @@
-import { IsEnum, IsISO8601, IsMongoId, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsISO8601, IsMongoId, IsOptional, Max, Min } from 'class-validator';
 import { TicketPriority, TicketStatus } from '../../prisma/enums.js';
 
 export class TicketFiltersDto {
@@ -33,4 +34,17 @@ export class TicketFiltersDto {
   @IsOptional()
   @IsISO8601()
   createdBefore?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
 }

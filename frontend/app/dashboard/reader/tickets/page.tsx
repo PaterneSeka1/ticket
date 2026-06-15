@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "../../components/DashboardShell";
+import { PageSkeleton } from "../../components/PageSkeleton";
 import { getRedirectRouteForRole } from "../../lib/api";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { TicketTablePanel } from "@/app/dashboard/components/TicketTablePanel";
@@ -11,7 +12,7 @@ import { useTickets } from "@/app/dashboard/hooks/useTickets";
 export default function ReaderTicketsPage() {
   const router = useRouter();
   const { user, status } = useCurrentUser();
-  const { tickets, loading } = useTickets(status === "ready");
+  const { tickets, loading, lastUpdatedAt } = useTickets(status === "ready");
 
   useEffect(() => {
     if (status !== "ready" || !user) return;
@@ -21,18 +22,12 @@ export default function ReaderTicketsPage() {
   }, [status, user, router]);
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
-        <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Préparation des tickets…</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Préparation des tickets…" />;
   }
 
   return (
     <DashboardShell user={user} title="Tous les tickets" subtitle="Aperçu global — lecture seule">
-      <TicketTablePanel tickets={tickets} loading={loading} showExports={false} />
+      <TicketTablePanel tickets={tickets} loading={loading} showExports={false} lastUpdatedAt={lastUpdatedAt} />
     </DashboardShell>
   );
 }

@@ -25,7 +25,7 @@ export function DashboardUserProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<FetchStatus>("loading");
 
   useEffect(() => {
-    const token = sessionStorage.getItem("vdm_access_token");
+    const token = localStorage.getItem("vdm_access_token");
     if (!token) {
       router.replace("/login");
       return;

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DashboardShell } from "../components/DashboardShell";
 import { getRedirectRouteForRole } from "../lib/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { PageSkeleton } from "../components/PageSkeleton";
 import { AdminDashboardContent } from "../admin/page";
 
 export default function SuperAdminDashboardPage() {
@@ -19,13 +20,7 @@ export default function SuperAdminDashboardPage() {
   }, [router, status, user]);
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
-        <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Préparation du tableau de bord…</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Préparation du tableau de bord…" />;
   }
 
   return (

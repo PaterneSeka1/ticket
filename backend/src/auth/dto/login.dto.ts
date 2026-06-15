@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  MaxLength,
   registerDecorator,
   ValidationArguments,
   ValidationOptions,
@@ -12,15 +13,18 @@ export class LoginDto {
   @IsOptional()
   @IsEmail()
   @IsString()
+  @MaxLength(254)
   @EmailOrMatricule()
   email?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   matricule?: string;
 
   @IsNotEmpty()
   @IsString()
+  @MaxLength(500)
   passwordHash!: string;
 }
 

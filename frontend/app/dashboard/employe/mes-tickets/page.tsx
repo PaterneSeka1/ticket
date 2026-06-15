@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/app/dashboard/components/DashboardShell";
+import { PageSkeleton } from "@/app/dashboard/components/PageSkeleton";
 import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { TicketTablePanel } from "@/app/dashboard/components/TicketTablePanel";
@@ -21,13 +22,7 @@ export default function EmployeMesTicketsPage() {
   }, [status, user, router]);
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
-        <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Chargement de vos tickets…</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Chargement de vos tickets…" />;
   }
 
   return (
@@ -50,7 +45,12 @@ export default function EmployeMesTicketsPage() {
           </div>
         </div>
         <div className="overflow-hidden rounded-[26px] border border-[#f1e5d7] bg-[#fffaf5] p-5 shadow-[0_18px_40px_rgba(43,29,16,0.05)]">
-          <TicketTablePanel tickets={tickets} loading={loading} showExports={false} />
+          <TicketTablePanel
+            tickets={tickets}
+            loading={loading}
+            showExports={false}
+            emptyAction={{ label: "Créer mon premier ticket", href: "/dashboard/employe/nouveau-ticket" }}
+          />
         </div>
       </div>
     </DashboardShell>

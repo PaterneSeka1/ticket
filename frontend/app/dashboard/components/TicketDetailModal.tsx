@@ -229,6 +229,7 @@ export function TicketDetailModal({
         <button
           type="button"
           onClick={onClose}
+          aria-label="Fermer"
           className="absolute right-4 top-4 rounded-full border border-[#eee3d6] p-1.5 text-[#7b6655] hover:bg-[#fff3e6] transition"
         >
           <X className="h-4 w-4" />

@@ -193,7 +193,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     } catch {
       // ignore errors, we still clear storage
     } finally {
-      sessionStorage.removeItem("vdm_access_token");
+      localStorage.removeItem("vdm_access_token");
       localStorage.removeItem("employee");
       window.location.href = "/login";
     }

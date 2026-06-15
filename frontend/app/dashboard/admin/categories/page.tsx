@@ -6,6 +6,7 @@ import { DashboardShell } from "../../components/DashboardShell";
 import { getRedirectRouteForRole } from "../../lib/api";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { CategoryManagementPanel } from "../../components/CategoryManagementPanel";
+import { PageSkeleton } from "../../components/PageSkeleton";
 
 export default function AdminCategoriesPage() {
   const router = useRouter();
@@ -19,13 +20,7 @@ export default function AdminCategoriesPage() {
   }, [router, status, user]);
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
-        <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Préparation de la gestion des catégories…</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Préparation de la gestion des catégories…" />;
   }
 
   return (

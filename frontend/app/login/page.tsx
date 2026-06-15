@@ -44,7 +44,7 @@ function LoginContent() {
       }
 
       const response = await login(payload);
-      sessionStorage.setItem("vdm_access_token", response.accessToken);
+      localStorage.setItem("vdm_access_token", response.accessToken);
       localStorage.setItem("employee", JSON.stringify(response.user));
 
       toast.success("Connexion réussie");

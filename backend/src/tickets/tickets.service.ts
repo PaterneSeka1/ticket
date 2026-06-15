@@ -50,6 +50,7 @@ const userSelect = {
   createdById: true,
 } as const;
 
+// Include complet — utilisé uniquement sur findOne (détail ticket)
 const ticketInclude: Prisma.TicketInclude = {
   attachments: true,
   category: { include: { serviceType: true } },
@@ -64,6 +65,16 @@ const ticketInclude: Prisma.TicketInclude = {
     orderBy: { createdAt: 'asc' as const },
     include: { author: { select: userSelect } },
   },
+} as const;
+
+// Include allégé — utilisé sur les listes (findAll, findMine, findReceivedByDsi)
+// Exclut commentaires et historique de statuts pour éviter les requêtes N+1
+const ticketSummaryInclude: Prisma.TicketInclude = {
+  attachments: { select: { id: true, filename: true, mimeType: true, size: true, url: true } },
+  category: { include: { serviceType: true } },
+  serviceType: true,
+  assignedResponsible: true,
+  createdBy: { select: userSelect },
 } as const;
 
 type TicketWithRelations = Prisma.TicketGetPayload<{
@@ -102,6 +113,7 @@ export class TicketsService {
   ) {}
 
   private readonly ticketInclude = ticketInclude;
+  private readonly ticketSummaryInclude = ticketSummaryInclude;
 
   private minutesBetween(from: Date, to: Date) {
     const diffMs = to.getTime() - from.getTime();
@@ -372,24 +384,12 @@ export class TicketsService {
 
   async findAll(filters: TicketFiltersDto) {
     const where: Prisma.TicketWhereInput = {};
-    if (filters.status) {
-      where.status = filters.status;
-    }
-    if (filters.priority) {
-      where.priority = filters.priority;
-    }
-    if (filters.serviceTypeId) {
-      where.serviceTypeId = filters.serviceTypeId;
-    }
-    if (filters.categoryId) {
-      where.categoryId = filters.categoryId;
-    }
-    if (filters.assignedResponsibleId) {
-      where.assignedResponsibleId = filters.assignedResponsibleId;
-    }
-    if (filters.createdById) {
-      where.createdById = filters.createdById;
-    }
+    if (filters.status) where.status = filters.status;
+    if (filters.priority) where.priority = filters.priority;
+    if (filters.serviceTypeId) where.serviceTypeId = filters.serviceTypeId;
+    if (filters.categoryId) where.categoryId = filters.categoryId;
+    if (filters.assignedResponsibleId) where.assignedResponsibleId = filters.assignedResponsibleId;
+    if (filters.createdById) where.createdById = filters.createdById;
     if (filters.createdAfter || filters.createdBefore) {
       where.createdAt = {
         gte: filters.createdAfter ? new Date(filters.createdAfter) : undefined,
@@ -397,22 +397,37 @@ export class TicketsService {
       };
     }
 
-    const tickets = await this.prisma.client.ticket.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: this.ticketInclude,
-    });
+    const limit = filters.limit ?? 25;
+    const page = filters.page ?? 1;
+    const skip = (page - 1) * limit;
+
+    const [tickets, total] = await Promise.all([
+      this.prisma.client.ticket.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: this.ticketSummaryInclude,
+        skip,
+        take: limit,
+      }),
+      this.prisma.client.ticket.count({ where }),
+    ]);
 
     const policies = await this.getActiveSlaPoliciesByPriority();
     const now = new Date();
-    return tickets.map((ticket) => this.withSla(ticket, now, policies));
+    return {
+      data: tickets.map((ticket) => this.withSla(ticket, now, policies)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findMine(userId: string) {
     const tickets = await this.prisma.client.ticket.findMany({
       where: { createdById: userId },
       orderBy: { createdAt: 'desc' },
-      include: this.ticketInclude,
+      include: this.ticketSummaryInclude,
     });
     const policies = await this.getActiveSlaPoliciesByPriority();
     const now = new Date();
@@ -426,7 +441,7 @@ export class TicketsService {
     const tickets = await this.prisma.client.ticket.findMany({
       where: { assignedResponsibleId: user.id },
       orderBy: { createdAt: 'desc' },
-      include: this.ticketInclude,
+      include: this.ticketSummaryInclude,
     });
     const policies = await this.getActiveSlaPoliciesByPriority();
     const now = new Date();
@@ -1196,15 +1211,12 @@ export class TicketsService {
       .toString()
       .padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
     const prefix = `TK-${datePart}-`;
-    const tickets = await this.prisma.client.ticket.findMany({
+    const last = await this.prisma.client.ticket.findFirst({
       where: { ticketNumber: { startsWith: prefix } },
+      orderBy: { ticketNumber: 'desc' },
       select: { ticketNumber: true },
     });
-    const highestOrder = tickets.reduce((highest, ticket) => {
-      const suffix = ticket.ticketNumber.slice(prefix.length);
-      if (!/^\d+$/.test(suffix)) return highest;
-      return Math.max(highest, Number(suffix));
-    }, 0);
-    return `${prefix}${(highestOrder + 1).toString().padStart(3, '0')}`;
+    const next = last ? Number(last.ticketNumber.slice(prefix.length)) + 1 : 1;
+    return `${prefix}${next.toString().padStart(3, '0')}`;
   }
 }

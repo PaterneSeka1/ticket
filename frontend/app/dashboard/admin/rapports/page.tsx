@@ -23,6 +23,7 @@ import { getRedirectRouteForRole } from "@/app/dashboard/lib/api";
 import { useCurrentUser } from "@/app/dashboard/hooks/useCurrentUser";
 import { useTickets } from "@/app/dashboard/hooks/useTickets";
 import type { Ticket, TicketPriority, TicketStatus } from "@/api/types";
+import { PageSkeleton } from "../../components/PageSkeleton";
 
 const statusPalette: Partial<Record<TicketStatus, { label: string; color: string }>> = {
   RECU: { label: "Reçu", color: "#d9d9d9" },
@@ -282,13 +283,7 @@ export default function AdminRapportsPage() {
   });
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
-        <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Préparation des rapports…</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Préparation des rapports…" />;
   }
 
   const canExport = user.exportReport !== false;

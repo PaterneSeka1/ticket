@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Download, FileText } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -64,14 +65,25 @@ const resolveAssigneeLabel = (ticket: Ticket) => {
   return ticket.assignedService ?? "—";
 };
 
+interface ServerPagination {
+  page: number;
+  totalPages: number;
+  total: number;
+  limit: number;
+  onPageChange: (page: number) => void;
+}
+
 interface TicketTablePanelProps {
   tickets: Ticket[];
   loading: boolean;
   ticketFilter?: (ticket: Ticket) => boolean;
   showExports?: boolean;
+  serverPagination?: ServerPagination;
+  emptyAction?: { label: string; href: string };
+  lastUpdatedAt?: Date | null;
 }
 
-export function TicketTablePanel({ tickets, loading, ticketFilter, showExports = true }: TicketTablePanelProps) {
+export function TicketTablePanel({ tickets, loading, ticketFilter, showExports = true, serverPagination, emptyAction, lastUpdatedAt }: TicketTablePanelProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -428,10 +440,75 @@ export function TicketTablePanel({ tickets, loading, ticketFilter, showExports =
           </select>
         </div>
 
+        {(statusFilter !== "Tous" || priorityFilter !== "Tous" || serviceFilter !== "Tous services" || globalFilter) && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#8b7765]">Filtres actifs :</span>
+            {globalFilter && (
+              <button
+                type="button"
+                onClick={() => setGlobalFilter("")}
+                className="inline-flex items-center gap-1 rounded-full border border-[#d9ccbe] bg-[#f7f1ea] px-2.5 py-1 text-[11px] text-[#5c4a38] hover:bg-[#eee3d6] transition"
+              >
+                Recherche : &ldquo;{globalFilter}&rdquo; ×
+              </button>
+            )}
+            {statusFilter !== "Tous" && (
+              <button
+                type="button"
+                onClick={() => setStatusFilter("Tous")}
+                className="inline-flex items-center gap-1 rounded-full border border-[#d9ccbe] bg-[#f7f1ea] px-2.5 py-1 text-[11px] text-[#5c4a38] hover:bg-[#eee3d6] transition"
+              >
+                Statut : {statusLabels[statusFilter as TicketStatus]?.label ?? statusFilter} ×
+              </button>
+            )}
+            {priorityFilter !== "Tous" && (
+              <button
+                type="button"
+                onClick={() => setPriorityFilter("Tous")}
+                className="inline-flex items-center gap-1 rounded-full border border-[#d9ccbe] bg-[#f7f1ea] px-2.5 py-1 text-[11px] text-[#5c4a38] hover:bg-[#eee3d6] transition"
+              >
+                Priorité : {priorityLabels[priorityFilter as TicketPriority]?.label ?? priorityFilter} ×
+              </button>
+            )}
+            {serviceFilter !== "Tous services" && (
+              <button
+                type="button"
+                onClick={() => setServiceFilter("Tous services")}
+                className="inline-flex items-center gap-1 rounded-full border border-[#d9ccbe] bg-[#f7f1ea] px-2.5 py-1 text-[11px] text-[#5c4a38] hover:bg-[#eee3d6] transition"
+              >
+                Service : {serviceFilter} ×
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => { setGlobalFilter(""); setStatusFilter("Tous"); setPriorityFilter("Tous"); setServiceFilter("Tous services"); }}
+              className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#b86112] hover:underline"
+            >
+              Tout effacer
+            </button>
+          </div>
+        )}
+
         <div className="space-y-4 lg:hidden max-w-[420px] mx-auto w-full">
           {mobileRows.length === 0 ? (
-            <div className="rounded-[18px] border border-[#eee3d6] bg-white p-4 text-center text-sm text-[#6b5446]">
-              {loading ? "Chargement en cours…" : "Aucun ticket disponible."}
+            <div className="rounded-[18px] border border-[#eee3d6] bg-white p-6 text-center">
+              {loading ? (
+                <p className="text-sm text-[#6b5446]">Chargement en cours…</p>
+              ) : (
+                <>
+                  <p className="text-[28px]">🎫</p>
+                  <p className="mt-2 text-sm font-semibold text-[#2b1d10]">Aucun ticket</p>
+                  <p className="mt-1 text-xs text-[#7b6655]">Aucun résultat pour les filtres sélectionnés.</p>
+                  {emptyAction && (
+                    <Link
+                      href={emptyAction.href}
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#f4b90a] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#2b1d10] shadow-sm hover:bg-[#e0a800] transition"
+                    >
+                      {emptyAction.label}
+                    </Link>
+                  )}
+                </>
+              )}
             </div>
           ) : (
             mobileRows.map((ticket) => {
@@ -520,8 +597,18 @@ export function TicketTablePanel({ tickets, loading, ticketFilter, showExports =
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={totalColumns} className="px-4 py-8 text-center text-sm text-[#6b5446]">
-                      Aucun ticket disponible.
+                    <td colSpan={totalColumns} className="px-6 py-10 text-center">
+                      <p className="text-[28px]">🎫</p>
+                      <p className="mt-2 text-sm font-semibold text-[#2b1d10]">Aucun ticket</p>
+                      <p className="mt-1 text-xs text-[#7b6655]">Aucun résultat pour les filtres sélectionnés.</p>
+                      {emptyAction && (
+                        <Link
+                          href={emptyAction.href}
+                          className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#f4b90a] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#2b1d10] shadow-sm hover:bg-[#e0a800] transition"
+                        >
+                          {emptyAction.label}
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 )}
@@ -530,43 +617,76 @@ export function TicketTablePanel({ tickets, loading, ticketFilter, showExports =
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 rounded-[16px] border border-[#f1e6da] bg-[#fffdfb] px-4 py-3 md:flex-row md:items-center md:justify-between">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7b6655]">
-            {filteredCount} résultat(s) • page {table.getState().pagination.pageIndex + 1} / {table.getPageCount() || 1}
+        {serverPagination ? (
+          <div className="flex flex-col gap-2 rounded-[16px] border border-[#f1e6da] bg-[#fffdfb] px-4 py-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7b6655]">
+              <span>{serverPagination.total} ticket(s) • page {serverPagination.page} / {serverPagination.totalPages || 1}</span>
+              {lastUpdatedAt && (
+                <span className="font-normal normal-case tracking-normal text-[#b89070]">
+                  · à jour {lastUpdatedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-center md:gap-2">
+              <button
+                type="button"
+                onClick={() => serverPagination.onPageChange(serverPagination.page - 1)}
+                disabled={serverPagination.page <= 1}
+                className="w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40 md:w-auto"
+              >
+                Précédent
+              </button>
+              <button
+                type="button"
+                onClick={() => serverPagination.onPageChange(serverPagination.page + 1)}
+                disabled={serverPagination.page >= serverPagination.totalPages}
+                className="w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40 md:w-auto"
+              >
+                Suivant
+              </button>
+            </div>
           </div>
-
-          <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-center md:gap-2">
-            <button
-              type="button"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-              className="w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40 md:w-auto"
-            >
-              Précédent
-            </button>
-
-            <button
-              type="button"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-              className="w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40 md:w-auto"
-            >
-              Suivant
-            </button>
-
-            <select
-              value={table.getState().pagination.pageSize}
-              onChange={(event) => table.setPageSize(Number(event.target.value))}
-              className="h-8 w-full rounded-[10px] border border-[#e7ddd2] bg-white px-2 text-[11px] text-[#2b1d10] focus:border-[#d29b55] focus:outline-none md:w-auto"
-            >
-              {[3, 6, 12, 24].map((size) => (
-                <option key={size} value={size}>
-                  {size} / page
-                </option>
-              ))}
-            </select>
+        ) : (
+          <div className="flex flex-col gap-2 rounded-[16px] border border-[#f1e6da] bg-[#fffdfb] px-4 py-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7b6655]">
+              <span>{filteredCount} résultat(s) • page {table.getState().pagination.pageIndex + 1} / {table.getPageCount() || 1}</span>
+              {lastUpdatedAt && (
+                <span className="font-normal normal-case tracking-normal text-[#b89070]">
+                  · à jour {lastUpdatedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-center md:gap-2">
+              <button
+                type="button"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className="w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40 md:w-auto"
+              >
+                Précédent
+              </button>
+              <button
+                type="button"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className="w-full rounded-[10px] border border-[#dcccbc] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2b1d10] transition disabled:opacity-40 md:w-auto"
+              >
+                Suivant
+              </button>
+              <select
+                value={table.getState().pagination.pageSize}
+                onChange={(event) => table.setPageSize(Number(event.target.value))}
+                className="h-8 w-full rounded-[10px] border border-[#e7ddd2] bg-white px-2 text-[11px] text-[#2b1d10] focus:border-[#d29b55] focus:outline-none md:w-auto"
+              >
+                {[3, 6, 12, 24].map((size) => (
+                  <option key={size} value={size}>
+                    {size} / page
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        )}
       </div>
       {selectedTicket && (
         <TicketDetailModal

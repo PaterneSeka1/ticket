@@ -1,4 +1,4 @@
-import { IsEnum, IsMongoId, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsMongoId, IsOptional, IsString, MaxLength } from 'class-validator';
 import { TicketStatus } from '../../prisma/enums.js';
 
 export class UpdateTicketStatusDto {
@@ -7,6 +7,7 @@ export class UpdateTicketStatusDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   resolutionComment?: string;
 
   @IsOptional()

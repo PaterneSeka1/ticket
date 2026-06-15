@@ -16,6 +16,7 @@ import {
 } from "@/api/resolution";
 import { ApiError } from "@/api/client";
 import toast from "react-hot-toast";
+import { PageSkeleton } from "../../components/PageSkeleton";
 
 // ---------------------------------------------------------------------------
 // Toggle switch (pill ON/OFF — no external lib)
@@ -80,6 +81,7 @@ function ServicesCard() {
   const [saving, setSaving] = useState(false);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<ResolutionResponsible | null>(null);
 
   const loadList = async () => {
     setLoadingList(true);
@@ -333,7 +335,7 @@ function ServicesCard() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDelete(r)}
+                      onClick={() => setConfirmDeleteId(r)}
                       disabled={deletingId === r.id}
                       className="inline-flex h-7 items-center rounded-[8px] border border-[#f0c2bb] bg-white px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b42318] transition hover:bg-[#fff3f2] disabled:opacity-60"
                     >
@@ -346,6 +348,40 @@ function ServicesCard() {
           </div>
         )}
       </div>
+
+      {confirmDeleteId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.45)" }}
+          onClick={() => setConfirmDeleteId(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-[24px] bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-[#2b1d10]">Supprimer ce service ?</h3>
+            <p className="mt-2 text-sm text-[#7b6655]">
+              <span className="font-semibold">{confirmDeleteId.firstName} {confirmDeleteId.lastName}</span> sera retiré des services assignataires. Les tickets déjà assignés ne seront pas affectés.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteId(null)}
+                className="rounded-md border border-[#d0d5dd] px-4 py-2 text-xs font-medium text-[#344054] hover:bg-[#f9fafb]"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => { handleDelete(confirmDeleteId); setConfirmDeleteId(null); }}
+                className="rounded-md bg-[#b42318] px-4 py-2 text-xs font-semibold text-white hover:bg-[#932012]"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -462,13 +498,7 @@ export default function SuperAdminConfigurationPage() {
   }, [router, status, user]);
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
-        <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">Préparation de la configuration…</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Préparation de la configuration…" />;
   }
 
   return (

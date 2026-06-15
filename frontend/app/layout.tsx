@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ticketing Vedem",
-  description: "Landing page d'accueil avec les couleurs du login pour Ticketing Vedem.",
+  title: "Ticketing VEDEM",
+  description: "Système de gestion des tickets — Veilleur des Médias.",
 };
 
 export default function RootLayout({
@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="fr">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

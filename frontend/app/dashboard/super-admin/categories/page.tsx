@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { DashboardShell } from "../../components/DashboardShell";
 import { getRedirectRouteForRole } from "../../lib/api";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
+import { PageSkeleton } from "../../components/PageSkeleton";
 import { CategoryManagementPanel } from "../../components/CategoryManagementPanel";
 import { createCategory } from "@/api/tickets";
 import type { TicketType } from "@/api/types";
@@ -109,15 +110,7 @@ export default function SuperAdminCategoriesPage() {
   };
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
-        <div className="vdm-card w-full max-w-sm rounded-[32px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">
-            Préparation de la gestion des catégories…
-          </p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Préparation de la gestion des catégories…" />;
   }
 
   const labelClass =

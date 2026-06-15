@@ -8,6 +8,7 @@ import { fetchConcernedProducts } from "@/api/products";
 import { createTicket, fetchCategories } from "@/api/tickets";
 import type { CreateTicketPayload } from "@/api/tickets";
 import type { ConcernedProduct, TicketCategory, TicketPriority, TicketType } from "@/api/types";
+import { PageSkeleton } from "./PageSkeleton";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -306,9 +307,10 @@ export default function NewTicketPage() {
           : {}),
       };
 
-      await createTicket(payload);
+      const created = await createTicket(payload);
 
-      toast.success("Ticket créé avec succès.");
+      const ref = created?.ticketNumber ?? created?.id;
+      toast.success(ref ? `Ticket ${ref} créé avec succès.` : "Ticket créé avec succès.");
       handleReset();
       router.push(myTicketsRoute);
     } catch (error) {
@@ -321,15 +323,7 @@ export default function NewTicketPage() {
   };
 
   if (status !== "ready" || !user) {
-    return (
-      <div className="vdm-landing flex min-h-screen items-center justify-center px-4 text-[var(--vdm-dark)]">
-        <div className="vdm-card w-full max-w-sm rounded-[24px] p-8 text-center">
-          <p className="text-sm text-[var(--vdm-muted)]">
-            Préparation du formulaire de ticket…
-          </p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton message="Préparation du formulaire de ticket…" />;
   }
 
   const labelClass =

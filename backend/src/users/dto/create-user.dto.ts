@@ -6,28 +6,34 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  MaxLength,
 } from 'class-validator';
 import { UserRole } from '../../prisma/enums.js';
 
 export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
+  @MaxLength(100)
   nom!: string;
 
   @IsNotEmpty()
   @IsString()
+  @MaxLength(100)
   prenom!: string;
 
   @IsEmail()
   @IsString()
+  @MaxLength(254)
   email!: string;
 
   @IsNotEmpty()
   @IsString()
+  @MaxLength(50)
   matricule!: string;
 
   @IsNotEmpty()
   @IsString()
+  @MaxLength(500)
   passwordHash!: string;
 
   @IsOptional()
@@ -54,6 +60,7 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(20)
   phone?: string;
 
   @IsOptional()

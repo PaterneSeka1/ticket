@@ -1,5 +1,6 @@
 import { apiRequest } from "./client";
 import type {
+  PaginatedResult,
   Ticket,
   TicketCategory,
   TicketPriority,
@@ -65,7 +66,20 @@ export function createTicket(payload: CreateTicketPayload) {
   });
 }
 
-export function fetchTickets(filters?: Record<string, string | number | undefined>) {
+export interface TicketFilters {
+  status?: TicketStatus;
+  priority?: TicketPriority;
+  serviceTypeId?: string;
+  categoryId?: string;
+  assignedResponsibleId?: string;
+  createdById?: string;
+  createdAfter?: string;
+  createdBefore?: string;
+  page?: number;
+  limit?: number;
+}
+
+export function fetchTickets(filters?: TicketFilters) {
   const query = filters
     ? "?" +
       Object.entries(filters)
@@ -73,7 +87,7 @@ export function fetchTickets(filters?: Record<string, string | number | undefine
         .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
         .join("&")
     : "";
-  return apiRequest<Ticket[]>(`/tickets${query}`);
+  return apiRequest<PaginatedResult<Ticket>>(`/tickets${query}`);
 }
 
 export function fetchTicket(id: string) {

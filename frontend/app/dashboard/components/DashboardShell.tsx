@@ -26,11 +26,18 @@ export function DashboardShell({
     .filter(Boolean)
     .join(" ");
 
+  const isReader = user.role === "READER";
+
   return (
     <section className={sectionClasses}>
       <header className="space-y-4">
-        <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#b86112]">Ticketing Vedem</p>
+          {isReader && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-[#e0d7cf] bg-[#f7f3ef] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#7b6655]">
+              🔒 Lecture seule
+            </span>
+          )}
         </div>
         {title && (
           <div className="space-y-1">

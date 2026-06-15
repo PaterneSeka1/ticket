@@ -25,15 +25,15 @@ interface ApiRequestOptions extends RequestInit {
 }
 
 function getToken(): string | null {
-  if (typeof sessionStorage === "undefined") {
+  if (typeof localStorage === "undefined") {
     return null;
   }
-  return sessionStorage.getItem("vdm_access_token");
+  return localStorage.getItem("vdm_access_token");
 }
 
 function clearToken() {
-  if (typeof sessionStorage === "undefined") return;
-  sessionStorage.removeItem("vdm_access_token");
+  if (typeof localStorage === "undefined") return;
+  localStorage.removeItem("vdm_access_token");
 }
 
 export async function apiRequest<T = unknown>(
