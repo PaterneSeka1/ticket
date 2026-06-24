@@ -26,7 +26,7 @@ import {
 import { DashboardShell } from "../components/DashboardShell";
 import { getRedirectRouteForRole } from "../lib/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import { PageSkeleton } from "./components/PageSkeleton";
+import { PageSkeleton } from "../components/PageSkeleton";
 import { useTickets } from "../hooks/useTickets";
 import type { Ticket, TicketPriority, TicketStatus } from "@/api/types";
 import {

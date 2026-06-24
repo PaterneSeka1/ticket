@@ -5,7 +5,7 @@ import compression from 'compression';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 
-const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET'];
+const REQUIRED_ENV_VARS = ['DATABASE_URL'];
 
 function validateEnv() {
   const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);

@@ -42,7 +42,6 @@ export class NotificationService {
         title: payload.title,
         message: payload.message,
       })),
-      skipDuplicates: true,
     });
 
     // Fetch users with their notification preferences
